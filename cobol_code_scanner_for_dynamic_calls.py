@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 """
-COBOL Caller-Callee Scanner for Manta Data Lineage
-==================================================
+COBOL Caller-Callee Scanner for Manta Data Lineage - Version 2
+==============================================================
 
 This script scans COBOL files to identify caller-callee relationships between
 main programs and sub-programs, generating output compatible with IBM Manta
 Data Lineage scanner.
 
-Features:
+Key Features:
 - Recursive directory scanning
-- COBOL program identification
+- COBOL program identification  
 - CALL statement parsing (static and dynamic)
-- Variable-based call tracking
-- Manta-compatible output format
+- Enhanced variable-based call tracking with VALUE clause support
+- Manta-compatible CSV output (PROGRAM;VARIABLE;SUB-PROGRAM-NAME format)
 - Comprehensive error handling and logging
+- Multiple output formats for validation and debugging
 
+Version: 2.0.0
 Author: Adi Bandaru
-Version: 1.0.0
+Manta Compatibility: IBM Manta Data Lineage Scanner Guide compliant
 """
 
 import re
@@ -79,6 +81,7 @@ class ScanResults:
 class CobolCallScanner:
     """
     Main scanner class for identifying COBOL caller-callee relationships
+    Compatible with IBM Manta Data Lineage Scanner requirements
     """
     
     def __init__(self, output_dir: str = "output"):
@@ -88,7 +91,7 @@ class CobolCallScanner:
         # COBOL file extensions
         self.cobol_extensions = {'.cbl', '.cob', '.cobol', '.cpy', '.copy'}
         
-        # Regex patterns for COBOL parsing
+        # Enhanced regex patterns for COBOL parsing
         self.patterns = {
             'program_id': re.compile(
                 r'^\s*PROGRAM-ID\.\s+([A-Z0-9\-_]+)',
@@ -99,7 +102,7 @@ class CobolCallScanner:
                 re.IGNORECASE | re.MULTILINE
             ),
             'call_dynamic': re.compile(
-                r'^\s*CALL\s+([A-Z0-9\-_]+)\s*(?:USING|$)',
+                r'^\s*CALL\s+([A-Z0-9\-_]+)(?:\s+USING|\s*$|\s*\.)',
                 re.IGNORECASE | re.MULTILINE
             ),
             'copy_statement': re.compile(
@@ -125,6 +128,20 @@ class CobolCallScanner:
             'move_statement': re.compile(
                 r'^\s*MOVE\s+["\']([A-Z0-9\-_]+)["\']\s+TO\s+([A-Z0-9\-_]+)',
                 re.IGNORECASE | re.MULTILINE
+            ),
+            # Additional patterns for better COBOL parsing
+            'move_literal': re.compile(
+                r'^\s*MOVE\s+([A-Z0-9\-_]+)\s+TO\s+([A-Z0-9\-_]+)',
+                re.IGNORECASE | re.MULTILINE
+            ),
+            'value_clause': re.compile(
+                r'^\s*\d{2}\s+([A-Z0-9\-_]+).*?VALUE\s+["\']([A-Z0-9\-_]+)["\']',
+                re.IGNORECASE | re.MULTILINE
+            ),
+            # Pattern for VALUE without quotes
+            'value_clause_unquoted': re.compile(
+                r'^\s*\d{2}\s+([A-Z0-9\-_]+).*?VALUE\s+([A-Z0-9\-_]+)',
+                re.IGNORECASE | re.MULTILINE
             )
         }
         
@@ -138,7 +155,7 @@ class CobolCallScanner:
             'errors': 0
         }
         
-        # Variable to program name mappings
+        # Variable to program name mappings for dynamic call resolution
         self.variable_mappings: Dict[str, str] = {}
 
     def scan_directory(self, directory: str, recursive: bool = True) -> ScanResults:
@@ -218,7 +235,7 @@ class CobolCallScanner:
         return sorted(cobol_files)
 
     def _parse_cobol_file(self, file_path: Path) -> Optional[CobolProgram]:
-        """Parse a COBOL file to extract program information"""
+        """Parse a COBOL file to extract program information and build variable mappings"""
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
@@ -241,11 +258,47 @@ class CobolCallScanner:
         copy_matches = self.patterns['copy_statement'].findall(content)
         copybooks.extend(copy_matches)
         
-        # Build variable to program mappings from MOVE statements
+        # Build variable to program mappings from MOVE statements (quoted literals)
         move_matches = self.patterns['move_statement'].findall(content)
         for program_name, variable_name in move_matches:
             full_key = f"{program_id}.{variable_name}"
             self.variable_mappings[full_key] = program_name
+            # Also add without program prefix for cross-program resolution
+            self.variable_mappings[variable_name] = program_name
+        
+        # Handle MOVE statements with unquoted literals
+        # MOVE PROGRAM-NAME TO VARIABLE
+        literal_moves = self.patterns['move_literal'].findall(content)
+        for source_value, target_variable in literal_moves:
+            # Only consider if source looks like a program name (all caps, no quotes)
+            if (source_value.isupper() and 
+                not source_value.startswith('"') and 
+                len(source_value) <= 8 and  # COBOL program names typically <= 8 chars
+                not source_value.isdigit()):  # Not a numeric literal
+                full_key = f"{program_id}.{target_variable}"
+                self.variable_mappings[full_key] = source_value
+                self.variable_mappings[target_variable] = source_value
+        
+        # Handle VALUE clauses in variable definitions (quoted)
+        # Example: 01 WS-PROG-NAME PIC X(8) VALUE 'SUBPROG'.
+        value_matches = self.patterns['value_clause'].findall(content)
+        for variable_name, program_name in value_matches:
+            full_key = f"{program_id}.{variable_name}"
+            self.variable_mappings[full_key] = program_name
+            self.variable_mappings[variable_name] = program_name
+            
+        # Handle VALUE clauses without quotes
+        # Example: 01 WS-PROG-NAME PIC X(8) VALUE SUBPROG.
+        value_unquoted_matches = self.patterns['value_clause_unquoted'].findall(content)
+        for variable_name, program_name in value_unquoted_matches:
+            # Skip if already captured by quoted version or if it's a numeric/special value
+            if (f"{program_id}.{variable_name}" not in self.variable_mappings and
+                program_name.isupper() and 
+                not program_name.isdigit() and
+                program_name not in ['ZERO', 'ZEROS', 'SPACE', 'SPACES', 'LOW-VALUE', 'HIGH-VALUE']):
+                full_key = f"{program_id}.{variable_name}"
+                self.variable_mappings[full_key] = program_name
+                self.variable_mappings[variable_name] = program_name
         
         return CobolProgram(
             name=program_id,
@@ -279,7 +332,7 @@ class CobolCallScanner:
             if not line or line.startswith('*') or line.startswith('//'):
                 continue
             
-            # Check for static CALL statements
+            # Check for static CALL statements first
             static_match = self.patterns['call_static'].search(line)
             if static_match:
                 callee_program = static_match.group(1)
@@ -294,14 +347,14 @@ class CobolCallScanner:
                 self.stats['static_calls'] += 1
                 continue
             
-            # Check for dynamic CALL statements
+            # Check for dynamic CALL statements (only if not static)
             dynamic_match = self.patterns['call_dynamic'].search(line)
-            if dynamic_match and not self.patterns['call_static'].search(line):
+            if dynamic_match:
                 variable_name = dynamic_match.group(1)
                 
                 # Try to resolve variable to program name
                 full_key = f"{caller_program}.{variable_name}"
-                callee_program = self.variable_mappings.get(full_key)
+                callee_program = self.variable_mappings.get(full_key) or self.variable_mappings.get(variable_name)
                 
                 relationships.append(CallRelationship(
                     caller_program=caller_program,
@@ -335,6 +388,10 @@ class CobolCallScanner:
         """
         Export results in Manta Data Lineage compatible format
         
+        Generates CSV file in format: PROGRAM;VARIABLE;SUB-PROGRAM-NAME
+        Specifically for CALL statements where sub-program is defined by a variable
+        According to IBM Manta Data Lineage Scanner Guide
+        
         Returns path to generated file
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -343,53 +400,84 @@ class CobolCallScanner:
         call_targets_file = self.output_dir / f"cobol_call_targets_{timestamp}.csv"
         
         with open(call_targets_file, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f, delimiter=';')
+            # Header as required by Manta (quoted as per documentation)
+            f.write('"Calling program name";"Calling variable name";"Target program name"\n')
             
-            # Header as required by Manta
-            writer.writerow([
-                "Calling program name",
-                "Calling variable name", 
-                "Target program name"
-            ])
-            
-            # Write relationships
+            # Write dynamic call relationships only (as per Manta requirements)
+            # Format: PROGRAM;VARIABLE;SUB-PROGRAM-NAME (no quotes on data)
+            dynamic_calls_written = 0
             for rel in results.relationships:
-                if rel.call_type == 'dynamic' and rel.callee_program:
-                    writer.writerow([
-                        rel.caller_program,
-                        rel.call_variable or "",
-                        rel.callee_program
-                    ])
-                elif rel.call_type == 'static' and rel.callee_program:
-                    writer.writerow([
-                        rel.caller_program,
-                        "",  # No variable for static calls
-                        rel.callee_program
-                    ])
+                if rel.call_type == 'dynamic' and rel.callee_program and rel.call_variable:
+                    # Write without quotes on the data (only header is quoted)
+                    f.write(f"{rel.caller_program};{rel.call_variable};{rel.callee_program}\n")
+                    dynamic_calls_written += 1
+            
+            # If no dynamic calls found, add a comment line for clarity
+            if dynamic_calls_written == 0:
+                f.write('# No dynamic CALL statements with resolved variables found\n')
         
         logger.info(f"Manta call targets file generated: {call_targets_file}")
+        logger.info(f"Dynamic calls exported for Manta: {dynamic_calls_written}")
         return str(call_targets_file)
 
     def export_detailed_report(self, results: ScanResults) -> str:
-        """Export detailed analysis report in JSON format"""
+        """Export detailed analysis report in JSON format with Manta compatibility information"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_file = self.output_dir / f"cobol_analysis_report_{timestamp}.json"
+        
+        # Categorize relationships for better reporting
+        static_calls = [r for r in results.relationships if r.call_type == 'static']
+        dynamic_calls = [r for r in results.relationships if r.call_type == 'dynamic']
+        copybook_calls = [r for r in results.relationships if r.call_type == 'copybook']
+        
+        # Identify unresolved dynamic calls (important for Manta)
+        unresolved_dynamic = [r for r in dynamic_calls if not r.callee_program]
+        resolved_dynamic = [r for r in dynamic_calls if r.callee_program]
         
         report_data = {
             'scan_metadata': {
                 'timestamp': timestamp,
-                'statistics': results.statistics
+                'scanner_version': '2.0.0',
+                'manta_compatible': True,
+                'statistics': results.statistics,
+                'manta_compatibility': {
+                    'dynamic_calls_total': len(dynamic_calls),
+                    'dynamic_calls_resolved': len(resolved_dynamic),
+                    'dynamic_calls_unresolved': len(unresolved_dynamic),
+                    'dynamic_calls_for_manta': len([r for r in resolved_dynamic if r.call_variable]),
+                    'static_calls_total': len(static_calls),
+                    'copybook_calls_total': len(copybook_calls),
+                    'variable_mappings_found': len(self.variable_mappings)
+                }
             },
             'programs': [asdict(prog) for prog in results.programs],
-            'relationships': [asdict(rel) for rel in results.relationships],
-            'errors': results.errors,
-            'variable_mappings': self.variable_mappings
+            'relationships': {
+                'static_calls': [asdict(rel) for rel in static_calls],
+                'dynamic_calls_resolved': [asdict(rel) for rel in resolved_dynamic],
+                'dynamic_calls_unresolved': [asdict(rel) for rel in unresolved_dynamic],
+                'copybook_calls': [asdict(rel) for rel in copybook_calls]
+            },
+            'unresolved_dynamic_calls': [
+                {
+                    'caller_program': rel.caller_program,
+                    'variable_name': rel.call_variable,
+                    'line_number': rel.line_number,
+                    'call_statement': rel.call_statement,
+                    'file_path': rel.caller_file,
+                    'manta_entry_suggestion': f"{rel.caller_program};{rel.call_variable};TARGET-PROGRAM-NAME"
+                }
+                for rel in unresolved_dynamic
+            ],
+            'variable_mappings': self.variable_mappings,
+            'errors': results.errors
         }
         
         with open(report_file, 'w', encoding='utf-8') as f:
             json.dump(report_data, f, indent=2, ensure_ascii=False)
         
         logger.info(f"Detailed report generated: {report_file}")
+        if unresolved_dynamic:
+            logger.warning(f"Found {len(unresolved_dynamic)} unresolved dynamic calls - check detailed report")
         return str(report_file)
 
     def export_program_summary(self, results: ScanResults) -> str:
@@ -430,10 +518,73 @@ class CobolCallScanner:
         logger.info(f"Program summary generated: {summary_file}")
         return str(summary_file)
 
+    def export_all_relationships(self, results: ScanResults) -> str:
+        """Export all caller-callee relationships (not just dynamic ones for Manta)"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        all_rels_file = self.output_dir / f"all_relationships_{timestamp}.csv"
+        
+        with open(all_rels_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f, delimiter=';')
+            
+            # Header
+            writer.writerow([
+                'Caller Program',
+                'Callee Program', 
+                'Call Type',
+                'Variable Name',
+                'Line Number',
+                'Call Statement'
+            ])
+            
+            # Write all relationships
+            for rel in results.relationships:
+                writer.writerow([
+                    rel.caller_program,
+                    rel.callee_program or 'UNRESOLVED',
+                    rel.call_type,
+                    rel.call_variable or '',
+                    rel.line_number,
+                    rel.call_statement.strip()[:100]  # Truncate long statements
+                ])
+        
+        logger.info(f"All relationships exported: {all_rels_file}")
+        return str(all_rels_file)
+
+    def export_manta_config_template(self, results: ScanResults) -> str:
+        """Generate Manta configuration template with unresolved dynamic calls"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        config_file = self.output_dir / f"manta_unresolved_calls_{timestamp}.txt"
+        
+        # Find unresolved dynamic calls
+        unresolved = [r for r in results.relationships 
+                     if r.call_type == 'dynamic' and not r.callee_program]
+        
+        with open(config_file, 'w', encoding='utf-8') as f:
+            f.write("# Manta Data Lineage - Unresolved Dynamic CALL Configuration\n")
+            f.write("# Add these entries to your cobol.call.targets.file\n")
+            f.write("# Format: CALLING-PROGRAM;VARIABLE-NAME;TARGET-PROGRAM-NAME\n")
+            f.write("# Reference: IBM Manta Data Lineage COBOL Scanner Guide\n\n")
+            
+            if unresolved:
+                f.write('"Calling program name";"Calling variable name";"Target program name"\n')
+                for rel in unresolved:
+                    f.write(f"# TODO: Resolve this dynamic call\n")
+                    f.write(f"{rel.caller_program};{rel.call_variable};TARGET-PROGRAM-NAME\n")
+                    f.write(f"# Found in: {rel.caller_file}:{rel.line_number}\n")
+                    f.write(f"# Statement: {rel.call_statement.strip()}\n\n")
+            else:
+                f.write("# ✅ No unresolved dynamic calls found!\n")
+                f.write("# All dynamic calls have been resolved automatically.\n")
+                f.write("# Your COBOL code is ready for Manta Data Lineage analysis.\n")
+        
+        logger.info(f"Manta configuration template generated: {config_file}")
+        return str(config_file)
+
 def main():
     """Main entry point for the scanner"""
     parser = argparse.ArgumentParser(
-        description='COBOL Caller-Callee Scanner for Manta Data Lineage'
+        description='COBOL Caller-Callee Scanner for Manta Data Lineage v2.0',
+        epilog='Generates IBM Manta Data Lineage compatible output files'
     )
     parser.add_argument(
         'directory',
@@ -467,40 +618,76 @@ def main():
         # Perform scan
         results = scanner.scan_directory(args.directory, args.recursive)
         
-        # Generate outputs
+        # Generate all output files
         manta_file = scanner.export_manta_format(results)
         report_file = scanner.export_detailed_report(results)
         summary_file = scanner.export_program_summary(results)
+        all_rels_file = scanner.export_all_relationships(results)
+        config_template = scanner.export_manta_config_template(results)
         
-        # Print summary
-        print("\n" + "="*60)
-        print("COBOL SCAN RESULTS SUMMARY")
-        print("="*60)
+        # Calculate specific statistics for Manta compatibility
+        dynamic_calls = [r for r in results.relationships if r.call_type == 'dynamic']
+        resolved_dynamic = [r for r in dynamic_calls if r.callee_program]
+        unresolved_dynamic = [r for r in dynamic_calls if not r.callee_program]
+        manta_ready_calls = [r for r in resolved_dynamic if r.call_variable]
+        
+        # Print comprehensive summary
+        print("\n" + "="*70)
+        print("COBOL SCANNER v2.0 - MANTA DATA LINEAGE COMPATIBLE")
+        print("="*70)
         print(f"Files scanned: {results.statistics['files_scanned']}")
         print(f"Programs found: {results.statistics['programs_found']}")
         print(f"Static calls: {results.statistics['static_calls']}")
         print(f"Dynamic calls: {results.statistics['dynamic_calls']}")
+        print(f"  - Resolved: {len(resolved_dynamic)}")
+        print(f"  - Unresolved: {len(unresolved_dynamic)}")
+        print(f"  - Ready for Manta: {len(manta_ready_calls)}")
         print(f"Copy statements: {results.statistics['copy_statements']}")
+        print(f"Variable mappings built: {len(scanner.variable_mappings)}")
         print(f"Errors: {results.statistics['errors']}")
-        print("\nGenerated files:")
-        print(f"- Manta call targets: {manta_file}")
-        print(f"- Detailed report: {report_file}")
-        print(f"- Program summary: {summary_file}")
+        
+        print("\n📊 Manta Data Lineage Compatibility:")
+        if manta_ready_calls:
+            print(f"✅ Dynamic calls exported to Manta: {len(manta_ready_calls)}")
+        else:
+            print("⚠️  No dynamic calls found for Manta export")
+            
+        if unresolved_dynamic:
+            print(f"⚠️  Unresolved dynamic calls: {len(unresolved_dynamic)}")
+            print("   → Check manta_unresolved_calls_*.txt for manual resolution")
+        else:
+            print("✅ All dynamic calls resolved automatically!")
+        
+        print("\n📁 Generated files:")
+        print(f"├─ Manta call targets: {Path(manta_file).name}")
+        print(f"├─ All relationships: {Path(all_rels_file).name}")
+        print(f"├─ Detailed report: {Path(report_file).name}")
+        print(f"├─ Program summary: {Path(summary_file).name}")
+        print(f"└─ Manta config template: {Path(config_template).name}")
         
         if results.errors:
-            print(f"\nErrors encountered: {len(results.errors)}")
-            for error in results.errors[:5]:  # Show first 5 errors
-                print(f"  - {error}")
-            if len(results.errors) > 5:
-                print(f"  ... and {len(results.errors) - 5} more errors")
+            print(f"\n⚠️  Errors encountered: {len(results.errors)}")
+            for error in results.errors[:3]:  # Show first 3 errors
+                print(f"   • {error}")
+            if len(results.errors) > 3:
+                print(f"   • ... and {len(results.errors) - 3} more errors")
         
-        print("="*60)
+        print("\n🚀 Next Steps for Manta Integration:")
+        print("1. Copy the call targets file to Manta input directory:")
+        print(f"   cp '{manta_file}' $MANTA_DIR_HOME/input/cobol/${{cobol.dictionary.id}}/")
+        print("2. Set cobol.call.targets.file property to point to the copied file")
+        if unresolved_dynamic:
+            print("3. Review and resolve unresolved dynamic calls in the config template")
+            print("4. Add resolved entries to the Manta call targets file")
+        print("5. Run Manta Data Lineage analysis")
+        print("="*70)
+        
+        # Return appropriate exit code
+        return 1 if results.errors else 0
         
     except Exception as e:
         logger.error(f"Scanner failed: {str(e)}")
         return 1
-    
-    return 0
 
 if __name__ == "__main__":
     exit(main())
