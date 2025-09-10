@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enterprise COBOL Parser
+Enterprise COBOL Parser - Fixed Version 3
 A comprehensive tool for parsing COBOL source files and analyzing dependencies.
 
 This module provides:
@@ -10,32 +10,40 @@ This module provides:
 - SQL and CICS command extraction
 - Program call analysis
 - Extensible architecture with plugin support
+- Comprehensive CSV reporting
 """
 
 import os
 import re
 import json
+import csv
 import logging
 import argparse
 import traceback
+import tempfile
+import shutil
 from pathlib import Path
-from typing import Dict, List, Set, Optional, Any, Tuple
+from typing import Dict, List, Set, Optional, Any, Tuple, Union
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 from collections import defaultdict
 import concurrent.futures
 from datetime import datetime
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('cobol_parser.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# Configure logging with better formatting
+def setup_logging(log_level: str = "INFO", log_file: str = "cobol_parser.log"):
+    """Setup logging configuration"""
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file, mode='w'),  # Overwrite log file each run
+            logging.StreamHandler()
+        ]
+    )
+    return logging.getLogger(__name__)
+
+logger = setup_logging()
 
 
 class COBOLConstructType(Enum):
@@ -86,82 +94,60 @@ class ParseResult:
 class COBOLPatterns:
     """Regular expression patterns for COBOL constructs."""
     
-    # Program identification
+    # Program identification - Fixed pattern
     PROGRAM_ID = re.compile(
         r'^\s*PROGRAM-ID\.\s+([A-Za-z0-9\-_]+)', 
-        re.IGNORECASE | re.MULTILINE
+        re.IGNORECASE
     )
     
-    # CALL statements
+    # CALL statements - Fixed patterns
     STATIC_CALL = re.compile(
-        r'^\s*CALL\s+["\']([^"\']+)["\'](?:\s+USING\s+(.*?))?\.?\s*$',
-        re.IGNORECASE | re.MULTILINE
+        r'^\s*CALL\s+["\']([^"\']+)["\'](?:\s+USING\s+(.+?))?\.?\s*$',
+        re.IGNORECASE
     )
     
     DYNAMIC_CALL = re.compile(
-        r'^\s*CALL\s+([A-Za-z0-9\-_]+)(?:\s+USING\s+(.*?))?\.?\s*$',
-        re.IGNORECASE | re.MULTILINE
+        r'^\s*CALL\s+([A-Za-z0-9\-_]+)(?:\s+USING\s+(.+?))?\.?\s*$',
+        re.IGNORECASE
     )
     
-    # COPY statements (copybooks)
+    # COPY statements - Fixed pattern
     COPY_STATEMENT = re.compile(
         r'^\s*COPY\s+([A-Za-z0-9\-_]+)(?:\s+(?:OF|IN)\s+([A-Za-z0-9\-_]+))?\.?\s*$',
-        re.IGNORECASE | re.MULTILINE
+        re.IGNORECASE
     )
     
-    # SQL blocks
+    # SQL blocks - Fixed patterns
     EXEC_SQL_START = re.compile(
         r'^\s*EXEC\s+SQL\s*$',
-        re.IGNORECASE | re.MULTILINE
+        re.IGNORECASE
     )
     
     EXEC_SQL_END = re.compile(
         r'^\s*END-EXEC\.?\s*$',
-        re.IGNORECASE | re.MULTILINE
+        re.IGNORECASE
     )
     
-    # CICS blocks
+    # CICS blocks - Fixed patterns
     EXEC_CICS_START = re.compile(
-        r'^\s*EXEC\s+CICS\s+(.*?)$',
-        re.IGNORECASE | re.MULTILINE
+        r'^\s*EXEC\s+CICS\s+(.*)$',
+        re.IGNORECASE
     )
     
     EXEC_CICS_END = re.compile(
         r'^\s*END-EXEC\.?\s*$',
-        re.IGNORECASE | re.MULTILINE
+        re.IGNORECASE
     )
     
-    # Procedures and sections
-    PROCEDURE_DIVISION = re.compile(
-        r'^\s*PROCEDURE\s+DIVISION(?:\s+USING\s+(.*?))?\.?\s*$',
-        re.IGNORECASE | re.MULTILINE
-    )
-    
-    SECTION_DEFINITION = re.compile(
-        r'^\s*([A-Za-z0-9\-_]+)\s+SECTION\.?\s*$',
-        re.IGNORECASE | re.MULTILINE
-    )
-    
-    PARAGRAPH_DEFINITION = re.compile(
-        r'^\s*([A-Za-z0-9\-_]+)\.?\s*$',
-        re.IGNORECASE | re.MULTILINE
-    )
-    
-    # JCL patterns
+    # JCL patterns - Fixed patterns
     JCL_JOB = re.compile(
         r'^//([A-Za-z0-9\-_]+)\s+JOB\s+',
-        re.IGNORECASE | re.MULTILINE
+        re.IGNORECASE
     )
     
     JCL_EXEC = re.compile(
         r'^//([A-Za-z0-9\-_]+)\s+EXEC\s+(?:PGM=)?([A-Za-z0-9\-_]+)',
-        re.IGNORECASE | re.MULTILINE
-    )
-    
-    # File control
-    FILE_CONTROL = re.compile(
-        r'^\s*SELECT\s+([A-Za-z0-9\-_]+)\s+ASSIGN\s+TO\s+([^\s]+)',
-        re.IGNORECASE | re.MULTILINE
+        re.IGNORECASE
     )
 
 
@@ -191,37 +177,46 @@ class CallProcessor(COBOLProcessor):
         
         for line_num, line in enumerate(lines, 1):
             try:
-                # Static CALL
-                match = COBOLPatterns.STATIC_CALL.match(line.strip())
+                stripped_line = line.strip()
+                if not stripped_line or stripped_line.startswith('*'):
+                    continue
+                    
+                # Try static CALL first
+                match = COBOLPatterns.STATIC_CALL.match(stripped_line)
                 if match:
                     program_name = match.group(1)
                     using_clause = match.group(2) if match.group(2) else ""
-                    parameters = [p.strip() for p in using_clause.split()] if using_clause else []
+                    parameters = []
+                    if using_clause:
+                        # Split parameters more carefully
+                        parameters = [p.strip() for p in re.split(r'[,\s]+', using_clause.strip()) if p.strip()]
                     
                     constructs.append(COBOLConstruct(
                         construct_type=COBOLConstructType.PROGRAM_CALL,
                         name=program_name,
                         line_number=line_num,
                         source_file=file_path,
-                        content=line.strip(),
+                        content=stripped_line,
                         parameters=parameters,
                         metadata={"call_type": "static"}
                     ))
                     continue
                 
-                # Dynamic CALL
-                match = COBOLPatterns.DYNAMIC_CALL.match(line.strip())
-                if match:
+                # Try dynamic CALL
+                match = COBOLPatterns.DYNAMIC_CALL.match(stripped_line)
+                if match and not match.group(1).startswith('"') and not match.group(1).startswith("'"):
                     variable_name = match.group(1)
                     using_clause = match.group(2) if match.group(2) else ""
-                    parameters = [p.strip() for p in using_clause.split()] if using_clause else []
+                    parameters = []
+                    if using_clause:
+                        parameters = [p.strip() for p in re.split(r'[,\s]+', using_clause.strip()) if p.strip()]
                     
                     constructs.append(COBOLConstruct(
                         construct_type=COBOLConstructType.PROGRAM_CALL,
                         name=variable_name,
                         line_number=line_num,
                         source_file=file_path,
-                        content=line.strip(),
+                        content=stripped_line,
                         parameters=parameters,
                         metadata={"call_type": "dynamic"}
                     ))
@@ -240,7 +235,11 @@ class CopybookProcessor(COBOLProcessor):
         
         for line_num, line in enumerate(lines, 1):
             try:
-                match = COBOLPatterns.COPY_STATEMENT.match(line.strip())
+                stripped_line = line.strip()
+                if not stripped_line or stripped_line.startswith('*'):
+                    continue
+                    
+                match = COBOLPatterns.COPY_STATEMENT.match(stripped_line)
                 if match:
                     copybook_name = match.group(1)
                     library_name = match.group(2) if match.group(2) else ""
@@ -250,7 +249,7 @@ class CopybookProcessor(COBOLProcessor):
                         name=copybook_name,
                         line_number=line_num,
                         source_file=file_path,
-                        content=line.strip(),
+                        content=stripped_line,
                         metadata={"library": library_name}
                     ))
                     
@@ -272,6 +271,8 @@ class SQLProcessor(COBOLProcessor):
         for line_num, line in enumerate(lines, 1):
             try:
                 stripped_line = line.strip()
+                if not stripped_line or stripped_line.startswith('*'):
+                    continue
                 
                 if COBOLPatterns.EXEC_SQL_START.match(stripped_line):
                     in_sql_block = True
@@ -308,14 +309,17 @@ class CICSProcessor(COBOLProcessor):
         for line_num, line in enumerate(lines, 1):
             try:
                 stripped_line = line.strip()
+                if not stripped_line or stripped_line.startswith('*'):
+                    continue
                 
                 match = COBOLPatterns.EXEC_CICS_START.match(stripped_line)
                 if match:
-                    cics_command = match.group(1)
+                    cics_command = match.group(1).strip()
+                    command_type = cics_command.split()[0] if cics_command else 'COMMAND'
                     
                     constructs.append(COBOLConstruct(
                         construct_type=COBOLConstructType.CICS_BLOCK,
-                        name=f"CICS_{cics_command.split()[0] if cics_command else 'COMMAND'}",
+                        name=f"CICS_{command_type}",
                         line_number=line_num,
                         source_file=file_path,
                         content=stripped_line,
@@ -336,6 +340,10 @@ class JCLProcessor(COBOLProcessor):
         
         for line_num, line in enumerate(lines, 1):
             try:
+                # Skip comment lines and empty lines
+                if not line.strip() or line.strip().startswith('//*'):
+                    continue
+                
                 # JOB statement
                 match = COBOLPatterns.JCL_JOB.match(line)
                 if match:
@@ -382,7 +390,7 @@ class COBOLParser:
             'cics': CICSProcessor(),
             'jcl': JCLProcessor()
         }
-        self.supported_extensions = {'.cob', '.jcl', '.cbl', '.cpy'}
+        self.supported_extensions = {'.cob', '.jcl', '.cbl', '.cpy', '.COB', '.JCL', '.CBL', '.CPY'}
         
     def add_processor(self, name: str, processor: COBOLProcessor):
         """Add a custom processor for extensibility."""
@@ -396,9 +404,15 @@ class COBOLParser:
         try:
             if not os.path.exists(file_path):
                 raise COBOLParseError(f"File not found: {file_path}")
-                
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-                lines = file.readlines()
+            
+            # Read file with proper encoding handling
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+                    lines = file.readlines()
+            except UnicodeDecodeError:
+                # Try with different encoding if UTF-8 fails
+                with open(file_path, 'r', encoding='latin-1', errors='ignore') as file:
+                    lines = file.readlines()
                 
             # Extract program name
             result.program_name = self._extract_program_name(lines)
@@ -406,9 +420,11 @@ class COBOLParser:
             # Process with all processors
             for processor_name, processor in self.processors.items():
                 try:
-                    if processor_name == 'jcl' and not file_path.endswith('.jcl'):
+                    # Skip JCL processor for non-JCL files and vice versa
+                    file_ext = Path(file_path).suffix.lower()
+                    if processor_name == 'jcl' and file_ext not in ['.jcl']:
                         continue
-                    if processor_name != 'jcl' and file_path.endswith('.jcl'):
+                    if processor_name != 'jcl' and file_ext in ['.jcl']:
                         continue
                         
                     constructs = processor.process(lines, file_path)
@@ -445,28 +461,29 @@ class COBOLParser:
                         if self._is_supported_file(file_path):
                             files_to_process.append(file_path)
             else:
-                for file in os.listdir(directory_path):
-                    file_path = os.path.join(directory_path, file)
-                    if os.path.isfile(file_path) and self._is_supported_file(file_path):
-                        files_to_process.append(file_path)
+                if os.path.isdir(directory_path):
+                    for file in os.listdir(directory_path):
+                        file_path = os.path.join(directory_path, file)
+                        if os.path.isfile(file_path) and self._is_supported_file(file_path):
+                            files_to_process.append(file_path)
                         
             logger.info(f"Found {len(files_to_process)} files to process")
             
-            # Process files in parallel
-            max_workers = self.config.get('max_workers', 4)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_to_file = {
-                    executor.submit(self.parse_file, file_path): file_path 
-                    for file_path in files_to_process
-                }
-                
-                for future in concurrent.futures.as_completed(future_to_file):
-                    file_path = future_to_file[future]
-                    try:
-                        result = future.result()
-                        results.append(result)
-                    except Exception as e:
-                        logger.error(f"Exception processing {file_path}: {e}")
+            if not files_to_process:
+                logger.warning(f"No supported COBOL files found in {directory_path}")
+                return results
+            
+            # Process files - use sequential processing to avoid issues
+            for file_path in files_to_process:
+                try:
+                    result = self.parse_file(file_path)
+                    results.append(result)
+                except Exception as e:
+                    logger.error(f"Exception processing {file_path}: {e}")
+                    # Create error result
+                    error_result = ParseResult(source_file=file_path, program_name=None)
+                    error_result.errors.append(str(e))
+                    results.append(error_result)
                         
         except Exception as e:
             logger.error(f"Error processing directory {directory_path}: {e}")
@@ -476,6 +493,8 @@ class COBOLParser:
     def _extract_program_name(self, lines: List[str]) -> Optional[str]:
         """Extract program name from PROGRAM-ID statement."""
         for line in lines:
+            if line.strip().startswith('*'):
+                continue
             match = COBOLPatterns.PROGRAM_ID.match(line.strip())
             if match:
                 return match.group(1)
@@ -483,16 +502,17 @@ class COBOLParser:
         
     def _is_supported_file(self, file_path: str) -> bool:
         """Check if file has supported extension."""
-        return Path(file_path).suffix.lower() in self.supported_extensions
+        return Path(file_path).suffix in self.supported_extensions
         
     def _generate_dependencies(self, result: ParseResult) -> List[ProgramDependency]:
         """Generate dependency relationships from constructs."""
         dependencies = []
+        source_program = result.program_name or os.path.splitext(os.path.basename(result.source_file))[0]
         
         for construct in result.constructs:
             if construct.construct_type == COBOLConstructType.PROGRAM_CALL:
                 dependencies.append(ProgramDependency(
-                    source_program=result.program_name or os.path.basename(result.source_file),
+                    source_program=source_program,
                     target_program=construct.name,
                     dependency_type="CALL",
                     line_number=construct.line_number,
@@ -500,12 +520,21 @@ class COBOLParser:
                 ))
             elif construct.construct_type == COBOLConstructType.COPYBOOK:
                 dependencies.append(ProgramDependency(
-                    source_program=result.program_name or os.path.basename(result.source_file),
+                    source_program=source_program,
                     target_program=construct.name,
                     dependency_type="COPYBOOK",
                     line_number=construct.line_number,
                     context=construct.content
                 ))
+            elif construct.construct_type == COBOLConstructType.JCL_STEP:
+                if 'program' in construct.metadata:
+                    dependencies.append(ProgramDependency(
+                        source_program=source_program,
+                        target_program=construct.metadata['program'],
+                        dependency_type="JCL_EXEC",
+                        line_number=construct.line_number,
+                        context=construct.content
+                    ))
                 
         return dependencies
 
@@ -560,8 +589,12 @@ class DependencyAnalyzer:
         
         def dfs(node, path):
             if node in rec_stack:
-                cycle_start = path.index(node)
-                cycles.append(path[cycle_start:])
+                try:
+                    cycle_start = path.index(node)
+                    cycles.append(path[cycle_start:])
+                except ValueError:
+                    # Handle case where node is not in path
+                    cycles.append([node])
                 return
                 
             if node in visited:
@@ -673,6 +706,8 @@ class ReportGenerator:
     def generate_csv_relationships_report(self, output_file: str) -> None:
         """Generate CSV report of all program relationships."""
         try:
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            
             with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
                 fieldnames = [
                     'Source Program', 'Target Program', 'Relationship Type',
@@ -686,31 +721,30 @@ class ReportGenerator:
                     source_program = result.program_name or Path(result.source_file).stem
                     
                     for construct in result.constructs:
+                        row_data = {
+                            'Source Program': source_program,
+                            'Target Program': construct.name,
+                            'Source File': result.source_file,
+                            'Line Number': construct.line_number,
+                            'Context': self._truncate_text(construct.content, 100),
+                            'Call Type': '',
+                            'Library': '',
+                            'Parameters Count': len(construct.parameters),
+                            'Content Preview': ''
+                        }
+                        
                         # Program calls
                         if construct.construct_type == COBOLConstructType.PROGRAM_CALL:
-                            writer.writerow({
-                                'Source Program': source_program,
-                                'Target Program': construct.name,
+                            row_data.update({
                                 'Relationship Type': 'PROGRAM_CALL',
-                                'Source File': result.source_file,
-                                'Line Number': construct.line_number,
-                                'Context': construct.content[:100] + '...' if len(construct.content) > 100 else construct.content,
                                 'Call Type': construct.metadata.get('call_type', ''),
-                                'Library': '',
-                                'Parameters Count': len(construct.parameters),
                                 'Content Preview': ' '.join(construct.parameters[:3])
                             })
                         
                         # Copybook relationships
                         elif construct.construct_type == COBOLConstructType.COPYBOOK:
-                            writer.writerow({
-                                'Source Program': source_program,
-                                'Target Program': construct.name,
+                            row_data.update({
                                 'Relationship Type': 'COPYBOOK_INCLUDE',
-                                'Source File': result.source_file,
-                                'Line Number': construct.line_number,
-                                'Context': construct.content,
-                                'Call Type': '',
                                 'Library': construct.metadata.get('library', ''),
                                 'Parameters Count': 0,
                                 'Content Preview': construct.metadata.get('library', '')
@@ -718,49 +752,37 @@ class ReportGenerator:
                         
                         # SQL relationships
                         elif construct.construct_type == COBOLConstructType.SQL_BLOCK:
-                            writer.writerow({
-                                'Source Program': source_program,
-                                'Target Program': construct.name,
+                            row_data.update({
                                 'Relationship Type': 'SQL_BLOCK',
-                                'Source File': result.source_file,
-                                'Line Number': construct.line_number,
-                                'Context': construct.content[:100] + '...' if len(construct.content) > 100 else construct.content,
-                                'Call Type': '',
-                                'Library': '',
                                 'Parameters Count': 0,
                                 'Content Preview': self._extract_sql_tables(construct.content)
                             })
                         
                         # CICS relationships
                         elif construct.construct_type == COBOLConstructType.CICS_BLOCK:
-                            writer.writerow({
-                                'Source Program': source_program,
-                                'Target Program': construct.name,
+                            row_data.update({
                                 'Relationship Type': 'CICS_COMMAND',
-                                'Source File': result.source_file,
-                                'Line Number': construct.line_number,
-                                'Context': construct.content,
-                                'Call Type': '',
-                                'Library': '',
                                 'Parameters Count': 0,
-                                'Content Preview': construct.metadata.get('command', '')[:50]
+                                'Content Preview': self._truncate_text(construct.metadata.get('command', ''), 50)
                             })
                         
                         # JCL relationships
                         elif construct.construct_type == COBOLConstructType.JCL_STEP:
                             if 'program' in construct.metadata:
-                                writer.writerow({
-                                    'Source Program': source_program,
+                                row_data.update({
                                     'Target Program': construct.metadata['program'],
                                     'Relationship Type': 'JCL_EXECUTION',
-                                    'Source File': result.source_file,
-                                    'Line Number': construct.line_number,
-                                    'Context': construct.content,
                                     'Call Type': construct.metadata.get('type', ''),
-                                    'Library': '',
                                     'Parameters Count': 0,
                                     'Content Preview': construct.name
                                 })
+                            else:
+                                continue  # Skip if no program reference
+                        
+                        else:
+                            continue  # Skip other construct types
+                        
+                        writer.writerow(row_data)
             
             logger.info(f"CSV relationships report generated: {output_file}")
             
@@ -771,6 +793,8 @@ class ReportGenerator:
     def generate_csv_dependency_analysis(self, output_file: str) -> None:
         """Generate CSV report of dependency analysis metrics."""
         try:
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            
             with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
                 fieldnames = [
                     'Program Name', 'Source File', 'Outgoing Dependencies Count',
@@ -784,8 +808,9 @@ class ReportGenerator:
                 # Get all programs
                 all_programs = {}
                 for result in self.results:
-                    if result.program_name:
-                        all_programs[result.program_name] = result.source_file
+                    prog_name = result.program_name or Path(result.source_file).stem
+                    if prog_name:
+                        all_programs[prog_name] = result.source_file
                 
                 # Find circular dependencies once
                 circular_deps = self.analyzer.find_circular_dependencies()
@@ -800,7 +825,7 @@ class ReportGenerator:
                     
                     # Determine program type based on file extension
                     file_ext = Path(source_file).suffix.lower()
-                    if file_ext == '.jcl':
+                    if file_ext in ['.jcl']:
                         program_type = 'JCL'
                     elif file_ext in ['.cpy']:
                         program_type = 'COPYBOOK'
@@ -830,6 +855,8 @@ class ReportGenerator:
     def generate_csv_constructs_summary(self, output_file: str) -> None:
         """Generate CSV summary of all constructs found."""
         try:
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            
             with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
                 fieldnames = [
                     'Source File', 'Program Name', 'Construct Type', 'Construct Name',
@@ -846,7 +873,7 @@ class ReportGenerator:
                             'Construct Type': construct.construct_type.value,
                             'Construct Name': construct.name,
                             'Line Number': construct.line_number,
-                            'Content': construct.content[:200] + '...' if len(construct.content) > 200 else construct.content,
+                            'Content': self._truncate_text(construct.content, 200),
                             'Metadata': json.dumps(construct.metadata) if construct.metadata else '',
                             'Parameters': '; '.join(construct.parameters) if construct.parameters else ''
                         })
@@ -860,6 +887,7 @@ class ReportGenerator:
     def generate_csv_circular_dependencies(self, output_file: str) -> None:
         """Generate CSV report of circular dependencies."""
         try:
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
             circular_deps = self.analyzer.find_circular_dependencies()
             
             with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
@@ -871,17 +899,18 @@ class ReportGenerator:
                 writer.writeheader()
                 
                 for i, cycle in enumerate(circular_deps, 1):
-                    risk_level = 'HIGH' if len(cycle) <= 3 else 'MEDIUM' if len(cycle) <= 5 else 'LOW'
-                    
-                    writer.writerow({
-                        'Cycle ID': f"CYCLE_{i:03d}",
-                        'Cycle Length': len(cycle),
-                        'Programs in Cycle': '; '.join(cycle),
-                        'Cycle Path': ' → '.join(cycle + [cycle[0]]),
-                        'Risk Level': risk_level,
-                        'First Program': cycle[0] if cycle else '',
-                        'Last Program': cycle[-1] if cycle else ''
-                    })
+                    if cycle:  # Ensure cycle is not empty
+                        risk_level = 'HIGH' if len(cycle) <= 3 else 'MEDIUM' if len(cycle) <= 5 else 'LOW'
+                        
+                        writer.writerow({
+                            'Cycle ID': f"CYCLE_{i:03d}",
+                            'Cycle Length': len(cycle),
+                            'Programs in Cycle': '; '.join(cycle),
+                            'Cycle Path': ' → '.join(cycle + [cycle[0]]),
+                            'Risk Level': risk_level,
+                            'First Program': cycle[0],
+                            'Last Program': cycle[-1]
+                        })
             
             logger.info(f"CSV circular dependencies report generated: {output_file}")
             
@@ -892,6 +921,8 @@ class ReportGenerator:
     def generate_csv_program_metrics(self, output_file: str) -> None:
         """Generate CSV report with detailed program metrics."""
         try:
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            
             with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
                 fieldnames = [
                     'Program Name', 'Source File', 'File Size (KB)', 'Total Lines',
@@ -917,7 +948,7 @@ class ReportGenerator:
                         # Count total lines
                         with open(result.source_file, 'r', encoding='utf-8', errors='ignore') as f:
                             total_lines = sum(1 for _ in f)
-                    except:
+                    except Exception:
                         file_size_kb = 0
                         total_lines = 0
                         last_modified = ''
@@ -955,20 +986,20 @@ class ReportGenerator:
     
     def generate_all_csv_reports(self, output_dir: str, base_filename: str = "cobol_analysis") -> Dict[str, str]:
         """Generate all CSV reports in the specified directory."""
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        csv_files = {
-            'relationships': output_path / f"{base_filename}_relationships_{timestamp}.csv",
-            'dependencies': output_path / f"{base_filename}_dependencies_{timestamp}.csv",
-            'constructs': output_path / f"{base_filename}_constructs_{timestamp}.csv",
-            'circular_deps': output_path / f"{base_filename}_circular_deps_{timestamp}.csv",
-            'metrics': output_path / f"{base_filename}_metrics_{timestamp}.csv"
-        }
-        
         try:
+            output_path = Path(output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            csv_files = {
+                'relationships': output_path / f"{base_filename}_relationships_{timestamp}.csv",
+                'dependencies': output_path / f"{base_filename}_dependencies_{timestamp}.csv",
+                'constructs': output_path / f"{base_filename}_constructs_{timestamp}.csv",
+                'circular_deps': output_path / f"{base_filename}_circular_deps_{timestamp}.csv",
+                'metrics': output_path / f"{base_filename}_metrics_{timestamp}.csv"
+            }
+            
             self.generate_csv_relationships_report(str(csv_files['relationships']))
             self.generate_csv_dependency_analysis(str(csv_files['dependencies']))
             self.generate_csv_constructs_summary(str(csv_files['constructs']))
@@ -989,7 +1020,7 @@ class ReportGenerator:
             table_pattern = re.compile(r'\b(?:FROM|JOIN)\s+([A-Za-z0-9_]+)', re.IGNORECASE)
             tables = table_pattern.findall(sql_content)
             return '; '.join(sorted(set(tables))) if tables else ''
-        except:
+        except Exception:
             return ''
     
     def _calculate_max_depth(self, program_name: str) -> int:
@@ -998,7 +1029,7 @@ class ReportGenerator:
             visited = set()
             
             def dfs(prog, depth):
-                if prog in visited:
+                if prog in visited or depth > 20:  # Prevent infinite recursion
                     return depth
                 visited.add(prog)
                 
@@ -1010,13 +1041,19 @@ class ReportGenerator:
                 return max_child_depth
             
             return dfs(program_name, 0)
-        except:
+        except Exception:
             return 0
+    
+    def _truncate_text(self, text: str, max_length: int) -> str:
+        """Truncate text to specified length with ellipsis."""
+        if not text:
+            return ""
+        return text[:max_length] + '...' if len(text) > max_length else text
 
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description="Enterprise COBOL Parser")
+    parser = argparse.ArgumentParser(description="Enterprise COBOL Parser - Fixed Version 3")
     parser.add_argument("path", help="Path to COBOL file or directory")
     parser.add_argument("--output", "-o", help="Output file for results (JSON format)")
     parser.add_argument("--csv-output", help="Output directory for CSV reports")
@@ -1038,27 +1075,39 @@ def main():
     args = parser.parse_args()
     
     # Configure logging level
-    logging.getLogger().setLevel(getattr(logging, args.log_level))
+    logger = setup_logging(args.log_level)
     
     try:
         config = {
             "max_workers": args.max_workers
         }
         
+        logger.info("Starting COBOL Parser...")
+        logger.info(f"Processing path: {args.path}")
+        logger.info(f"Recursive: {args.recursive}")
+        
         cobol_parser = COBOLParser(config)
         
         # Parse files
         if os.path.isfile(args.path):
+            logger.info("Processing single file")
             results = [cobol_parser.parse_file(args.path)]
         elif os.path.isdir(args.path):
+            logger.info("Processing directory")
             results = cobol_parser.parse_directory(args.path, args.recursive)
         else:
             raise ValueError(f"Invalid path: {args.path}")
+        
+        if not results:
+            logger.warning("No results to process")
+            return 1
             
         # Analyze dependencies
+        logger.info("Analyzing dependencies...")
         analyzer = DependencyAnalyzer(results)
         
         # Generate report
+        logger.info("Generating reports...")
         report_generator = ReportGenerator(results, analyzer)
         
         # Generate JSON report if requested
@@ -1072,49 +1121,49 @@ def main():
                 
             # Output JSON results
             if args.output:
-                with open(args.output, 'w') as f:
-                    json.dump(report, f, indent=2)
+                with open(args.output, 'w', encoding='utf-8') as f:
+                    json.dump(report, f, indent=2, ensure_ascii=False)
                 logger.info(f"JSON report written to {args.output}")
             elif not args.csv_output:
-                print(json.dumps(report, indent=2))
+                print(json.dumps(report, indent=2, ensure_ascii=False))
         
         # Generate CSV reports if requested
         if args.csv_output:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            csv_output_dir = Path(args.csv_output)
-            csv_output_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Generating CSV reports in {args.csv_output}")
             
             if args.csv_type == "all":
                 csv_files = report_generator.generate_all_csv_reports(
-                    str(csv_output_dir), args.csv_name
+                    args.csv_output, args.csv_name
                 )
                 print("Generated CSV reports:")
                 for report_type, file_path in csv_files.items():
-                    print(f"  {report_type.title()}: {file_path}")
+                    print(f"  {report_type.replace('_', ' ').title()}: {file_path}")
                     
             else:
                 # Generate specific CSV report
-                output_file = csv_output_dir / f"{args.csv_name}_{args.csv_type}_{timestamp}.csv"
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_file = os.path.join(args.csv_output, f"{args.csv_name}_{args.csv_type}_{timestamp}.csv")
                 
                 if args.csv_type == "relationships":
-                    report_generator.generate_csv_relationships_report(str(output_file))
+                    report_generator.generate_csv_relationships_report(output_file)
                 elif args.csv_type == "dependencies":
-                    report_generator.generate_csv_dependency_analysis(str(output_file))
+                    report_generator.generate_csv_dependency_analysis(output_file)
                 elif args.csv_type == "constructs":
-                    report_generator.generate_csv_constructs_summary(str(output_file))
+                    report_generator.generate_csv_constructs_summary(output_file)
                 elif args.csv_type == "circular":
-                    report_generator.generate_csv_circular_dependencies(str(output_file))
+                    report_generator.generate_csv_circular_dependencies(output_file)
                 elif args.csv_type == "metrics":
-                    report_generator.generate_csv_program_metrics(str(output_file))
+                    report_generator.generate_csv_program_metrics(output_file)
                 
                 print(f"Generated CSV report: {output_file}")
+        
+        logger.info("COBOL Parser completed successfully!")
+        return 0
             
     except Exception as e:
         logger.error(f"Fatal error: {e}")
         logger.debug(traceback.format_exc())
         return 1
-        
-    return 0
 
 
 if __name__ == "__main__":
