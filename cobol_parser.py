@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-COBOL Parser
+Enterprise COBOL Parser
 A comprehensive tool for parsing COBOL source files and analyzing dependencies.
 
 This module provides:
@@ -669,6 +669,349 @@ class ReportGenerator:
             "summary": self.generate_summary_report(),
             "dependency_analysis": self.generate_dependency_report()
         }
+    
+    def generate_csv_relationships_report(self, output_file: str) -> None:
+        """Generate CSV report of all program relationships."""
+        try:
+            with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = [
+                    'Source Program', 'Target Program', 'Relationship Type',
+                    'Source File', 'Line Number', 'Context', 'Call Type',
+                    'Library', 'Parameters Count', 'Content Preview'
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for result in self.results:
+                    source_program = result.program_name or Path(result.source_file).stem
+                    
+                    for construct in result.constructs:
+                        # Program calls
+                        if construct.construct_type == COBOLConstructType.PROGRAM_CALL:
+                            writer.writerow({
+                                'Source Program': source_program,
+                                'Target Program': construct.name,
+                                'Relationship Type': 'PROGRAM_CALL',
+                                'Source File': result.source_file,
+                                'Line Number': construct.line_number,
+                                'Context': construct.content[:100] + '...' if len(construct.content) > 100 else construct.content,
+                                'Call Type': construct.metadata.get('call_type', ''),
+                                'Library': '',
+                                'Parameters Count': len(construct.parameters),
+                                'Content Preview': ' '.join(construct.parameters[:3])
+                            })
+                        
+                        # Copybook relationships
+                        elif construct.construct_type == COBOLConstructType.COPYBOOK:
+                            writer.writerow({
+                                'Source Program': source_program,
+                                'Target Program': construct.name,
+                                'Relationship Type': 'COPYBOOK_INCLUDE',
+                                'Source File': result.source_file,
+                                'Line Number': construct.line_number,
+                                'Context': construct.content,
+                                'Call Type': '',
+                                'Library': construct.metadata.get('library', ''),
+                                'Parameters Count': 0,
+                                'Content Preview': construct.metadata.get('library', '')
+                            })
+                        
+                        # SQL relationships
+                        elif construct.construct_type == COBOLConstructType.SQL_BLOCK:
+                            writer.writerow({
+                                'Source Program': source_program,
+                                'Target Program': construct.name,
+                                'Relationship Type': 'SQL_BLOCK',
+                                'Source File': result.source_file,
+                                'Line Number': construct.line_number,
+                                'Context': construct.content[:100] + '...' if len(construct.content) > 100 else construct.content,
+                                'Call Type': '',
+                                'Library': '',
+                                'Parameters Count': 0,
+                                'Content Preview': self._extract_sql_tables(construct.content)
+                            })
+                        
+                        # CICS relationships
+                        elif construct.construct_type == COBOLConstructType.CICS_BLOCK:
+                            writer.writerow({
+                                'Source Program': source_program,
+                                'Target Program': construct.name,
+                                'Relationship Type': 'CICS_COMMAND',
+                                'Source File': result.source_file,
+                                'Line Number': construct.line_number,
+                                'Context': construct.content,
+                                'Call Type': '',
+                                'Library': '',
+                                'Parameters Count': 0,
+                                'Content Preview': construct.metadata.get('command', '')[:50]
+                            })
+                        
+                        # JCL relationships
+                        elif construct.construct_type == COBOLConstructType.JCL_STEP:
+                            if 'program' in construct.metadata:
+                                writer.writerow({
+                                    'Source Program': source_program,
+                                    'Target Program': construct.metadata['program'],
+                                    'Relationship Type': 'JCL_EXECUTION',
+                                    'Source File': result.source_file,
+                                    'Line Number': construct.line_number,
+                                    'Context': construct.content,
+                                    'Call Type': construct.metadata.get('type', ''),
+                                    'Library': '',
+                                    'Parameters Count': 0,
+                                    'Content Preview': construct.name
+                                })
+            
+            logger.info(f"CSV relationships report generated: {output_file}")
+            
+        except Exception as e:
+            logger.error(f"Error generating CSV relationships report: {e}")
+            raise
+    
+    def generate_csv_dependency_analysis(self, output_file: str) -> None:
+        """Generate CSV report of dependency analysis metrics."""
+        try:
+            with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = [
+                    'Program Name', 'Source File', 'Outgoing Dependencies Count',
+                    'Incoming Dependencies Count', 'Fan Out Programs', 'Fan In Programs',
+                    'Transitive Dependencies Count', 'Max Dependency Depth',
+                    'Has Circular Dependencies', 'Is Isolated', 'Program Type'
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                # Get all programs
+                all_programs = {}
+                for result in self.results:
+                    if result.program_name:
+                        all_programs[result.program_name] = result.source_file
+                
+                # Find circular dependencies once
+                circular_deps = self.analyzer.find_circular_dependencies()
+                programs_in_cycles = set()
+                for cycle in circular_deps:
+                    programs_in_cycles.update(cycle)
+                
+                for program_name, source_file in all_programs.items():
+                    dependencies = self.analyzer.get_dependencies(program_name)
+                    dependents = self.analyzer.get_dependents(program_name)
+                    transitive_deps = self.analyzer.get_transitive_dependencies(program_name)
+                    
+                    # Determine program type based on file extension
+                    file_ext = Path(source_file).suffix.lower()
+                    if file_ext == '.jcl':
+                        program_type = 'JCL'
+                    elif file_ext in ['.cpy']:
+                        program_type = 'COPYBOOK'
+                    else:
+                        program_type = 'COBOL_PROGRAM'
+                    
+                    writer.writerow({
+                        'Program Name': program_name,
+                        'Source File': source_file,
+                        'Outgoing Dependencies Count': len(dependencies),
+                        'Incoming Dependencies Count': len(dependents),
+                        'Fan Out Programs': '; '.join(sorted(dependencies)) if dependencies else '',
+                        'Fan In Programs': '; '.join(sorted(dependents)) if dependents else '',
+                        'Transitive Dependencies Count': len(transitive_deps),
+                        'Max Dependency Depth': self._calculate_max_depth(program_name),
+                        'Has Circular Dependencies': 'Yes' if program_name in programs_in_cycles else 'No',
+                        'Is Isolated': 'Yes' if len(dependencies) == 0 and len(dependents) == 0 else 'No',
+                        'Program Type': program_type
+                    })
+            
+            logger.info(f"CSV dependency analysis report generated: {output_file}")
+            
+        except Exception as e:
+            logger.error(f"Error generating CSV dependency analysis: {e}")
+            raise
+    
+    def generate_csv_constructs_summary(self, output_file: str) -> None:
+        """Generate CSV summary of all constructs found."""
+        try:
+            with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = [
+                    'Source File', 'Program Name', 'Construct Type', 'Construct Name',
+                    'Line Number', 'Content', 'Metadata', 'Parameters'
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for result in self.results:
+                    for construct in result.constructs:
+                        writer.writerow({
+                            'Source File': result.source_file,
+                            'Program Name': result.program_name or '',
+                            'Construct Type': construct.construct_type.value,
+                            'Construct Name': construct.name,
+                            'Line Number': construct.line_number,
+                            'Content': construct.content[:200] + '...' if len(construct.content) > 200 else construct.content,
+                            'Metadata': json.dumps(construct.metadata) if construct.metadata else '',
+                            'Parameters': '; '.join(construct.parameters) if construct.parameters else ''
+                        })
+            
+            logger.info(f"CSV constructs summary report generated: {output_file}")
+            
+        except Exception as e:
+            logger.error(f"Error generating CSV constructs summary: {e}")
+            raise
+    
+    def generate_csv_circular_dependencies(self, output_file: str) -> None:
+        """Generate CSV report of circular dependencies."""
+        try:
+            circular_deps = self.analyzer.find_circular_dependencies()
+            
+            with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = [
+                    'Cycle ID', 'Cycle Length', 'Programs in Cycle', 'Cycle Path',
+                    'Risk Level', 'First Program', 'Last Program'
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for i, cycle in enumerate(circular_deps, 1):
+                    risk_level = 'HIGH' if len(cycle) <= 3 else 'MEDIUM' if len(cycle) <= 5 else 'LOW'
+                    
+                    writer.writerow({
+                        'Cycle ID': f"CYCLE_{i:03d}",
+                        'Cycle Length': len(cycle),
+                        'Programs in Cycle': '; '.join(cycle),
+                        'Cycle Path': ' → '.join(cycle + [cycle[0]]),
+                        'Risk Level': risk_level,
+                        'First Program': cycle[0] if cycle else '',
+                        'Last Program': cycle[-1] if cycle else ''
+                    })
+            
+            logger.info(f"CSV circular dependencies report generated: {output_file}")
+            
+        except Exception as e:
+            logger.error(f"Error generating CSV circular dependencies report: {e}")
+            raise
+    
+    def generate_csv_program_metrics(self, output_file: str) -> None:
+        """Generate CSV report with detailed program metrics."""
+        try:
+            with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = [
+                    'Program Name', 'Source File', 'File Size (KB)', 'Total Lines',
+                    'Total Constructs', 'Call Statements', 'Copybooks Used',
+                    'SQL Blocks', 'CICS Commands', 'Errors Count', 'Warnings Count',
+                    'Complexity Score', 'Last Modified'
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for result in self.results:
+                    # Count constructs by type
+                    construct_counts = defaultdict(int)
+                    for construct in result.constructs:
+                        construct_counts[construct.construct_type] += 1
+                    
+                    # Calculate file metrics
+                    try:
+                        file_stat = os.stat(result.source_file)
+                        file_size_kb = file_stat.st_size / 1024
+                        last_modified = datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                        
+                        # Count total lines
+                        with open(result.source_file, 'r', encoding='utf-8', errors='ignore') as f:
+                            total_lines = sum(1 for _ in f)
+                    except:
+                        file_size_kb = 0
+                        total_lines = 0
+                        last_modified = ''
+                    
+                    # Calculate complexity score (simple heuristic)
+                    complexity_score = (
+                        construct_counts[COBOLConstructType.PROGRAM_CALL] * 2 +
+                        construct_counts[COBOLConstructType.SQL_BLOCK] * 3 +
+                        construct_counts[COBOLConstructType.CICS_BLOCK] * 3 +
+                        construct_counts[COBOLConstructType.COPYBOOK] * 1 +
+                        len(result.errors) * 5
+                    )
+                    
+                    writer.writerow({
+                        'Program Name': result.program_name or Path(result.source_file).stem,
+                        'Source File': result.source_file,
+                        'File Size (KB)': f"{file_size_kb:.2f}",
+                        'Total Lines': total_lines,
+                        'Total Constructs': len(result.constructs),
+                        'Call Statements': construct_counts[COBOLConstructType.PROGRAM_CALL],
+                        'Copybooks Used': construct_counts[COBOLConstructType.COPYBOOK],
+                        'SQL Blocks': construct_counts[COBOLConstructType.SQL_BLOCK],
+                        'CICS Commands': construct_counts[COBOLConstructType.CICS_BLOCK],
+                        'Errors Count': len(result.errors),
+                        'Warnings Count': len(result.warnings),
+                        'Complexity Score': complexity_score,
+                        'Last Modified': last_modified
+                    })
+            
+            logger.info(f"CSV program metrics report generated: {output_file}")
+            
+        except Exception as e:
+            logger.error(f"Error generating CSV program metrics: {e}")
+            raise
+    
+    def generate_all_csv_reports(self, output_dir: str, base_filename: str = "cobol_analysis") -> Dict[str, str]:
+        """Generate all CSV reports in the specified directory."""
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        csv_files = {
+            'relationships': output_path / f"{base_filename}_relationships_{timestamp}.csv",
+            'dependencies': output_path / f"{base_filename}_dependencies_{timestamp}.csv",
+            'constructs': output_path / f"{base_filename}_constructs_{timestamp}.csv",
+            'circular_deps': output_path / f"{base_filename}_circular_deps_{timestamp}.csv",
+            'metrics': output_path / f"{base_filename}_metrics_{timestamp}.csv"
+        }
+        
+        try:
+            self.generate_csv_relationships_report(str(csv_files['relationships']))
+            self.generate_csv_dependency_analysis(str(csv_files['dependencies']))
+            self.generate_csv_constructs_summary(str(csv_files['constructs']))
+            self.generate_csv_circular_dependencies(str(csv_files['circular_deps']))
+            self.generate_csv_program_metrics(str(csv_files['metrics']))
+            
+            logger.info(f"All CSV reports generated in: {output_dir}")
+            return {k: str(v) for k, v in csv_files.items()}
+            
+        except Exception as e:
+            logger.error(f"Error generating CSV reports: {e}")
+            raise
+    
+    def _extract_sql_tables(self, sql_content: str) -> str:
+        """Extract table names from SQL content."""
+        try:
+            # Simple regex to find table names after FROM and JOIN
+            table_pattern = re.compile(r'\b(?:FROM|JOIN)\s+([A-Za-z0-9_]+)', re.IGNORECASE)
+            tables = table_pattern.findall(sql_content)
+            return '; '.join(sorted(set(tables))) if tables else ''
+        except:
+            return ''
+    
+    def _calculate_max_depth(self, program_name: str) -> int:
+        """Calculate maximum dependency depth for a program."""
+        try:
+            visited = set()
+            
+            def dfs(prog, depth):
+                if prog in visited:
+                    return depth
+                visited.add(prog)
+                
+                max_child_depth = depth
+                for dep in self.analyzer.get_dependencies(prog):
+                    child_depth = dfs(dep, depth + 1)
+                    max_child_depth = max(max_child_depth, child_depth)
+                
+                return max_child_depth
+            
+            return dfs(program_name, 0)
+        except:
+            return 0
 
 
 def main():
