@@ -1,0 +1,76 @@
+Act as a senior enterprise architect and mainframe data governance expert with deep expertise in IBM z/OS environments, COBOL applications, RACF security, ChangeMan ZMF, batch processing, metadata management, and enterprise data classification platforms.
+
+Your task is to evaluate whether integrating with Rocket Software ChangeMan ZMF is sufficient for collecting metadata required for a mainframe data-classification and sensitive-data discovery solution.
+
+Produce a detailed, structured analysis intended for enterprise architects, security architects, governance leaders, and mainframe engineering teams.
+
+The response must:
+
+1. Explain what ChangeMan ZMF is responsible for in a mainframe ecosystem.
+2. Clearly distinguish:
+   - software lifecycle metadata
+   - operational runtime metadata
+   - security metadata
+   - data-content metadata
+3. Describe what metadata can be effectively collected from ChangeMan ZMF, including:
+   - application ownership
+   - package metadata
+   - promotion lifecycle
+   - JCL parsing
+   - PROC parsing
+   - source-to-dataset relationships
+   - COBOL copybook relationships
+   - environment mapping
+   - deployment lineage
+4. Explain how ZMF can accelerate:
+   - lineage discovery
+   - stewardship mapping
+   - application-to-data relationships
+   - governance onboarding
+5. Identify major gaps if relying only on ChangeMan ZMF, including:
+   - runtime dataset discovery
+   - dynamic allocations
+   - GDG runtime generations
+   - VSAM discovery
+   - DB2 metadata
+   - IMS metadata
+   - tape datasets
+   - actual content inspection
+   - packed decimal parsing
+   - EBCDIC handling
+   - security ACL discovery
+   - RACF/ACF2/Top Secret integration
+   - scheduler/runtime lineage
+   - SMF analysis
+6. Recommend a best-practice enterprise architecture for mainframe data classification.
+7. Include a layered architecture showing:
+   - ChangeMan ZMF
+   - Catalog metadata
+   - RACF metadata
+   - SMF feeds
+   - COBOL copybook parsers
+   - DB2 catalog integration
+   - lineage engine
+   - classification engine
+   - governance dashboard
+8. Provide a table with:
+   - Metadata Source
+   - Purpose
+   - Strengths
+   - Gaps
+9. Explain why a “metadata-first, copybook-aware, lineage-driven” strategy works best in large mainframe environments.
+10. Include practical recommendations for minimizing MIPS consumption and production impact.
+11. Include examples using:
+   - JCL
+   - GDG references
+   - COBOL field definitions
+   - dataset naming conventions
+12. Write in a highly technical but clear enterprise architecture style.
+13. Use headings, tables, bullets, and architecture diagrams.
+14. Focus specifically on IBM z/OS enterprise environments.
+15. Explain both strategic and operational considerations.
+
+The final answer should conclude with:
+- what ZMF is best used for,
+- what it cannot provide,
+- and the recommended enterprise-grade integration strategy.
