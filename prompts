@@ -1,3 +1,6 @@
+Prompt-1
+------------
+
 Act as a senior enterprise architect and mainframe data governance expert with deep expertise in IBM z/OS environments, COBOL applications, RACF security, ChangeMan ZMF, batch processing, metadata management, and enterprise data classification platforms.
 
 Your task is to evaluate whether integrating with Rocket Software ChangeMan ZMF is sufficient for collecting metadata required for a mainframe data-classification and sensitive-data discovery solution.
@@ -74,3 +77,58 @@ The final answer should conclude with:
 - what ZMF is best used for,
 - what it cannot provide,
 - and the recommended enterprise-grade integration strategy.
+
+
+prompt-2
+------------
+
+You are an elite AI industry analyst and technical strategist.
+
+Your task is to explain:
+
+1. What the best AI models are as of today
+2. Which models dominate which categories
+3. The biggest real-world applications built using those models
+4. The future direction of the AI industry
+
+Requirements:
+
+* Be highly detailed, modern, and practical
+* Compare frontier AI models such as OpenAI GPT, Claude, Gemini, DeepSeek, Llama, and other leading systems
+* Explain strengths and weaknesses of each model
+* Include categories such as:
+
+  * reasoning
+  * coding
+  * multimodal capabilities
+  * long-context understanding
+  * open-source ecosystem
+  * enterprise adoption
+  * speed and cost efficiency
+* Mention major AI-powered products and startups using these models
+* Include examples of transformative use cases such as:
+
+  * AI coding agents
+  * AI research assistants
+  * AI business automation
+  * AI healthcare and scientific discovery
+  * AI media generation
+  * enterprise copilots
+* Explain WHY these applications matter economically and technologically
+* Write in a clear, engaging, expert tone
+* Structure the answer with headings, rankings, bullet points, and strategic insights
+* Include nuanced analysis instead of simplistic rankings
+* End with:
+
+  * the most important AI trends
+  * which models are best for different users
+  * what industries will change the most over the next 5 years
+
+Style:
+
+* Sound like a top-tier technology researcher and venture capital analyst
+* Avoid hype and generic statements
+* Focus on practical impact, ecosystem advantages, and market realities
+* Use concise but insightful explanations
+* Make the response feel like a premium industry report
+
