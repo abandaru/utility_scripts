@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LineageFlow — OpenLineage Visualizer</title>
+<meta name="description" content="Visualize OpenLineage event files as an interactive dataset and job lineage graph with column-level lineage. Single-file, no install.">
+<style>
+:root{--bg0:#0a0a0c;--bg1:#0f0f12;--bg2:#161619;--bg3:#1c1c21;--bg4:#252529;--hover:#2a2a30;--border:#2d2d35;--border2:#222228;--t0:#f0f0f2;--t1:#c8c8cd;--t2:#8b8b95;--t3:#5c5c66;--acc:#9575cd;--acc2:#7e57c2;--accbg:rgba(149,117,205,0.14);--blue:#4d9fff;--purple:#a78bfa;--orange:#ff9f43;--red:#ff5f5f;--cyan:#22d3ee;--pink:#ec4899;--green:#22c55e;--node-bg:#161619;--modal-overlay:rgba(0,0,0,0.7);--edge-color:#3a3a44;--canvas-dot:var(--bg2)}
+[data-theme="light"]{--bg0:#f5f6f8;--bg1:#ffffff;--bg2:#e8eaef;--bg3:#dfe1e6;--bg4:#d3d5db;--hover:#cfd1d7;--border:#c4c7cf;--border2:#d0d3da;--t0:#1a1c22;--t1:#3a3d45;--t2:#6b6e78;--t3:#9b9ea8;--acc:#2e1a47;--acc2:#241338;--accbg:rgba(46,26,71,0.1);--blue:#2b7de9;--purple:#7c5ccc;--orange:#d97b1a;--red:#d94444;--cyan:#0ea5c0;--pink:#c73e80;--green:#1a9d4a;--node-bg:#ffffff;--modal-overlay:rgba(0,0,0,0.35);--edge-color:#b0b3bc;--canvas-dot:var(--bg2)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg0);color:var(--t0);height:100vh;height:100dvh;overflow:hidden;transition:background 0.25s,color 0.25s}
+#root{height:100%}
+.app{display:flex;flex-direction:column;height:100%}
+.topbar{min-height:48px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:14px;flex-shrink:0;z-index:20;transition:background 0.25s}
+.logo{width:28px;height:28px;background:var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--bg0);font-weight:800;font-size:15px}
+.logo-text{font-size:14px;font-weight:700;color:var(--acc);white-space:nowrap}
+.btn{padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-family:inherit;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-height:32px;transition:background 0.2s,border-color 0.2s,color 0.2s}
+.btn:hover{background:var(--bg4);border-color:var(--acc);color:var(--acc)}
+.btn.primary{background:var(--acc);color:var(--bg0);border-color:var(--acc);font-weight:600}
+.btn.primary:hover{background:var(--acc2);color:var(--bg0)}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.theme-toggle{width:32px;height:32px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s,border-color 0.2s,color 0.2s;flex-shrink:0}
+.theme-toggle:hover{background:var(--bg4);border-color:var(--acc);color:var(--acc)}
+.search{flex:1;min-width:80px;display:flex;align-items:center;gap:8px;background:var(--bg0);border:1px solid var(--border);border-radius:6px;padding:0 10px;transition:background 0.25s,border-color 0.25s}
+.search input{flex:1;background:transparent;border:0;outline:0;color:var(--t0);font-family:inherit;font-size:11px;padding:7px 0}
+.search input::placeholder{color:var(--t3)}
+.chips{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--t2);white-space:nowrap}
+.chip b{color:var(--t0);font-weight:600}
+.dot{color:var(--border)}
+.body{flex:1;display:flex;min-height:0}
+.rail{width:210px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;transition:width 0.2s ease,background 0.25s}
+.rail.collapsed{width:0;min-width:0;border-right:0;overflow:hidden}
+.panel.collapsed{width:0;min-width:0;border-left:0;overflow:hidden}
+.edge-toggle{position:absolute;top:14px;width:22px;height:44px;background:var(--bg1);border:1px solid var(--border);color:var(--t2);cursor:pointer;z-index:16;display:flex;align-items:center;justify-content:center;font-size:15px;padding:0}
+.edge-toggle:hover{color:var(--acc);border-color:var(--acc)}
+.edge-toggle.left{left:0;border-left:0;border-radius:0 8px 8px 0}
+.edge-toggle.right{right:0;border-right:0;border-radius:8px 0 0 8px}
+.rail-sec{padding:12px;border-bottom:1px solid var(--border)}
+.rail-title{font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);margin-bottom:8px}
+.ns-row{display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;color:var(--t1);user-select:none;border:1px solid transparent;margin-bottom:3px}
+.ns-row:hover{background:var(--bg2);border-color:var(--border)}
+.ns-row.off{opacity:0.45}
+.ns-check{width:14px;height:14px;accent-color:var(--acc);cursor:pointer;flex-shrink:0;margin:0}
+.ns-info{display:flex;flex-direction:column;min-width:0}
+.ns-name{color:var(--t0);font-size:11px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ns-sub{color:var(--t3);font-size:9px;line-height:1.3}
+.sw{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.ns-count{margin-left:auto;color:var(--t3);font-size:10px}
+.toggle{display:flex;gap:5px}
+.toggle span{flex:1;text-align:center;padding:5px 0;border:1px solid var(--border);border-radius:5px;font-size:11px;color:var(--t2);cursor:pointer;transition:background 0.2s,border-color 0.2s,color 0.2s}
+.toggle span.on{background:var(--accbg);color:var(--acc);border-color:var(--acc)}
+input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
+.legend-row{display:flex;align-items:center;gap:8px;color:var(--t2);font-size:11px;margin-bottom:6px}
+.hex-glyph{width:16px;height:14px;background:var(--purple);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);flex-shrink:0}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat-card{background:var(--node-bg,var(--bg2));border:1px solid var(--border);border-radius:6px;padding:8px 6px;text-align:center;transition:border-color 0.15s}
+.stat-card.link{cursor:pointer}
+.stat-card.link:hover{border-color:var(--acc)}
+.stat-card.link .stat-num{text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:2px}
+.stat-card.link:hover .stat-num{text-decoration-color:var(--acc)}
+.stat-card.alert{border-color:var(--red)}
+.stat-num{font-size:18px;font-weight:700;line-height:1.1}
+.stat-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px}
+.canvas-wrap{flex:1;position:relative;min-width:0;background:var(--bg0);background-image:radial-gradient(var(--canvas-dot) 1px,transparent 1px);background-size:20px 20px;transition:background-color 0.25s}
+.canvas-wrap svg{width:100%;height:100%;display:block}
+.col-modal-bg{position:fixed;inset:0;background:var(--modal-overlay);display:flex;align-items:center;justify-content:center;z-index:50;animation:colModalFadeIn 0.18s ease}
+@keyframes colModalFadeIn{from{opacity:0}to{opacity:1}}
+.col-modal{width:min(520px,92vw);max-height:80vh;background:var(--bg1);border:1px solid var(--orange);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:colModalSlideIn 0.22s ease}
+@keyframes colModalSlideIn{from{opacity:0;transform:translateY(16px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.col-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--orange)}
+.col-modal-head button{background:transparent;border:0;color:var(--t2);font-size:20px;cursor:pointer;line-height:1;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:background 0.15s,color 0.15s}
+.col-modal-head button:hover{background:var(--bg3);color:var(--t0)}
+.col-modal-body{padding:18px;overflow-y:auto;font-size:11px}
+.zoom-ctl{position:absolute;left:12px;bottom:12px;display:flex;gap:6px}
+.zoom-ctl button{width:28px;height:28px;background:var(--bg1);border:1px solid var(--border);border-radius:6px;color:var(--t2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background 0.2s,border-color 0.2s,color 0.2s}
+.zoom-ctl button:hover{border-color:var(--acc);color:var(--acc)}
+.panel{width:290px;background:var(--bg1);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width 0.2s ease,background 0.25s}
+.tabs{display:flex;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{padding:9px 10px;font-size:9px;letter-spacing:0.5px;color:var(--t2);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.2s}
+.tab.on{color:var(--acc);border-bottom-color:var(--acc)}
+.tab .badge{margin-left:4px;background:var(--red);color:#fff;border-radius:8px;padding:1px 5px;font-size:9px}
+.panel-body{flex:1;overflow-y:auto;padding:12px;font-size:11px}
+.sec-label{font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);margin:14px 0 6px}
+.box{background:var(--bg0);border:1px solid var(--border);border-radius:6px;padding:8px;transition:background 0.25s,border-color 0.25s}
+.kv{display:flex;justify-content:space-between;gap:8px;padding:3px 0;line-height:1.5}
+.kv .k{color:var(--t2)}.kv .v{color:var(--t1);text-align:right;word-break:break-all}
+.field-row{display:flex;justify-content:space-between;padding:3px 0}
+.field-row .fn{color:var(--t1)}.field-row .ft{color:var(--blue);font-size:10px}
+.col-item{background:var(--bg0);border-left:2px solid var(--border);padding:7px 8px;margin-bottom:6px;transition:background 0.25s,border-color 0.2s,box-shadow 0.2s;border-radius:4px}
+.col-item.tx{border-left-color:var(--orange)}
+.col-item.col-active{background:rgba(255,159,67,0.08);border-left-color:var(--orange);border-left-width:3px;box-shadow:0 0 12px rgba(255,159,67,0.15)}
+.col-out{color:var(--t0)}.col-out.tx{color:var(--orange)}
+.col-src{color:var(--t2);font-size:10px;margin-top:2px;line-height:1.5}
+.col-tx-detail{margin-top:8px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:11px;animation:colTxExpand 0.2s ease}
+@keyframes colTxExpand{from{opacity:0;max-height:0}to{opacity:1;max-height:300px}}
+@keyframes colFlowDash{to{stroke-dashoffset:-20}}
+.list-item{background:var(--bg0);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;cursor:pointer;transition:background 0.25s,border-color 0.2s}
+.list-item:hover{border-color:var(--acc)}
+.issue{background:var(--bg0);border-left:2px solid var(--orange);padding:7px 8px;margin-bottom:6px}
+.issue.err{border-left-color:var(--red)}
+.issue .it{font-size:11px;color:var(--t0)}
+.issue .id{font-size:10px;color:var(--t2);margin-top:2px}
+.sev{display:inline-block;font-size:9px;padding:1px 6px;border-radius:4px;margin-right:6px}
+.sev.high{background:rgba(255,95,95,0.15);color:var(--red)}
+.sev.med{background:rgba(255,159,67,0.15);color:var(--orange)}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:40px}
+.empty h2{font-size:16px;color:var(--t0);font-weight:600}
+.empty p{font-size:12px;color:var(--t2);max-width:420px;line-height:1.6}
+.empty .row{display:flex;gap:10px}
+.muted{color:var(--t3);font-size:10px}
+.node-label{fill:var(--t0);font-size:11px;font-family:inherit}
+.node-sub{fill:var(--t3);font-size:9px;font-family:inherit}
+.field-txt{fill:var(--t1);font-size:9px;font-family:inherit}
+.field-type{fill:var(--blue);font-size:9px;font-family:inherit}
+.modal-bg{position:absolute;inset:0;background:var(--modal-overlay);display:flex;align-items:center;justify-content:center;z-index:40}
+.modal{width:min(560px,90%);max-height:80%;background:var(--bg1);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--t0)}
+.modal-head button{background:transparent;border:0;color:var(--t2);font-size:18px;cursor:pointer}
+.modal pre{padding:14px;overflow:auto;font-size:10px;color:var(--t1);white-space:pre-wrap;word-break:break-all}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* LINEAGE_ENGINE_START — pure logic, no DOM/React/D3. Testable in Node. */
+(
+  function(){
+  var NS_COLORS=['#4d9fff','#22c55e','#ff9f43','#a78bfa','#22d3ee','#ec4899','#f0f0f2','#00ff9d','#ff5f5f'];
+  var JOB_COLOR='#a78bfa';
+
+  function dsKey(ns,name){return (ns||'')+'::'+(name||'');}
+
+  function collectEvent(o,events,issues,file,idx){
+    var where=(idx!=null?' (line '+(idx+1)+')':'');
+    if(o&&typeof o==='object'&&o.job&&typeof o.job==='object'&&(o.eventType||o.inputs||o.outputs)){
+      events.push(o);
+    }else{
+      issues.push({file:file,severity:'high',reason:'Not an OpenLineage event'+where});
+    }
+  }
+
+  function parseFileContent(text,file){
+    var events=[],issues=[];
+    var trimmed=(text||'').trim();
+    if(!trimmed){issues.push({file:file,severity:'med',reason:'Empty file'});return{events:events,issues:issues};}
+    var parsed,parseErr=null;
+    try{parsed=JSON.parse(trimmed);}catch(e){parseErr=e;}
+    if(!parseErr){
+      if(Array.isArray(parsed))parsed.forEach(function(o){collectEvent(o,events,issues,file);});
+      else collectEvent(parsed,events,issues,file);
+      return{events:events,issues:issues};
+    }
+    // Fallback: NDJSON (one JSON object per line)
+    var lines=trimmed.split(/\r?\n/).filter(function(l){return l.trim();});
+    var anyOk=false;
+    lines.forEach(function(l,i){
+      try{collectEvent(JSON.parse(l),events,issues,file,i);anyOk=true;}
+      catch(e2){issues.push({file:file,severity:'high',reason:'Line '+(i+1)+': invalid JSON'});}
+    });
+    if(!anyOk&&lines.length<=1){
+      issues=[{file:file,severity:'high',reason:'Invalid JSON: '+(parseErr.message||parseErr)}];
+    }
+    return{events:events,issues:issues};
+  }
+
+  function eventTimeMs(ev){var t=ev&&ev.eventTime?Date.parse(ev.eventTime):NaN;return isNaN(t)?0:t;}
+
+  function buildModel(events,parseIssues){
+    var datasets={},jobs={},edgeSet={},edges=[],colEdges=[],issues=(parseIssues||[]).slice();
+    var nsOrder=[];
+    function ns(n){if(n&&nsOrder.indexOf(n)<0)nsOrder.push(n);}
+    function ensureDs(d){
+      var k=dsKey(d.namespace,d.name);
+      if(!datasets[k]){datasets[k]={key:k,namespace:d.namespace||'',name:d.name||'',schemaFields:[],columnLineage:null,producedByJobs:{},consumedByJobs:{},facets:{}};ns(d.namespace);}
+      return datasets[k];
+    }
+    function addEdge(from,to){var id=from+'>'+to;if(!edgeSet[id]){edgeSet[id]=1;edges.push({from:from,to:to});}}
+
+    var ordered=events.slice().sort(function(a,b){return eventTimeMs(a)-eventTimeMs(b);});
+    ordered.forEach(function(ev){
+      var jns=ev.job.namespace||'',jname=ev.job.name||'';
+      var jk=dsKey(jns,jname);ns(jns);
+      var job=jobs[jk]||(jobs[jk]={key:jk,namespace:jns,name:jname,inputs:{},outputs:{},runs:[],latestEventType:null,latestTime:-1,sourceCode:null,facets:ev.job.facets||{}});
+      var t=eventTimeMs(ev);
+      if(ev.run&&ev.run.runId)job.runs.push({runId:ev.run.runId,eventType:ev.eventType||'',eventTime:ev.eventTime||''});
+      if(t>=job.latestTime){job.latestTime=t;job.latestEventType=ev.eventType||job.latestEventType;}
+      if(ev.job.facets){job.facets=ev.job.facets;if(ev.job.facets.sourceCode)job.sourceCode=ev.job.facets.sourceCode;}
+
+      (ev.inputs||[]).forEach(function(d){
+        if(!d)return;var ds=ensureDs(d);var k=ds.key;
+        job.inputs[k]=1;ds.consumedByJobs[jk]=1;
+        addEdge('d:'+k,'j:'+jk);
+        applyFacets(ds,d.facets);
+      });
+      (ev.outputs||[]).forEach(function(d){
+        if(!d)return;var ds=ensureDs(d);var k=ds.key;
+        job.outputs[k]=1;ds.producedByJobs[jk]=1;
+        addEdge('j:'+jk,'d:'+k);
+        applyFacets(ds,d.facets);
+        extractColumnEdges(ds,d.facets,colEdges);
+      });
+    });
+
+    function applyFacets(ds,facets){
+      if(!facets)return;
+      if(facets.schema&&Array.isArray(facets.schema.fields)&&facets.schema.fields.length){
+        ds.schemaFields=facets.schema.fields.map(function(f){return{name:f.name,type:f.type||''};});
+      }
+      if(facets.columnLineage&&facets.columnLineage.fields)ds.columnLineage=facets.columnLineage.fields;
+      Object.keys(facets).forEach(function(fk){if(fk[0]!=='_')ds.facets[fk]=facets[fk];});
+    }
+    function extractColumnEdges(ds,facets,out){
+      if(!facets||!facets.columnLineage||!facets.columnLineage.fields)return;
+      var f=facets.columnLineage.fields;
+      Object.keys(f).forEach(function(outField){
+        var spec=f[outField];var ins=(spec&&spec.inputFields)||[];
+        ins.forEach(function(inp){
+          if(!inp)return;
+          var tx='',type='',subtype='',masking=false;
+          if(Array.isArray(inp.transformations)&&inp.transformations.length){
+            var tr=inp.transformations[0];
+            tx=tr.description||'';type=tr.type||'';subtype=tr.subtype||'';masking=!!tr.masking;
+          }
+          if(!tx&&inp.transformationDescription)tx=inp.transformationDescription;
+          if(!type&&inp.transformationType)type=inp.transformationType;
+          if(!tx&&spec.transformationDescription)tx=spec.transformationDescription;
+          out.push({toDs:ds.key,toField:outField,fromDs:dsKey(inp.namespace,inp.name),fromField:inp.field||'',transformation:tx,transformationType:type,transformationSubtype:subtype,masking:masking});
+        });
+      });
+    }
+
+    // colors
+    var nsColor={};nsOrder.forEach(function(n,i){nsColor[n]=NS_COLORS[i%NS_COLORS.length];});
+
+    var dsList=Object.keys(datasets).map(function(k){return datasets[k];});
+    var jobList=Object.keys(jobs).map(function(k){return jobs[k];});
+    var stats={datasets:dsList.length,jobs:jobList.length,namespaces:nsOrder.length,edges:edges.length,columnEdges:colEdges.length,events:events.length};
+
+    var model={datasets:datasets,jobs:jobs,edges:edges,colEdges:colEdges,namespaces:nsOrder,nsColor:nsColor,stats:stats,issues:issues};
+    validate(model);
+    return model;
+  }
+
+  function detectCycles(model){
+    var adj={};model.edges.forEach(function(e){(adj[e.from]||(adj[e.from]=[])).push(e.to);});
+    var state={},cycleNodes={};
+    function dfs(n){
+      state[n]=1;
+      (adj[n]||[]).forEach(function(m){
+        if(state[m]===1){cycleNodes[m]=1;cycleNodes[n]=1;}
+        else if(!state[m])dfs(m);
+      });
+      state[n]=2;
+    }
+    Object.keys(adj).forEach(function(n){if(!state[n])dfs(n);});
+    return Object.keys(cycleNodes);
+  }
+
+  function validate(model){
+    var issues=model.issues;
+    Object.keys(model.datasets).forEach(function(k){
+      var d=model.datasets[k];
+      var prod=Object.keys(d.producedByJobs).length,cons=Object.keys(d.consumedByJobs).length;
+      if(prod===0&&cons===0)issues.push({severity:'med',reason:'Orphan dataset (no producer or consumer): '+d.key});
+      else if(prod>0&&d.schemaFields.length===0)issues.push({severity:'med',reason:'Output dataset missing schema: '+d.key});
+    });
+    var cyc=detectCycles(model);
+    if(cyc.length)issues.push({severity:'high',reason:'Cycle detected involving '+cyc.length+' node(s): '+cyc.map(function(x){return x.slice(2);}).join(', ')});
+    model.cycleNodes=cyc;
+    return issues;
+  }
+
+  function computeLayout(model,opts){
+    opts=opts||{};
+    var dir=opts.direction||'LR';
+    var expanded=opts.expanded||{};
+    var hidden=opts.hiddenNs||{};
+    var manual=opts.manual||{};
+    var HEADER=30,ROWH=16,MAXF=12,DSW=160,JOBW=130;
+    var COLGAP=opts.colGap!=null?opts.colGap:90;
+    var ROWGAP=opts.rowGap!=null?opts.rowGap:26;
+
+    var nodes={},order=[];
+    function visible(ns){return !hidden[ns];}
+    Object.keys(model.datasets).forEach(function(k){
+      var d=model.datasets[k];if(!visible(d.namespace))return;
+      var id='d:'+k;var exp=!!expanded[id];
+      var nf=Math.min(d.schemaFields.length,MAXF);
+      var h=exp&&nf>0?HEADER+nf*ROWH+6:46;
+      nodes[id]={id:id,kind:'dataset',key:k,name:d.name,namespace:d.namespace,color:model.nsColor[d.namespace]||'#888',w:DSW,h:h,expanded:exp,fields:d.schemaFields.slice(0,MAXF),moreFields:Math.max(0,d.schemaFields.length-MAXF)};
+      order.push(id);
+    });
+    Object.keys(model.jobs).forEach(function(k){
+      var j=model.jobs[k];if(!visible(j.namespace))return;
+      var id='j:'+k;
+      nodes[id]={id:id,kind:'job',key:k,name:j.name,namespace:j.namespace,color:JOB_COLOR,w:JOBW,h:46,eventType:j.latestEventType};
+      order.push(id);
+    });
+
+    var edges=model.edges.filter(function(e){return nodes[e.from]&&nodes[e.to];});
+
+    // Bypass hidden jobs: when a job's namespace is filtered out its node is
+    // gone, which would leave datasets isolated (lineage flows dataset->job->
+    // dataset). Connect each hidden job's visible inputs directly to its visible
+    // outputs so dataset-level lineage stays visible.
+    var edgeSet={};edges.forEach(function(e){edgeSet[e.from+'>'+e.to]=1;});
+    Object.keys(model.jobs).forEach(function(k){
+      var jid='j:'+k;if(nodes[jid])return;// job shown -> its edges already present
+      var j=model.jobs[k];
+      Object.keys(j.inputs).forEach(function(ik){
+        var iid='d:'+ik;if(!nodes[iid])return;
+        Object.keys(j.outputs).forEach(function(ok){
+          var oid='d:'+ok;if(!nodes[oid]||iid===oid)return;
+          var ek=iid+'>'+oid;if(!edgeSet[ek]){edgeSet[ek]=1;edges.push({from:iid,to:oid,bypass:true});}
+        });
+      });
+    });
+
+    // rank via Kahn + longest path
+    var indeg={},adj={};order.forEach(function(id){indeg[id]=0;adj[id]=[];});
+    edges.forEach(function(e){adj[e.from].push(e.to);indeg[e.to]++;});
+    var rank={},queue=[];order.forEach(function(id){if(indeg[id]===0){rank[id]=0;queue.push(id);}});
+    var idc={};Object.keys(indeg).forEach(function(k){idc[k]=indeg[k];});
+    var seen=0;
+    while(queue.length){
+      var n=queue.shift();seen++;
+      adj[n].forEach(function(m){rank[m]=Math.max(rank[m]||0,(rank[n]||0)+1);if(--idc[m]===0)queue.push(m);});
+    }
+    // any unranked (cycles) -> place after max
+    order.forEach(function(id){if(rank[id]==null)rank[id]=0;});
+
+    var byRank={};order.forEach(function(id){var r=rank[id];(byRank[r]||(byRank[r]=[])).push(id);});
+    var ranks=Object.keys(byRank).map(Number).sort(function(a,b){return a-b;});
+
+    // column x per rank (variable node widths => use max width in rank * rank index spacing)
+    var rankX={},x=20;
+    ranks.forEach(function(r){var maxW=0;byRank[r].forEach(function(id){maxW=Math.max(maxW,nodes[id].w);});rankX[r]=x;x+=maxW+COLGAP;});
+    var totalW=x;
+
+    var maxRankH=0;
+    ranks.forEach(function(r){
+      var y=20;
+      byRank[r].sort(function(a,b){return nodes[a].name<nodes[b].name?-1:1;});
+      byRank[r].forEach(function(id){var nd=nodes[id];nd.x=rankX[r];nd.y=y;y+=nd.h+ROWGAP;});
+      maxRankH=Math.max(maxRankH,y);
+    });
+    var totalH=maxRankH+20;
+
+    // field anchor map for column edges
+    function fieldY(nd,fname){
+      if(!nd.expanded)return nd.y+nd.h/2;
+      var idx=nd.fields.findIndex(function(f){return f.name===fname;});
+      if(idx<0)return nd.y+nd.h/2;
+      return nd.y+HEADER+idx*ROWH+ROWH/2;
+    }
+
+    var colEdges=[];
+    model.colEdges.forEach(function(ce){
+      var fromId='d:'+ce.fromDs,toId='d:'+ce.toDs;
+      var a=nodes[fromId],b=nodes[toId];if(!a||!b)return;
+      if(!a.expanded&&!b.expanded)return; // only when at least one end expanded
+      colEdges.push({from:fromId,to:toId,fromField:ce.fromField,toField:ce.toField,transformation:ce.transformation,
+        y1:fieldY(a,ce.fromField),y2:fieldY(b,ce.toField)});
+    });
+
+    var nodeList=order.map(function(id){return nodes[id];});
+
+    if(dir==='TB'){
+      nodeList.forEach(function(nd){var t=nd.x;nd.x=nd.y;nd.y=t;});
+      var tw=totalW;totalW=totalH;totalH=tw;
+    }
+
+    // apply manual drag overrides (in final canvas space) and recompute bounds
+    Object.keys(manual).forEach(function(id){if(nodes[id]&&manual[id]){nodes[id].x=manual[id].x;nodes[id].y=manual[id].y;}});
+    if(nodeList.length){
+      var maxX=-1e9,maxY=-1e9;
+      nodeList.forEach(function(nd){maxX=Math.max(maxX,nd.x+nd.w);maxY=Math.max(maxY,nd.y+nd.h);});
+      totalW=Math.max(totalW,maxX+20);totalH=Math.max(totalH,maxY+20);
+    }
+
+    return{nodes:nodeList,nodeMap:nodes,edges:edges,colEdges:colEdges,width:totalW,height:totalH,dir:dir,dims:{HEADER:HEADER,ROWH:ROWH}};
+  }
+
+  var DEMO_EVENTS=[
+    {eventType:'COMPLETE',eventTime:'2024-03-15T10:00:00Z',run:{runId:'r1',facets:{}},job:{namespace:'etl',name:'load_orders',facets:{sourceCode:{language:'sql',sourceCode:'SELECT * FROM raw.orders'}}},
+     inputs:[{namespace:'raw',name:'raw.orders',facets:{schema:{fields:[{name:'order_id',type:'bigint'},{name:'unit_price',type:'decimal'},{name:'quantity',type:'int'},{name:'customer_id',type:'bigint'}]}}}],
+     outputs:[{namespace:'staging',name:'stg.orders',facets:{schema:{fields:[{name:'order_id',type:'bigint'},{name:'unit_price',type:'decimal'},{name:'quantity',type:'int'},{name:'customer_id',type:'bigint'}]},
+       columnLineage:{fields:{
+         order_id:{inputFields:[{namespace:'raw',name:'raw.orders',field:'order_id'}]},
+         unit_price:{inputFields:[{namespace:'raw',name:'raw.orders',field:'unit_price'}]},
+         quantity:{inputFields:[{namespace:'raw',name:'raw.orders',field:'quantity'}]},
+         customer_id:{inputFields:[{namespace:'raw',name:'raw.orders',field:'customer_id'}]}
+       }}}}]},
+    {eventType:'COMPLETE',eventTime:'2024-03-15T10:05:00Z',run:{runId:'r2',facets:{}},job:{namespace:'etl',name:'build_revenue',facets:{}},
+     inputs:[{namespace:'staging',name:'stg.orders',facets:{}}],
+     outputs:[{namespace:'marts',name:'fct.revenue',facets:{
+       schema:{fields:[{name:'order_id',type:'bigint'},{name:'total_amount',type:'decimal'},{name:'customer_id',type:'bigint'}]},
+       columnLineage:{fields:{
+         order_id:{inputFields:[{namespace:'staging',name:'stg.orders',field:'order_id'}]},
+         total_amount:{inputFields:[
+           {namespace:'staging',name:'stg.orders',field:'unit_price',transformations:[{type:'INDIRECT',description:'unit_price * quantity'}]},
+           {namespace:'staging',name:'stg.orders',field:'quantity',transformations:[{type:'INDIRECT',description:'unit_price * quantity'}]}]},
+         customer_id:{inputFields:[{namespace:'staging',name:'stg.orders',field:'customer_id'}]}
+       }}}}]},
+    {eventType:'COMPLETE',eventTime:'2024-03-15T10:10:00Z',run:{runId:'r3',facets:{}},job:{namespace:'etl',name:'customer_dim',facets:{}},
+     inputs:[{namespace:'raw',name:'raw.customers',facets:{schema:{fields:[{name:'customer_id',type:'bigint'},{name:'name',type:'string'}]}}}],
+     outputs:[{namespace:'marts',name:'dim.customer',facets:{schema:{fields:[{name:'customer_id',type:'bigint'},{name:'name',type:'string'}]}}}]}
+  ];
+
+  var G=(typeof window!=='undefined')?window:globalThis;
+  G.LineageEngine={parseFileContent:parseFileContent,buildModel:buildModel,validate:validate,detectCycles:detectCycles,computeLayout:computeLayout,dsKey:dsKey,DEMO_EVENTS:DEMO_EVENTS,NS_COLORS:NS_COLORS};
+}
+)();
+/* LINEAGE_ENGINE_END */
+</script>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+<script>
+(function(){
+var E=window.LineageEngine;
+var h=React.createElement;
+var useState=React.useState,useRef=React.useRef,useEffect=React.useEffect,useMemo=React.useMemo,useCallback=React.useCallback;
+
+function normPath(p){return (p||'').replace(/\\/g,'/').replace(/^\.\//,'');}
+function rootPrefix(paths){
+  if(!paths.length)return '';
+  var first=paths[0].split('/');
+  if(first.length<2)return '';
+  var pre=first[0]+'/';
+  return paths.every(function(p){return p.indexOf(pre)===0;})?pre:'';
+}
+
+function App(){
+  var s_model=useState(null),model=s_model[0],setModel=s_model[1];
+  var s_sel=useState(null),selected=s_sel[0],setSelected=s_sel[1];
+  var s_tab=useState('DETAILS'),tab=s_tab[0],setTab=s_tab[1];
+  var s_dir=useState('LR'),dir=s_dir[0],setDir=s_dir[1];
+  var s_q=useState(''),query=s_q[0],setQuery=s_q[1];
+  var s_hidden=useState({}),hiddenNs=s_hidden[0],setHiddenNs=s_hidden[1];
+  var s_rail=useState(true),railOpen=s_rail[0],setRailOpen=s_rail[1];
+  var s_panel=useState(true),panelOpen=s_panel[0],setPanelOpen=s_panel[1];
+  var s_modal=useState(null),modal=s_modal[0],setModal=s_modal[1];
+  var s_load=useState(false),loading=s_load[0],setLoading=s_load[1];
+  var s_err=useState(null),err=s_err[0],setErr=s_err[1];
+  var s_view=useState('column'),viewMode=s_view[0],setViewMode=s_view[1];// 'column' | 'table'
+  var s_gap=useState(90),gap=s_gap[0],setGap=s_gap[1];// horizontal min distance px
+  var s_manualV=useState(0),manualV=s_manualV[0],setManualV=s_manualV[1];// bump to re-layout after drag
+  var s_col=useState(null),colDetail=s_col[0],setColDetail=s_col[1];// column transformation popup modal
+  var s_theme=useState('dark'),theme=s_theme[0],setTheme=s_theme[1];// 'dark' | 'light'
+  var s_selCol=useState(null),selectedCol=s_selCol[0],setSelectedCol=s_selCol[1];// {dsKey,field} for highlighting
+  var svgRef=useRef(null),zoomRef=useRef(null),gRef=useRef(null);
+  var folderInputRef=useRef(null);
+  var manualRef=useRef({});// nodeId -> {x,y} manual drag overrides
+
+  // Compute full transitive column lineage chain (upstream + downstream)
+  var colChain=useMemo(function(){
+    if(!selectedCol||!model)return null;
+    // Sets to track all involved dataset::field pairs and colEdge indices
+    var fields={};// 'dsKey::fieldName' -> true
+    var edgeIndices={};// model.colEdge index -> true
+    var edgeKeys={};// 'fromDs::fromField>toDs::toField' -> true (identity, matches layout.colEdges)
+    var datasets={};// dsKey -> true
+    function fKey(ds,f){return ds+'::'+f;}
+    function eKey(ce){return ce.fromDs+'::'+ce.fromField+'>'+ce.toDs+'::'+ce.toField;}
+    // Seed with the selected column
+    var seedKey=fKey(selectedCol.dsKey,selectedCol.field);
+    fields[seedKey]=true;
+    datasets[selectedCol.dsKey]=true;
+    // Walk upstream: for a given target field, find all source fields recursively
+    function walkUp(dsKey,field){
+      model.colEdges.forEach(function(ce,idx){
+        if(ce.toDs===dsKey&&ce.toField===field){
+          edgeIndices[idx]=true;edgeKeys[eKey(ce)]=true;
+          var sk=fKey(ce.fromDs,ce.fromField);
+          datasets[ce.fromDs]=true;
+          if(!fields[sk]){
+            fields[sk]=true;
+            walkUp(ce.fromDs,ce.fromField);// recurse upstream
+          }
+        }
+      });
+    }
+    // Walk downstream: for a given source field, find all target fields recursively
+    function walkDown(dsKey,field){
+      model.colEdges.forEach(function(ce,idx){
+        if(ce.fromDs===dsKey&&ce.fromField===field){
+          edgeIndices[idx]=true;edgeKeys[eKey(ce)]=true;
+          var tk=fKey(ce.toDs,ce.toField);
+          datasets[ce.toDs]=true;
+          if(!fields[tk]){
+            fields[tk]=true;
+            walkDown(ce.toDs,ce.toField);// recurse downstream
+          }
+        }
+      });
+    }
+    walkUp(selectedCol.dsKey,selectedCol.field);
+    walkDown(selectedCol.dsKey,selectedCol.field);
+    return{fields:fields,edgeIndices:edgeIndices,edgeKeys:edgeKeys,datasets:datasets};
+  },[selectedCol,model]);
+
+  var expanded=useMemo(function(){
+    var e={};
+    if(viewMode==='table')return e;
+    if(selected&&selected.kind==='dataset'){
+      e['d:'+selected.key]=1;
+      if(model)model.colEdges.forEach(function(ce){if(ce.toDs===selected.key)e['d:'+ce.fromDs]=1;if(ce.fromDs===selected.key)e['d:'+ce.toDs]=1;});
+    }
+    // When a column is selected, expand all datasets in the full lineage chain
+    if(colChain){
+      Object.keys(colChain.datasets).forEach(function(dk){e['d:'+dk]=1;});
+    }
+    return e;
+  },[selected,model,viewMode,colChain]);
+
+  var layout=useMemo(function(){
+    if(!model)return null;
+    return E.computeLayout(model,{direction:dir,expanded:expanded,hiddenNs:hiddenNs,colGap:gap,rowGap:Math.max(12,Math.round(gap*0.29)),manual:manualRef.current});
+  },[model,dir,expanded,hiddenNs,gap,manualV]);
+
+  function resetLayout(){manualRef.current={};setManualV(function(v){return v+1;});}
+
+  // Theme toggle
+  function toggleTheme(){
+    setTheme(function(prev){
+      var next=prev==='light'?'dark':'light';
+      document.documentElement.setAttribute('data-theme',next);
+      return next;
+    });
+  }
+  // Apply theme attribute on mount
+  useEffect(function(){document.documentElement.setAttribute('data-theme',theme);},[theme]);
+
+  function hasColLineage(dsKey,field){return !!model&&model.colEdges.some(function(c){return c.toDs===dsKey&&c.toField===field;});}
+  function openColDetail(dsKey,field){
+    if(!model)return;
+    var srcs=model.colEdges.filter(function(c){return c.toDs===dsKey&&c.toField===field;});
+    if(!srcs.length)return;
+    var d=model.datasets[dsKey];
+    var tf=d&&d.schemaFields.find(function(f){return f.name===field;});
+    setColDetail({dataset:dsKey,field:field,type:tf?tf.type:'',sources:srcs});
+  }
+
+  function loadEvents(events,parseIssues){
+    try{
+      var m=E.buildModel(events,parseIssues||[]);
+      setModel(m);setSelected(null);setErr(null);
+      if(m.issues.length&&m.stats.datasets===0)setTab('ISSUES');else setTab('DETAILS');
+    }catch(e){setErr('Failed to build model: '+(e.message||e));}
+  }
+
+  function loadDemo(){setLoading(true);setTimeout(function(){loadEvents(E.DEMO_EVENTS.slice(),[]);setLoading(false);},50);}
+
+  async function readFileObjs(fileObjs){
+    setLoading(true);setErr(null);
+    var jsonFiles=fileObjs.filter(function(f){return /\.json$/i.test(f.name)&&!/\.DS_Store$/.test(f.name);});
+    if(!jsonFiles.length){setLoading(false);setErr('No .json files found in the selected folder.');return;}
+    var allEvents=[],allIssues=[];
+    for(var i=0;i<jsonFiles.length;i++){
+      try{
+        var txt=await jsonFiles[i].text();
+        var r=E.parseFileContent(txt,jsonFiles[i].webkitRelativePath||jsonFiles[i].name);
+        allEvents=allEvents.concat(r.events);allIssues=allIssues.concat(r.issues);
+      }catch(e){allIssues.push({file:jsonFiles[i].name,severity:'high',reason:'Read error: '+(e.message||e)});}
+    }
+    loadEvents(allEvents,allIssues);setLoading(false);
+  }
+
+  function openFolder(){
+    if(window.showDirectoryPicker){
+      window.showDirectoryPicker().then(async function(dh){
+        setLoading(true);var files=[];
+        async function walk(handle,prefix){
+          for await(var entry of handle.values()){
+            var p=prefix?prefix+'/'+entry.name:entry.name;
+            if(entry.kind==='file'){var f=await entry.getFile();try{Object.defineProperty(f,'webkitRelativePath',{value:p});}catch(e){}files.push(f);}
+            else if(entry.kind==='directory')await walk(entry,p);
+          }
+        }
+        try{await walk(dh,dh.name);await readFileObjs(files);}catch(e){setErr('Folder read failed: '+(e.message||e));setLoading(false);}
+      }).catch(function(e){if(e&&e.name!=='AbortError')setErr('Could not open folder: '+(e.message||e));});
+    }else if(folderInputRef.current){folderInputRef.current.value='';folderInputRef.current.click();}
+  }
+  function onFolderInput(e){var files=Array.from(e.target.files||[]);if(files.length)readFileObjs(files);}
+
+  // D3 render
+  useEffect(function(){
+    if(!layout||!svgRef.current)return;
+    var svg=d3.select(svgRef.current);
+    svg.selectAll('*').remove();
+    var g=svg.append('g');gRef.current=g;
+    var nodeMap=layout.nodeMap;
+    var selId=selected?(selected.kind+':').replace('dataset:','d:').replace('job:','j:')+selected.key:null;
+    var connected={};
+    if(selId){layout.edges.forEach(function(e){if(e.from===selId||e.to===selId){connected[e.from]=1;connected[e.to]=1;}});}
+
+    function box(id){return nodeMap[id];}
+    function anchorOut(n){return dir==='LR'?[n.x+n.w,n.y+n.h/2]:[n.x+n.w/2,n.y+n.h];}
+    function anchorIn(n){return dir==='LR'?[n.x,n.y+n.h/2]:[n.x+n.w/2,n.y];}
+    function path(a,b){
+      if(dir==='LR'){var mx=(a[0]+b[0])/2;return 'M'+a[0]+','+a[1]+'C'+mx+','+a[1]+' '+mx+','+b[1]+' '+b[0]+','+b[1];}
+      var my=(a[1]+b[1])/2;return 'M'+a[0]+','+a[1]+'C'+a[0]+','+my+' '+b[0]+','+my+' '+b[0]+','+b[1];
+    }
+
+    // ----- edges (redrawable so drag updates them live) -----
+    var HEADER=layout.dims.HEADER,ROWH=layout.dims.ROWH;
+    var eg=g.append('g'),cg=g.append('g');
+    function fieldAnchor(n,fname,side){
+      var cy;
+      if(n.expanded){var idx=n.fields.findIndex(function(f){return f.name===fname;});cy=idx>=0?n.y+HEADER+idx*ROWH+ROWH/2:n.y+n.h/2;}
+      else cy=n.y+n.h/2;
+      return side==='out'?[n.x+n.w,cy]:[n.x,cy];
+    }
+    function drawEdges(){
+      eg.selectAll('*').remove();cg.selectAll('*').remove();
+      var edgeClr=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
+      var accColor=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
+      // Use full transitive chain for active edges
+      var activeColEdges=colChain?colChain.edgeKeys:{};
+      var hasActiveCol=Object.keys(activeColEdges).length>0;
+      layout.edges.forEach(function(e){
+        var a=anchorOut(box(e.from)),b=anchorIn(box(e.to));
+        var hot=selId&&(e.from===selId||e.to===selId);
+        var p=eg.append('path').attr('d',path(a,b)).attr('fill','none').attr('stroke',hot?accColor:edgeClr).attr('stroke-width',hot?1.8:1).attr('marker-end',hot?'url(#arrHot)':'url(#arr)');
+        if(e.bypass)p.attr('stroke-dasharray','5,4').attr('opacity',0.7);// lineage through a hidden job
+      });
+      if(dir==='LR'){
+        layout.colEdges.forEach(function(ce,idx){
+          var a=box(ce.from),b=box(ce.to);if(!a||!b)return;
+          var pa=fieldAnchor(a,ce.fromField,'out'),pb=fieldAnchor(b,ce.toField,'in');
+          var isActive=activeColEdges[ce.from.slice(2)+'::'+ce.fromField+'>'+ce.to.slice(2)+'::'+ce.toField];
+          if(hasActiveCol&&!isActive){
+            // Dim non-active column edges
+            cg.append('path').attr('d',path(pa,pb)).attr('fill','none').attr('stroke','#ff9f43').attr('stroke-width',0.6).attr('stroke-dasharray','3,3').attr('opacity',0.2);
+          }else if(isActive){
+            // Glowing background for active edge
+            cg.append('path').attr('d',path(pa,pb)).attr('fill','none').attr('stroke','#ff9f43').attr('stroke-width',6).attr('opacity',0.1).attr('filter','blur(2px)');
+            // Active animated edge with flowing dashes
+            var p=cg.append('path').attr('d',path(pa,pb)).attr('fill','none').attr('stroke','#ff9f43').attr('stroke-width',2.2).attr('stroke-dasharray','6,4').attr('opacity',1)
+              .attr('marker-end','url(#arrCol)');
+            p.style('animation','colFlowDash 0.6s linear infinite');
+            // Source dot
+            cg.append('circle').attr('cx',pa[0]).attr('cy',pa[1]).attr('r',4).attr('fill','#ff9f43').attr('opacity',0.9);
+            // Target dot
+            cg.append('circle').attr('cx',pb[0]).attr('cy',pb[1]).attr('r',4).attr('fill','#ff9f43').attr('opacity',0.9);
+          }else{
+            // Default column edges (no selection)
+            cg.append('path').attr('d',path(pa,pb)).attr('fill','none').attr('stroke','#ff9f43').attr('stroke-width',1).attr('stroke-dasharray','3,3').attr('opacity',0.85);
+          }
+        });
+      }
+    }
+    drawEdges();
+
+    // ----- nodes (draggable; column rows open transformation popout) -----
+    var ng=g.append('g');
+    layout.nodes.forEach(function(n){
+      var grp=ng.append('g').attr('transform','translate('+n.x+','+n.y+')').style('cursor','grab');
+      var isSel=selId===n.id;
+      var nodeBg=getComputedStyle(document.documentElement).getPropertyValue('--node-bg').trim()||'#161619';
+      var accColor=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
+      var edgeClr=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
+      if(n.kind==='job'){
+        // Distinct hexagon glyph for jobs/transforms (points at left/right for LR flow anchors)
+        var hi=Math.min(16,n.h/2);
+        var hex='M'+hi+',0 L'+(n.w-hi)+',0 L'+n.w+','+(n.h/2)+' L'+(n.w-hi)+','+n.h+' L'+hi+','+n.h+' L0,'+(n.h/2)+' Z';
+        grp.append('path').attr('d',hex).attr('fill',nodeBg).attr('stroke',isSel?accColor:n.color).attr('stroke-width',isSel?2:1.4);
+        if(isSel)grp.append('path').attr('d',hex).attr('fill','none').attr('stroke',accColor).attr('stroke-width',5).attr('opacity',0.12);
+        grp.append('text').attr('x',n.w/2).attr('y',21).attr('text-anchor','middle').attr('font-size','14px').attr('fill',n.color).text('⚙');
+        grp.append('text').attr('x',n.w/2).attr('y',35).attr('text-anchor','middle').attr('class','node-label').attr('font-size','10px').text(trunc(n.name,14));
+      }else{
+        grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',5)
+          .attr('fill',nodeBg).attr('stroke',isSel?accColor:n.color).attr('stroke-width',isSel?2:1);
+        if(isSel)grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',5).attr('fill','none').attr('stroke',accColor).attr('stroke-width',5).attr('opacity',0.12);
+        grp.append('text').attr('x',9).attr('y',18).attr('class','node-label').text(trunc(n.name,20));
+        grp.append('text').attr('x',9).attr('y',30).attr('class','node-sub').text(trunc(n.namespace,24));
+        if(n.expanded&&n.fields.length){
+          grp.append('line').attr('x1',0).attr('x2',n.w).attr('y1',HEADER).attr('y2',HEADER).attr('stroke','#2d2d35');
+          n.fields.forEach(function(f,i){
+            var y=HEADER+i*ROWH+11;
+            // Check if this field is part of the full transitive column lineage chain
+            var isHighlighted=colChain&&colChain.fields[n.key+'::'+f.name];
+            if(isHighlighted){
+              // Highlight background for active field
+              grp.append('rect').attr('x',1).attr('y',HEADER+i*ROWH).attr('width',n.w-2).attr('height',ROWH).attr('fill','rgba(255,159,67,0.2)').attr('rx',2);
+              grp.append('rect').attr('x',0).attr('y',HEADER+i*ROWH).attr('width',3).attr('height',ROWH).attr('fill','#ff9f43').attr('rx',1);
+            }
+            grp.append('text').attr('x',9).attr('y',y).attr('class','field-txt').attr('fill',isHighlighted?'#ff9f43':null).text(trunc(f.name,16));
+            grp.append('text').attr('x',n.w-9).attr('y',y).attr('text-anchor','end').attr('class','field-type').text(trunc(f.type,8));
+            if(hasColLineage(n.key,f.name)){
+              var fr=grp.append('rect').attr('x',1).attr('y',HEADER+i*ROWH+1).attr('width',n.w-2).attr('height',ROWH-1).attr('fill','transparent').attr('rx',2).style('cursor','pointer');
+              fr.on('mouseover',function(){d3.select(this).attr('fill','rgba(255,159,67,0.14)');}).on('mouseout',function(){d3.select(this).attr('fill','transparent');});
+              // Stop mousedown reaching the node's d3.drag: otherwise drag installs a click-suppressor
+              // that swallows this row's click and the transformation popup never opens.
+              fr.on('mousedown',function(ev){ev.stopPropagation();});
+              fr.on('click',function(ev){ev.stopPropagation();setSelected({kind:'dataset',key:n.key});setSelectedCol({dsKey:n.key,field:f.name});openColDetail(n.key,f.name);});
+            }
+          });
+          if(n.moreFields)grp.append('text').attr('x',9).attr('y',HEADER+n.fields.length*ROWH+9).attr('class','node-sub').text('+'+n.moreFields+' more');
+        }
+      }
+      var drag=d3.drag()
+        .on('start',function(ev){ev.sourceEvent.stopPropagation();grp.raise().style('cursor','grabbing');grp.node().__moved=false;})
+        .on('drag',function(ev){n.x+=ev.dx;n.y+=ev.dy;grp.attr('transform','translate('+n.x+','+n.y+')');manualRef.current[n.id]={x:n.x,y:n.y};grp.node().__moved=true;drawEdges();})
+        .on('end',function(ev){grp.style('cursor','grab');if(!grp.node().__moved)setSelected({kind:n.kind,key:n.key});});
+      grp.call(drag);
+    });
+
+    // markers
+    var defs=svg.append('defs');
+    var edgeClrMk=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
+    var accColorMk=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
+    [['arr',edgeClrMk],['arrHot',accColorMk],['arrCol','#ff9f43']].forEach(function(m){
+      defs.append('marker').attr('id',m[0]).attr('markerWidth',7).attr('markerHeight',7).attr('refX',6).attr('refY',3).attr('orient','auto')
+        .append('path').attr('d','M0,0 L6,3 L0,6 Z').attr('fill',m[1]);
+    });
+
+    var zoom=d3.zoom().scaleExtent([0.1,3]).on('zoom',function(ev){g.attr('transform',ev.transform);});
+    zoomRef.current=zoom;svg.call(zoom);
+    fit();
+    function fit(){
+      var sw=svgRef.current.clientWidth||800,sh=svgRef.current.clientHeight||600;
+      var bb;try{bb=g.node().getBBox();}catch(e){return;}
+      if(!bb||!bb.width||!bb.height)return;
+      var pad=48;
+      var raw=Math.min(sw/(bb.width+pad*2),sh/(bb.height+pad*2));
+      var scale=Math.min(raw,1.1);        // don't overscale small graphs beyond ~1:1
+      scale=Math.max(scale,0.4);          // keep nodes legible by default
+      // Center the rendered content in the viewport (bb.x/y are content-local origin)
+      var tx=sw/2-scale*(bb.x+bb.width/2);
+      var ty=sh/2-scale*(bb.y+bb.height/2);
+      svg.call(zoom.transform,d3.zoomIdentity.translate(tx,ty).scale(scale));
+    }
+    svgRef.current.__fit=fit;
+  },[layout,selected,dir,theme,selectedCol]);
+
+  function trunc(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
+  function zoomBy(k){if(zoomRef.current&&svgRef.current)d3.select(svgRef.current).transition().duration(150).call(zoomRef.current.scaleBy,k);}
+  function doFit(){if(svgRef.current&&svgRef.current.__fit)svgRef.current.__fit();}
+  // Re-fit after a panel collapses/expands (canvas width changed)
+  useEffect(function(){var t=setTimeout(doFit,240);return function(){clearTimeout(t);};},[railOpen,panelOpen]);
+
+  // search -> select first match
+  useEffect(function(){
+    if(!query||!model)return;
+    var q=query.toLowerCase();
+    var d=Object.keys(model.datasets).find(function(k){return model.datasets[k].name.toLowerCase().indexOf(q)>=0;});
+    if(d){setSelected({kind:'dataset',key:d});return;}
+    var j=Object.keys(model.jobs).find(function(k){return model.jobs[k].name.toLowerCase().indexOf(q)>=0;});
+    if(j)setSelected({kind:'job',key:j});
+  },[query]);
+
+  // Auto-switch to COLUMNS tab when in column view mode and a dataset is selected
+  // Also clear selected column when dataset selection changes
+  useEffect(function(){
+    if(viewMode==='column'&&selected&&selected.kind==='dataset'){
+      setTab('COLUMNS');
+    }
+    // Clear column highlight when dataset changes
+    if(selectedCol&&(!selected||selected.kind!=='dataset'||selected.key!==selectedCol.dsKey)){
+      setSelectedCol(null);
+    }
+  },[selected,viewMode]);
+
+  function toggleNs(n){setHiddenNs(function(prev){var c=Object.assign({},prev);if(c[n])delete c[n];else c[n]=1;return c;});}
+  function nsCounts(n){var dc=0,jc=0;if(model){Object.keys(model.datasets).forEach(function(k){if(model.datasets[k].namespace===n)dc++;});Object.keys(model.jobs).forEach(function(k){if(model.jobs[k].namespace===n)jc++;});}return{dc:dc,jc:jc};}
+  // Shared namespace row (checkbox + swatch + name + counts) used in both the
+  // left rail and the right NAMESPACES tab so they stay consistent.
+  function nsRow(n){
+    var c=nsCounts(n),on=!hiddenNs[n];
+    return h('div',{key:n,className:'ns-row'+(on?'':' off'),onClick:function(){toggleNs(n);}},
+      h('input',{type:'checkbox',className:'ns-check',checked:on,readOnly:true,tabIndex:-1,'aria-label':'Show '+n}),
+      h('span',{className:'sw',style:{background:model.nsColor[n]}}),
+      h('div',{className:'ns-info'},
+        h('div',{className:'ns-name'},trunc(n,16)),
+        h('div',{className:'ns-sub'},c.dc+' datasets · '+c.jc+' jobs')));
+  }
+
+  function exportJSON(){
+    if(!model)return;
+    var out={stats:model.stats,namespaces:model.namespaces,
+      datasets:Object.keys(model.datasets).map(function(k){var d=model.datasets[k];return{key:k,namespace:d.namespace,name:d.name,fields:d.schemaFields};}),
+      jobs:Object.keys(model.jobs).map(function(k){var j=model.jobs[k];return{key:k,inputs:Object.keys(j.inputs),outputs:Object.keys(j.outputs),latestEventType:j.latestEventType};}),
+      edges:model.edges,columnEdges:model.colEdges,issues:model.issues};
+    dl(JSON.stringify(out,null,2),'lineageflow-summary.json','application/json');
+  }
+  function exportPNG(){
+    if(!svgRef.current)return;
+    var svg=svgRef.current;var clone=svg.cloneNode(true);
+    var xml=new XMLSerializer().serializeToString(clone);
+    var img=new Image();var w=svg.clientWidth,ht=svg.clientHeight;
+    img.onload=function(){var c=document.createElement('canvas');c.width=w;c.height=ht;var ctx=c.getContext('2d');ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--bg0').trim()||'#0a0a0c';ctx.fillRect(0,0,w,ht);ctx.drawImage(img,0,0);c.toBlob(function(b){var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download='lineageflow.png';a.click();URL.revokeObjectURL(u);});};
+    img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(xml)));
+  }
+  function dl(text,name,type){var b=new Blob([text],{type:type});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+
+  // auto demo via ?demo
+  useEffect(function(){if(/[?&]demo/.test(location.search))loadDemo();},[]);
+
+  var selNode=selected&&model?(selected.kind==='dataset'?model.datasets[selected.key]:model.jobs[selected.key]):null;
+
+  return h('div',{className:'app'},
+    h('input',{type:'file',ref:folderInputRef,webkitdirectory:'',directory:'',multiple:true,style:{display:'none'},onChange:onFolderInput}),
+    // topbar
+    h('div',{className:'topbar'},
+      h('div',{className:'logo'},'L'),
+      h('div',{className:'logo-text'},'LineageFlow'),
+      h('button',{className:'btn primary',onClick:openFolder},'📁 Open folder'),
+      h('div',{className:'search'},h('span',{style:{color:'var(--t3)'}},'⌕'),h('input',{placeholder:'Search datasets, jobs, columns',value:query,onChange:function(e){setQuery(e.target.value);}})),
+      model&&h('div',{className:'chips'},
+        h('span',{className:'chip'},h('b',null,model.stats.datasets),' datasets'),h('span',{className:'dot'},'·'),
+        h('span',{className:'chip'},h('b',null,model.stats.jobs),' jobs'),h('span',{className:'dot'},'·'),
+        h('span',{className:'chip'},h('b',null,model.stats.namespaces),' ns')),
+      model&&h('button',{className:'btn',onClick:exportPNG},'PNG'),
+      model&&h('button',{className:'btn',onClick:exportJSON},'JSON'),
+      h('button',{className:'theme-toggle',onClick:toggleTheme,title:theme==='dark'?'Switch to light theme':'Switch to dark theme'},theme==='dark'?'☀️':'🌙')
+    ),
+    err&&h('div',{style:{background:'rgba(255,95,95,0.12)',color:'var(--red)',padding:'8px 16px',fontSize:11,borderBottom:'1px solid var(--border)'}},err),
+    // body
+    !model?
+      h('div',{className:'empty'},
+        h('div',{style:{fontSize:40}},'🔗'),
+        h('h2',null,'Visualize OpenLineage lineage'),
+        h('p',null,'Open a folder of openlineage.json event files to explore datasets, jobs, and column-level lineage. Files may be single events, JSON arrays, or NDJSON.'),
+        h('div',{className:'row'},
+          h('button',{className:'btn primary',onClick:openFolder},'📁 Open folder'),
+          h('button',{className:'btn',onClick:loadDemo},'▶ Load demo')),
+        loading&&h('div',{className:'muted'},'Loading…'))
+    :
+      h('div',{className:'body'},
+        // rail
+        railOpen&&h('div',{className:'rail'},
+          h('div',{className:'rail-sec'},
+            h('div',{className:'rail-title'},'Overview'),
+            h('div',{className:'stat-grid'},
+              [['Datasets',model.stats.datasets,'var(--blue)',null],
+               ['Jobs',model.stats.jobs,'var(--purple)','JOBS'],
+               ['Namespaces',model.stats.namespaces,'var(--cyan)','NS'],
+               ['Edges',model.stats.edges,'var(--t0)',null],
+               ['Column links',model.stats.columnEdges,'var(--orange)','COLUMNS'],
+               ['Issues',model.issues.length,model.issues.length?'var(--red)':'var(--green)','ISSUES']
+              ].map(function(s,i){var dest=s[3];return h('div',{key:i,className:'stat-card'+(dest?' link':'')+(s[0]==='Issues'&&model.issues.length?' alert':''),onClick:dest?function(){setTab(dest);}:null},
+                h('div',{className:'stat-num',style:{color:s[2]}},s[1]),
+                h('div',{className:'stat-label'},s[0]));}))),
+          h('div',{className:'rail-sec'},
+            h('div',{className:'rail-title'},'Namespaces'),
+            model.namespaces.map(nsRow)),
+          h('div',{className:'rail-sec'},
+            h('div',{className:'rail-title'},'Lineage view'),
+            h('div',{className:'toggle'},
+              h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
+              h('span',{className:viewMode==='column'?'on':'',onClick:function(){setViewMode('column');}},'Column')),
+            h('div',{className:'muted',style:{marginTop:6}},viewMode==='column'?'Select a dataset to expand columns':'Dataset & job level only')),
+          h('div',{className:'rail-sec'},
+            h('div',{className:'rail-title'},'Layout'),
+            h('div',{className:'toggle'},
+              h('span',{className:dir==='LR'?'on':'',onClick:function(){setDir('LR');}},'L → R'),
+              h('span',{className:dir==='TB'?'on':'',onClick:function(){setDir('TB');}},'T ↓ B'))),
+          h('div',{className:'rail-sec'},
+            h('div',{className:'rail-title'},'Node spacing'),
+            h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+              h('input',{type:'range',min:50,max:320,step:10,value:gap,onChange:function(e){setGap(parseInt(e.target.value,10));},style:{flex:1}}),
+              h('span',{style:{fontSize:10,color:'var(--t1)',minWidth:32,textAlign:'right'}},gap+'px')),
+            h('button',{className:'btn',style:{marginTop:8,width:'100%',justifyContent:'center'},onClick:resetLayout},'↺ Reset arrangement'),
+            h('div',{className:'muted',style:{marginTop:6}},'Drag any node to reposition it')),
+          h('div',{className:'rail-sec'},
+            h('div',{className:'rail-title'},'Legend'),
+            h('div',{className:'legend-row'},h('span',{className:'sw',style:{border:'1px solid var(--blue)',background:'transparent'}}),'Dataset'),
+            h('div',{className:'legend-row'},h('span',{className:'hex-glyph'}),'Job (transform)'),
+            h('div',{className:'legend-row'},h('span',{style:{width:16,height:0,borderTop:'1px dashed var(--orange)'}}),'Column lineage'))
+        ),
+        // canvas
+        h('div',{className:'canvas-wrap'},
+          h('svg',{ref:svgRef}),
+          h('button',{className:'edge-toggle left',title:railOpen?'Collapse left panel':'Expand left panel',onClick:function(){setRailOpen(!railOpen);}},railOpen?'‹':'›'),
+          h('button',{className:'edge-toggle right',title:panelOpen?'Collapse right panel':'Expand right panel',onClick:function(){setPanelOpen(!panelOpen);}},panelOpen?'›':'‹'),
+          h('div',{className:'zoom-ctl'},
+            h('button',{onClick:function(){zoomBy(1.3);}},'+'),
+            h('button',{onClick:function(){zoomBy(0.77);}},'−'),
+            h('button',{onClick:doFit,title:'Fit'},'⤢')),
+          colDetail&&h('div',{className:'col-modal-bg',onClick:function(){setColDetail(null);}},
+            h('div',{className:'col-modal',onClick:function(e){e.stopPropagation();}},
+              h('div',{className:'col-modal-head'},
+                h('span',null,'⚡ Column Transformation'),
+                h('button',{onClick:function(){setColDetail(null);}},'×')),
+              h('div',{className:'col-modal-body'},
+                h('div',{style:{display:'flex',alignItems:'baseline',gap:10,marginBottom:4}},
+                  h('span',{style:{color:'var(--orange)',fontSize:16,fontWeight:700}},colDetail.field),
+                  colDetail.type&&h('span',{style:{color:'var(--blue)',fontSize:12,background:'var(--bg2)',padding:'2px 8px',borderRadius:4}},colDetail.type)),
+                h('div',{className:'muted',style:{marginBottom:16,fontSize:11}},colDetail.dataset),
+                h('div',{className:'sec-label',style:{marginTop:0,fontSize:10}},'Derived from ('+colDetail.sources.length+' source'+(colDetail.sources.length!==1?'s':'')+')'),
+                colDetail.sources.map(function(s,i){
+                  return h('div',{key:i,className:'col-item'+(s.transformation||s.transformationType?' tx':''),style:{marginBottom:10,borderRadius:6,padding:'10px 12px'}},
+                    h('div',{style:{color:'var(--t0)',fontSize:12,fontWeight:600}},(s.fromDs.split('::')[1]||s.fromDs)+'.'+s.fromField),
+                    (s.transformationType||s.transformationSubtype)&&h('div',{style:{marginTop:6,display:'flex',gap:6}},
+                      s.transformationType&&h('span',{className:'sev med',style:{marginRight:4}},s.transformationType),
+                      s.transformationSubtype&&h('span',{className:'sev med'},s.transformationSubtype)),
+                    s.transformation&&h('div',{style:{marginTop:8,padding:'8px 10px',background:'var(--bg2)',borderRadius:6,fontSize:11,color:'var(--t1)',whiteSpace:'pre-wrap',fontFamily:'monospace',border:'1px solid var(--border)'}},s.transformation),
+                    s.masking&&h('div',{style:{marginTop:8,color:'var(--red)',fontSize:10,display:'flex',alignItems:'center',gap:4}},'⚠ masking applied'),
+                    !s.transformation&&!s.transformationType&&h('div',{className:'muted',style:{marginTop:6}},'Direct copy (no transformation)'));
+                }))))
+        ),
+        // panel
+        panelOpen&&h('div',{className:'panel'},
+          h('div',{className:'tabs'},
+            ['DETAILS','COLUMNS','JOBS','ISSUES','NS'].map(function(t){
+              var label=t==='NS'?'NAMESPACES':t;
+              var badge=t==='ISSUES'&&model.issues.length?model.issues.length:null;
+              return h('div',{key:t,className:'tab'+(tab===t?' on':''),onClick:function(){setTab(t);}},label,badge&&h('span',{className:'badge'},badge));
+            })),
+          h('div',{className:'panel-body'},renderPanel())
+        )
+      ),
+    modal&&h('div',{className:'modal-bg',onClick:function(){setModal(null);}},
+      h('div',{className:'modal',onClick:function(e){e.stopPropagation();}},
+        h('div',{className:'modal-head'},h('span',null,modal.title),h('button',{onClick:function(){setModal(null);}},'×')),
+        h('pre',null,modal.body)))
+  );
+
+  function renderPanel(){
+    if(tab==='DETAILS')return renderDetails();
+    if(tab==='COLUMNS')return renderColumns();
+    if(tab==='JOBS')return renderJobs();
+    if(tab==='ISSUES')return renderIssues();
+    if(tab==='NS')return renderNamespaces();
+  }
+
+  function renderDetails(){
+    if(!selNode)return h('div',{className:'muted'},'Select a node in the graph to inspect it.');
+    if(selected.kind==='dataset'){
+      var d=selNode;
+      return h(React.Fragment,null,
+        h('div',{style:{display:'flex',alignItems:'center',gap:6}},h('span',{className:'sw',style:{background:model.nsColor[d.namespace]}}),h('span',{style:{color:'var(--t0)',fontSize:12}},d.name)),
+        h('div',{className:'muted',style:{marginTop:2}},d.namespace),
+        h('div',{style:{marginTop:8}},h('button',{className:'btn',onClick:function(){setModal({title:d.key,body:JSON.stringify(d.facets,null,2)});}},'View facets')),
+        h('div',{className:'sec-label'},'Schema ('+d.schemaFields.length+')'),
+        d.schemaFields.length?h('div',{className:'box'},d.schemaFields.map(function(f,i){return h('div',{key:i,className:'field-row'},h('span',{className:'fn'},f.name),h('span',{className:'ft'},f.type));})):h('div',{className:'muted'},'No schema facet'),
+        h('div',{className:'sec-label'},'Produced by'),
+        Object.keys(d.producedByJobs).length?Object.keys(d.producedByJobs).map(function(jk){return h('div',{key:jk,className:'list-item',onClick:function(){setSelected({kind:'job',key:jk});}},jk.split('::')[1]||jk);}):h('div',{className:'muted'},'—'),
+        h('div',{className:'sec-label'},'Consumed by'),
+        Object.keys(d.consumedByJobs).length?Object.keys(d.consumedByJobs).map(function(jk){return h('div',{key:jk,className:'list-item',onClick:function(){setSelected({kind:'job',key:jk});}},jk.split('::')[1]||jk);}):h('div',{className:'muted'},'—')
+      );
+    }
+    var j=selNode;
+    return h(React.Fragment,null,
+      h('div',{style:{display:'flex',alignItems:'center',gap:6}},h('span',{className:'sw',style:{background:'var(--purple)',borderRadius:6}}),h('span',{style:{color:'var(--t0)',fontSize:12}},j.name)),
+      h('div',{className:'muted',style:{marginTop:2}},j.namespace),
+      h('div',{className:'box',style:{marginTop:10}},
+        h('div',{className:'kv'},h('span',{className:'k'},'Latest event'),h('span',{className:'v'},j.latestEventType||'—')),
+        h('div',{className:'kv'},h('span',{className:'k'},'Runs'),h('span',{className:'v'},j.runs.length)),
+        h('div',{className:'kv'},h('span',{className:'k'},'Inputs'),h('span',{className:'v'},Object.keys(j.inputs).length)),
+        h('div',{className:'kv'},h('span',{className:'k'},'Outputs'),h('span',{className:'v'},Object.keys(j.outputs).length))),
+      j.sourceCode&&h(React.Fragment,null,h('div',{className:'sec-label'},'Source ('+(j.sourceCode.language||'')+')'),h('div',{className:'box'},h('pre',{style:{whiteSpace:'pre-wrap',fontSize:10,color:'var(--t1)'}},j.sourceCode.sourceCode))),
+      h('div',{className:'sec-label'},'Inputs'),Object.keys(j.inputs).map(function(k){return h('div',{key:k,className:'list-item',onClick:function(){setSelected({kind:'dataset',key:k});}},k);}),
+      h('div',{className:'sec-label'},'Outputs'),Object.keys(j.outputs).map(function(k){return h('div',{key:k,className:'list-item',onClick:function(){setSelected({kind:'dataset',key:k});}},k);})
+    );
+  }
+
+  function renderColumns(){
+    if(!selNode||selected.kind!=='dataset')return h('div',{className:'muted'},'Select a dataset to see its column lineage.');
+    var d=selNode;var byOut={};
+    model.colEdges.forEach(function(ce){if(ce.toDs===d.key){(byOut[ce.toField]||(byOut[ce.toField]=[])).push(ce);}});
+    var keys=Object.keys(byOut);
+    if(!keys.length)return h('div',{className:'muted'},'No column lineage facet for this dataset.');
+    var isColActive=function(outF){return selectedCol&&selectedCol.dsKey===d.key&&selectedCol.field===outF;};
+    return h(React.Fragment,null,
+      h('div',{style:{color:'var(--t0)',fontSize:12,marginBottom:2}},d.name),
+      h('div',{className:'muted',style:{marginBottom:8}},'Click a column to highlight lineage'),
+      keys.map(function(outF){
+        var srcs=byOut[outF];var tx=srcs.find(function(s){return s.transformation;});
+        var active=isColActive(outF);
+        return h('div',{key:outF,className:'col-item'+(tx?' tx':'')+(active?' col-active':''),style:{cursor:'pointer'},onClick:function(){
+          if(active){setSelectedCol(null);}else{setSelectedCol({dsKey:d.key,field:outF});}
+        }},
+          h('div',{className:'col-out'+(tx?' tx':''),style:active?{fontWeight:700,fontSize:12}:{}},
+            active?'⚡ ':'',outF,
+            h('span',{style:{float:'right',color:active?'var(--orange)':'var(--t3)',fontSize:10}},active?'▾':'›')),
+          srcs.map(function(s,i){return h('div',{key:i,className:'col-src',style:active?{color:'var(--t1)'}:{}},
+            '← '+(s.fromDs.split('::')[1]||s.fromDs)+'.'+s.fromField+(s.transformation?'  ['+s.transformation+']':''));}),
+          active&&h('div',{className:'col-tx-detail'},
+            srcs.map(function(s,si){
+              return h('div',{key:si,style:{marginBottom:si<srcs.length-1?10:0}},
+                h('div',{style:{color:'var(--t0)',fontWeight:600,fontSize:11,marginBottom:4}},(s.fromDs.split('::')[1]||s.fromDs)+'.'+s.fromField),
+                (s.transformationType||s.transformationSubtype)&&h('div',{style:{marginBottom:4,display:'flex',gap:6}},
+                  s.transformationType&&h('span',{className:'sev med'},s.transformationType),
+                  s.transformationSubtype&&h('span',{className:'sev med'},s.transformationSubtype)),
+                s.transformation&&h('div',{style:{padding:'6px 8px',background:'var(--bg0)',borderRadius:4,fontSize:11,color:'var(--orange)',whiteSpace:'pre-wrap',fontFamily:'monospace',border:'1px solid rgba(255,159,67,0.2)'}},s.transformation),
+                s.masking&&h('div',{style:{marginTop:4,color:'var(--red)',fontSize:10}},'⚠ masking applied'),
+                !s.transformation&&!s.transformationType&&h('div',{className:'muted',style:{marginTop:2}},'Direct copy (no transformation)'));
+            }))
+        );
+      })
+    );
+  }
+
+  function renderJobs(){
+    var ks=Object.keys(model.jobs);
+    if(!ks.length)return h('div',{className:'muted'},'No jobs.');
+    return ks.map(function(k){var j=model.jobs[k];return h('div',{key:k,className:'list-item',onClick:function(){setSelected({kind:'job',key:k});setTab('DETAILS');}},
+      h('div',{style:{color:'var(--t0)'}},j.name),
+      h('div',{className:'muted'},j.namespace+' · '+Object.keys(j.inputs).length+' in / '+Object.keys(j.outputs).length+' out'));});
+  }
+
+  function renderIssues(){
+    if(!model.issues.length)return h('div',{style:{textAlign:'center',padding:20}},h('div',{style:{fontSize:28}},'✓'),h('div',{style:{color:'var(--green)',marginTop:8}},'No issues found'));
+    return model.issues.map(function(is,i){var sev=is.severity==='high'?'high':'med';
+      return h('div',{key:i,className:'issue'+(sev==='high'?' err':'')},
+        h('div',{className:'it'},h('span',{className:'sev '+sev},sev==='high'?'HIGH':'MED'),is.reason),
+        is.file&&h('div',{className:'id'},is.file));});
+  }
+
+  function renderNamespaces(){
+    return h(React.Fragment,null,
+      h('div',{className:'muted',style:{marginBottom:8}},'Toggle a namespace to show or hide it on the canvas'),
+      model.namespaces.map(nsRow));
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+})();
+</script>
+</body>
+</html>
