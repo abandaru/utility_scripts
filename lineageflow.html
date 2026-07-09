@@ -369,11 +369,17 @@ select.finput{cursor:pointer}
     var COLGAP=opts.colGap!=null?opts.colGap:90;
     var ROWGAP=opts.rowGap!=null?opts.rowGap:26;
 
+    // §5 grouped drill-down: 'namespace' | 'system' | null. Collapsed groups render
+    // as one node; expanding a group reveals its tables (then columns).
+    var groupBy=opts.groupBy||null;
+    var expandedGroups=opts.expandedGroups||{};
     var nodes={},order=[];
     function visible(ns){return !hidden[ns];}
-    Object.keys(model.datasets).forEach(function(k){
-      var d=model.datasets[k];if(!visible(d.namespace))return;
-      var id='d:'+k;var exp=!!expanded[id];
+    function dsGroup(k){var d=model.datasets[k];return groupBy==='system'?(d.system||systemOf(d.namespace)):d.namespace;}
+    function jobGroup(k){var j=model.jobs[k];return groupBy==='system'?systemOf(j.namespace):j.namespace;}
+
+    function buildDatasetNode(k){
+      var d=model.datasets[k];var id='d:'+k;var exp=!!expanded[id];
       var allF=d.schemaFields;
       var filt=(colFilter[k]||'').toLowerCase();
       var matched=filt?allF.filter(function(f){return f.name.toLowerCase().indexOf(filt)>=0;}):allF;
@@ -384,34 +390,57 @@ select.finput{cursor:pointer}
       var shown=matched.slice(0,cap);
       var more=Math.max(0,matched.length-shown.length);
       var h=exp&&shown.length?HEADER+shown.length*ROWH+(more||showAll||filt?18:6):46;
-      nodes[id]={id:id,kind:'dataset',key:k,name:d.name,namespace:d.namespace,system:d.system||systemOf(d.namespace),color:model.nsColor[d.namespace]||'#888',w:DSW,h:h,expanded:exp,fields:shown,moreFields:more,totalFields:allF.length,matchCount:matched.length,filtered:!!filt,showAll:showAll};
+      nodes[id]={id:id,kind:'dataset',key:k,name:d.name,namespace:d.namespace,system:d.system||systemOf(d.namespace),color:model.nsColor[d.namespace]||'#888',w:DSW,h:h,expanded:exp,fields:shown,moreFields:more,totalFields:allF.length,matchCount:matched.length,filtered:!!filt,showAll:showAll,group:dsGroup(k)};
       order.push(id);
-    });
-    Object.keys(model.jobs).forEach(function(k){
-      var j=model.jobs[k];if(!visible(j.namespace))return;
-      var id='j:'+k;
-      nodes[id]={id:id,kind:'job',key:k,name:j.name,namespace:j.namespace,system:systemOf(j.namespace),color:JOB_COLOR,w:JOBW,h:46,eventType:j.latestEventType};
+    }
+    function buildJobNode(k){
+      var j=model.jobs[k];var id='j:'+k;
+      nodes[id]={id:id,kind:'job',key:k,name:j.name,namespace:j.namespace,system:systemOf(j.namespace),color:JOB_COLOR,w:JOBW,h:46,eventType:j.latestEventType,group:jobGroup(k)};
       order.push(id);
-    });
+    }
 
-    var edges=model.edges.filter(function(e){return nodes[e.from]&&nodes[e.to];});
-
-    // Bypass hidden jobs: when a job's namespace is filtered out its node is
-    // gone, which would leave datasets isolated (lineage flows dataset->job->
-    // dataset). Connect each hidden job's visible inputs directly to its visible
-    // outputs so dataset-level lineage stays visible.
-    var edgeSet={};edges.forEach(function(e){edgeSet[e.from+'>'+e.to]=1;});
-    Object.keys(model.jobs).forEach(function(k){
-      var jid='j:'+k;if(nodes[jid])return;// job shown -> its edges already present
-      var j=model.jobs[k];
-      Object.keys(j.inputs).forEach(function(ik){
-        var iid='d:'+ik;if(!nodes[iid])return;
-        Object.keys(j.outputs).forEach(function(ok){
-          var oid='d:'+ok;if(!nodes[oid]||iid===oid)return;
-          var ek=iid+'>'+oid;if(!edgeSet[ek]){edgeSet[ek]=1;edges.push({from:iid,to:oid,bypass:true});}
+    var edges;
+    if(!groupBy){
+      Object.keys(model.datasets).forEach(function(k){if(visible(model.datasets[k].namespace))buildDatasetNode(k);});
+      Object.keys(model.jobs).forEach(function(k){if(visible(model.jobs[k].namespace))buildJobNode(k);});
+      edges=model.edges.filter(function(e){return nodes[e.from]&&nodes[e.to];});
+      // Bypass hidden jobs: connect a hidden job's visible inputs directly to its
+      // visible outputs so dataset-level lineage stays visible.
+      var edgeSet={};edges.forEach(function(e){edgeSet[e.from+'>'+e.to]=1;});
+      Object.keys(model.jobs).forEach(function(k){
+        var jid='j:'+k;if(nodes[jid])return;
+        var j=model.jobs[k];
+        Object.keys(j.inputs).forEach(function(ik){
+          var iid='d:'+ik;if(!nodes[iid])return;
+          Object.keys(j.outputs).forEach(function(ok){
+            var oid='d:'+ok;if(!nodes[oid]||iid===oid)return;
+            var ek=iid+'>'+oid;if(!edgeSet[ek]){edgeSet[ek]=1;edges.push({from:iid,to:oid,bypass:true});}
+          });
         });
       });
-    });
+    }else{
+      // Build group buckets; expand or collapse each.
+      var groups={};
+      Object.keys(model.datasets).forEach(function(k){var d=model.datasets[k];if(!visible(d.namespace))return;var g=dsGroup(k);(groups[g]||(groups[g]={ds:[],jobs:[],color:model.nsColor[d.namespace],sys:(d.system||systemOf(d.namespace)),nss:{}})).ds.push(k);groups[g].nss[d.namespace]=1;});
+      Object.keys(model.jobs).forEach(function(k){var j=model.jobs[k];if(!visible(j.namespace))return;var g=jobGroup(k);(groups[g]||(groups[g]={ds:[],jobs:[],color:JOB_COLOR,sys:systemOf(j.namespace),nss:{}})).jobs.push(k);groups[g].nss[j.namespace]=1;});
+      Object.keys(groups).forEach(function(g){
+        if(expandedGroups[g]){
+          groups[g].ds.forEach(buildDatasetNode);
+          groups[g].jobs.forEach(buildJobNode);
+        }else{
+          var G=groups[g];
+          nodes['g:'+g]={id:'g:'+g,kind:'group',key:g,name:g,group:g,groupBy:groupBy,dsCount:G.ds.length,jobCount:G.jobs.length,nsCount:Object.keys(G.nss).length,color:G.color||'#888',system:G.sys,namespace:(groupBy==='namespace'?g:''),w:190,h:70};
+          order.push('g:'+g);
+        }
+      });
+      // Map each underlying node to its representative (member id or group node).
+      function repr(id){
+        if(id[0]==='d'){var k=id.slice(2);var d=model.datasets[k];if(!d||hidden[d.namespace])return null;var g=dsGroup(k);return expandedGroups[g]?id:'g:'+g;}
+        var k2=id.slice(2);var j=model.jobs[k2];if(!j||hidden[j.namespace])return null;var g2=jobGroup(k2);return expandedGroups[g2]?id:'g:'+g2;
+      }
+      edges=[];var eset={};
+      model.edges.forEach(function(e){var a=repr(e.from),b=repr(e.to);if(!a||!b||a===b||!nodes[a]||!nodes[b])return;var ek=a+'>'+b;if(!eset[ek]){eset[ek]=1;edges.push({from:a,to:b});}});
+    }
 
     // §4 Cross-platform / cross-namespace: flag edges whose endpoints live in
     // different namespaces or on different systems so the renderer can style the
@@ -630,7 +659,8 @@ function App(){
   var s_manualV=useState(0),manualV=s_manualV[0],setManualV=s_manualV[1];// bump to re-layout after drag
   var s_col=useState(null),colDetail=s_col[0],setColDetail=s_col[1];// column transformation popup modal
   var s_theme=useState('dark'),theme=s_theme[0],setTheme=s_theme[1];// 'dark' | 'light'
-  var s_selCol=useState(null),selectedCol=s_selCol[0],setSelectedCol=s_selCol[1];// {dsKey,field} for highlighting
+  var s_selCol=useState(null),selectedCol=s_selCol[0],setSelectedCol=s_selCol[1];// {dsKey,field} primary (drives modal)
+  var s_selCols=useState({}),selCols=s_selCols[0],setSelCols=s_selCols[1];// multi-select: key -> {dsKey,field}
   var s_prog=useState(''),progress=s_prog[0],setProgress=s_prog[1];// loading progress text
   var s_repoModal=useState(false),repoModal=s_repoModal[0],setRepoModal=s_repoModal[1];
   var s_repoUrl=useState(''),repoUrl=s_repoUrl[0],setRepoUrl=s_repoUrl[1];
@@ -642,56 +672,53 @@ function App(){
   var s_ctx=useState(null),ctxMenu=s_ctx[0],setCtxMenu=s_ctx[1];// {x,y,id,kind,key,name}
   var s_colFilter=useState({}),colFilter=s_colFilter[0],setColFilter=s_colFilter[1];// dsKey -> per-node column filter
   var s_fullCols=useState({}),fullCols=s_fullCols[0],setFullCols=s_fullCols[1];// nodeId -> show all columns
+  var s_groupBy=useState('none'),groupBy=s_groupBy[0],setGroupBy=s_groupBy[1];// 'none' | 'namespace' | 'system'
+  var s_expGroups=useState({}),expGroups=s_expGroups[0],setExpGroups=s_expGroups[1];// groupKey -> 1 (drilled-down)
   var svgRef=useRef(null),zoomRef=useRef(null),gRef=useRef(null);
   var folderInputRef=useRef(null);
   var manualRef=useRef({});// nodeId -> {x,y} manual drag overrides
 
-  // Compute full transitive column lineage chain (upstream + downstream)
+  // Multi-column selection helpers. Key uses  (unambiguous vs the '::' in dsKey).
+  function colKey(ds,f){return ds+''+f;}
+  function isSelCol(ds,f){return !!selCols[colKey(ds,f)];}
+  function toggleSelCol(ds,f){setSelCols(function(p){var c=Object.assign({},p);var k=colKey(ds,f);if(c[k])delete c[k];else c[k]={dsKey:ds,field:f};return c;});}
+  function clearSelCols(){setSelCols({});setSelectedCol(null);}
+  var selColCount=Object.keys(selCols).length;
+
+  // Compute the union of transitive column lineage chains for every selected
+  // column (multi-select) plus the primary selectedCol (single-click/modal).
   var colChain=useMemo(function(){
-    if(!selectedCol||!model)return null;
-    // Sets to track all involved dataset::field pairs and colEdge indices
-    var fields={};// 'dsKey::fieldName' -> true
-    var edgeIndices={};// model.colEdge index -> true
-    var edgeKeys={};// 'fromDs::fromField>toDs::toField' -> true (identity, matches layout.colEdges)
-    var datasets={};// dsKey -> true
+    if(!model)return null;
+    var seeds=Object.keys(selCols).map(function(k){return selCols[k];});
+    if(selectedCol)seeds.push(selectedCol);
+    if(!seeds.length)return null;
+    var fields={},edgeIndices={},edgeKeys={},datasets={};
     function fKey(ds,f){return ds+'::'+f;}
     function eKey(ce){return ce.fromDs+'::'+ce.fromField+'>'+ce.toDs+'::'+ce.toField;}
-    // Seed with the selected column
-    var seedKey=fKey(selectedCol.dsKey,selectedCol.field);
-    fields[seedKey]=true;
-    datasets[selectedCol.dsKey]=true;
-    // Walk upstream: for a given target field, find all source fields recursively
     function walkUp(dsKey,field){
       model.colEdges.forEach(function(ce,idx){
         if(ce.toDs===dsKey&&ce.toField===field){
           edgeIndices[idx]=true;edgeKeys[eKey(ce)]=true;
-          var sk=fKey(ce.fromDs,ce.fromField);
-          datasets[ce.fromDs]=true;
-          if(!fields[sk]){
-            fields[sk]=true;
-            walkUp(ce.fromDs,ce.fromField);// recurse upstream
-          }
+          var sk=fKey(ce.fromDs,ce.fromField);datasets[ce.fromDs]=true;
+          if(!fields[sk]){fields[sk]=true;walkUp(ce.fromDs,ce.fromField);}
         }
       });
     }
-    // Walk downstream: for a given source field, find all target fields recursively
     function walkDown(dsKey,field){
       model.colEdges.forEach(function(ce,idx){
         if(ce.fromDs===dsKey&&ce.fromField===field){
           edgeIndices[idx]=true;edgeKeys[eKey(ce)]=true;
-          var tk=fKey(ce.toDs,ce.toField);
-          datasets[ce.toDs]=true;
-          if(!fields[tk]){
-            fields[tk]=true;
-            walkDown(ce.toDs,ce.toField);// recurse downstream
-          }
+          var tk=fKey(ce.toDs,ce.toField);datasets[ce.toDs]=true;
+          if(!fields[tk]){fields[tk]=true;walkDown(ce.toDs,ce.toField);}
         }
       });
     }
-    walkUp(selectedCol.dsKey,selectedCol.field);
-    walkDown(selectedCol.dsKey,selectedCol.field);
+    seeds.forEach(function(s){
+      fields[fKey(s.dsKey,s.field)]=true;datasets[s.dsKey]=true;
+      walkUp(s.dsKey,s.field);walkDown(s.dsKey,s.field);
+    });
     return{fields:fields,edgeIndices:edgeIndices,edgeKeys:edgeKeys,datasets:datasets};
-  },[selectedCol,model]);
+  },[selCols,selectedCol,model]);
 
   var expanded=useMemo(function(){
     var e={};
@@ -712,8 +739,11 @@ function App(){
 
   var layout=useMemo(function(){
     if(!model)return null;
-    return E.computeLayout(model,{direction:dir,expanded:expanded,hiddenNs:hiddenNs,colGap:gap,rowGap:Math.max(12,Math.round(gap*0.29)),manual:manualRef.current,colFilter:colFilter,fullCols:fullCols});
-  },[model,dir,expanded,hiddenNs,gap,manualV,colFilter,fullCols]);
+    return E.computeLayout(model,{direction:dir,expanded:expanded,hiddenNs:hiddenNs,colGap:gap,rowGap:Math.max(12,Math.round(gap*0.29)),manual:manualRef.current,colFilter:colFilter,fullCols:fullCols,groupBy:groupBy==='none'?null:groupBy,expandedGroups:expGroups});
+  },[model,dir,expanded,hiddenNs,gap,manualV,colFilter,fullCols,groupBy,expGroups]);
+
+  function toggleGroup(g){setExpGroups(function(p){var c=Object.assign({},p);if(c[g])delete c[g];else c[g]=1;return c;});}
+  function changeGroupBy(mode){setGroupBy(mode);setExpGroups({});manualRef.current={};}
 
   function toggleFull(id){setFullCols(function(p){var c=Object.assign({},p);if(c[id])delete c[id];else c[id]=1;return c;});}
   function setDsFilter(k,v){setColFilter(function(p){var c=Object.assign({},p);if(v)c[k]=v;else delete c[k];return c;});}
@@ -760,7 +790,7 @@ function App(){
   function loadEvents(events,parseIssues){
     try{
       var m=E.buildModel(events,parseIssues||[]);
-      setModel(m);setSelected(null);setErr(null);setImpact(null);setCtxMenu(null);setColFilter({});setFullCols({});
+      setModel(m);setSelected(null);setErr(null);setImpact(null);setCtxMenu(null);setColFilter({});setFullCols({});setSelCols({});setSelectedCol(null);setExpGroups({});
       if(m.issues.length&&m.stats.datasets===0)setTab('ISSUES');else setTab('DETAILS');
     }catch(e){setErr('Failed to build model: '+(e.message||e));}
   }
@@ -971,7 +1001,15 @@ function App(){
       var nodeBg=getComputedStyle(document.documentElement).getPropertyValue('--node-bg').trim()||'#161619';
       var accColor=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
       var edgeClr=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
-      if(n.kind==='job'){
+      if(n.kind==='group'){
+        // High-level group node (namespace or system) — click to drill down.
+        grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',9)
+          .attr('fill',nodeBg).attr('stroke',isSel?accColor:n.color).attr('stroke-width',isSel?2.5:1.8);
+        grp.append('rect').attr('width',5).attr('height',n.h).attr('rx',2).attr('fill',n.color);
+        grp.append('text').attr('x',14).attr('y',24).attr('class','node-label').attr('font-size','12px').attr('font-weight','700').text((n.groupBy==='system'?E.systemIcon(n.system)+' ':'')+trunc(n.name,18));
+        grp.append('text').attr('x',14).attr('y',42).attr('class','node-sub').text(n.dsCount+' table'+(n.dsCount!==1?'s':'')+' · '+n.jobCount+' job'+(n.jobCount!==1?'s':''));
+        grp.append('text').attr('x',14).attr('y',58).attr('class','node-sub').attr('fill',accColor).text('▸ drill down');
+      }else if(n.kind==='job'){
         // Distinct hexagon glyph for jobs/transforms (points at left/right for LR flow anchors)
         var hi=Math.min(16,n.h/2);
         var hex='M'+hi+',0 L'+(n.w-hi)+',0 L'+n.w+','+(n.h/2)+' L'+(n.w-hi)+','+n.h+' L'+hi+','+n.h+' L0,'+(n.h/2)+' Z';
@@ -1027,11 +1065,11 @@ function App(){
         grp.append('circle').attr('cx',bx).attr('cy',3).attr('r',7.5).attr('fill',impMode==='up'?blueC:greenC).attr('stroke',nodeBg).attr('stroke-width',1.5);
         grp.append('text').attr('x',bx).attr('y',6).attr('text-anchor','middle').attr('font-size','9px').attr('font-weight','700').attr('fill','#fff').text(impInfo);
       }
-      grp.on('contextmenu',function(ev){ev.preventDefault();ev.stopPropagation();setCtxMenu({x:ev.clientX,y:ev.clientY,id:n.id,kind:n.kind,key:n.key,name:n.name});});
+      if(n.kind!=='group')grp.on('contextmenu',function(ev){ev.preventDefault();ev.stopPropagation();setCtxMenu({x:ev.clientX,y:ev.clientY,id:n.id,kind:n.kind,key:n.key,name:n.name});});
       var drag=d3.drag()
         .on('start',function(ev){ev.sourceEvent.stopPropagation();grp.raise().style('cursor','grabbing');grp.node().__moved=false;})
         .on('drag',function(ev){n.x+=ev.dx;n.y+=ev.dy;grp.attr('transform','translate('+n.x+','+n.y+')');manualRef.current[n.id]={x:n.x,y:n.y};grp.node().__moved=true;drawEdges();})
-        .on('end',function(ev){grp.style('cursor','grab');if(!grp.node().__moved)setSelected({kind:n.kind,key:n.key});});
+        .on('end',function(ev){grp.style('cursor','grab');if(!grp.node().__moved){if(n.kind==='group')toggleGroup(n.key);else setSelected({kind:n.kind,key:n.key});}});
       grp.call(drag);
     });
 
@@ -1107,10 +1145,17 @@ function App(){
       if(ck){var f=model.datasets[ck].schemaFields.find(function(f){return f.name.toLowerCase().indexOf(q)>=0;});pick={kind:'dataset',key:ck};col={dsKey:ck,field:f.name};}
     }
     if(!pick)return;
+    // In grouped mode, drill into the match's group so its node is visible.
+    if(groupBy!=='none'){
+      var gk=pick.kind==='dataset'
+        ?(groupBy==='system'?(model.datasets[pick.key].system||E.systemOf(model.datasets[pick.key].namespace)):model.datasets[pick.key].namespace)
+        :(groupBy==='system'?E.systemOf(model.jobs[pick.key].namespace):model.jobs[pick.key].namespace);
+      if(gk)setExpGroups(function(p){if(p[gk])return p;var c=Object.assign({},p);c[gk]=1;return c;});
+    }
     if(svgRef.current)svgRef.current.__focusReq=(pick.kind==='dataset'?'d:':'j:')+pick.key;
     setSelected(pick);
     if(col)setSelectedCol(col);
-  },[query,model]);
+  },[query,model,groupBy]);
 
   // Auto-switch to COLUMNS tab when in column view mode and a dataset is selected
   // Also clear selected column when dataset selection changes
@@ -1218,6 +1263,13 @@ function App(){
               h('span',{className:viewMode==='column'?'on':'',onClick:function(){setViewMode('column');}},'Column')),
             h('div',{className:'muted',style:{marginTop:6}},viewMode==='column'?'Select a dataset to expand columns':'Dataset & job level only')),
           h('div',{className:'rail-sec'},
+            h('div',{className:'rail-title'},'Group by'),
+            h('div',{className:'toggle'},
+              h('span',{className:groupBy==='none'?'on':'',onClick:function(){changeGroupBy('none');}},'None'),
+              h('span',{className:groupBy==='namespace'?'on':'',onClick:function(){changeGroupBy('namespace');}},'Namespace'),
+              h('span',{className:groupBy==='system'?'on':'',onClick:function(){changeGroupBy('system');}},'System')),
+            h('div',{className:'muted',style:{marginTop:6}},groupBy==='none'?'Flat table-level graph':'Click a group to drill down to tables')),
+          h('div',{className:'rail-sec'},
             h('div',{className:'rail-title'},'Layout'),
             h('div',{className:'toggle'},
               h('span',{className:dir==='LR'?'on':'',onClick:function(){setDir('LR');}},'L → R'),
@@ -1256,6 +1308,14 @@ function App(){
             h('span',null,trunc(selNode.namespace,20)),
             h('span',{className:'sep'},'▸'),
             h('span',{className:'cur'},trunc(selNode.name,24))),
+          // grouped drill-down bar: shows expanded groups; click a chip to collapse
+          groupBy!=='none'&&h('div',{className:'crumb',style:{top:selNode?50:10}},
+            h('span',{className:'sys-badge'},'▤ '+groupBy),
+            Object.keys(expGroups).length?h(React.Fragment,null,
+              h('span',{className:'sep'},'▸'),
+              Object.keys(expGroups).map(function(g){return h('span',{key:g,className:'tag-chip',style:{cursor:'pointer'},title:'Collapse group',onClick:function(){toggleGroup(g);}},trunc(g,16)+' ✕');}),
+              h('span',{className:'tag-chip',style:{cursor:'pointer',borderColor:'var(--acc)',color:'var(--acc)'},onClick:function(){setExpGroups({});}},'collapse all')
+            ):h('span',{className:'muted',style:{marginLeft:6}},'click a group to drill in')),
           // §5 impact / root-cause banner
           impact&&impactResult&&h('div',{className:'impact-banner '+impact.mode},
             h('span',null,impact.mode==='down'?'⬇':'⬆'),
@@ -1365,15 +1425,22 @@ function App(){
         d.schemaFields.length?(function(){
           var fq=(colFilter[d.key]||'').toLowerCase();
           var fs=fq?d.schemaFields.filter(function(f){return f.name.toLowerCase().indexOf(fq)>=0;}):d.schemaFields;
+          var linShown=fs.filter(function(f){return hasColLineage(d.key,f.name);});
           return h(React.Fragment,null,
             d.schemaFields.length>6?h('input',{className:'finput',style:{marginBottom:6,fontSize:11,padding:'6px 8px'},placeholder:'Search columns…',value:colFilter[d.key]||'',onChange:function(e){setDsFilter(d.key,e.target.value);}}):null,
+            // multi-select controls: tick columns to trace several lineages at once
+            h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:6}},
+              h('span',{className:'muted',style:{flex:1}},selColCount?(selColCount+' column'+(selColCount!==1?'s':'')+' highlighted'):'Tick columns to trace lineage'),
+              linShown.length?h('button',{className:'btn',style:{padding:'3px 8px',minHeight:0,fontSize:10},onClick:function(){setSelCols(function(p){var c=Object.assign({},p);linShown.forEach(function(f){c[colKey(d.key,f.name)]={dsKey:d.key,field:f.name};});return c;});}},'✓ Select shown'):null,
+              selColCount?h('button',{className:'btn',style:{padding:'3px 8px',minHeight:0,fontSize:10},onClick:clearSelCols},'Clear'):null),
             h('div',{className:'box',style:{maxHeight:240,overflowY:'auto'}},
               fs.length?fs.map(function(f,i){
-                var lin=hasColLineage(d.key,f.name);
-                return h('div',{key:i,className:'field-row',style:{cursor:lin?'pointer':'default',padding:'3px 4px',borderRadius:4},
-                  title:lin?'View column lineage':null,
-                  onClick:lin?function(){setSelected({kind:'dataset',key:d.key});setSelectedCol({dsKey:d.key,field:f.name});openColDetail(d.key,f.name);}:null},
-                  h('span',{className:'fn'},lin?'⚡ ':'',f.name),h('span',{className:'ft'},f.type));
+                var lin=hasColLineage(d.key,f.name);var on=isSelCol(d.key,f.name);
+                return h('div',{key:i,className:'field-row',style:{padding:'3px 4px',borderRadius:4,display:'flex',alignItems:'center',gap:6,background:on?'rgba(255,159,67,0.10)':'transparent'},
+                  title:lin?'Tick to highlight; click name for transformation detail':null},
+                  lin?h('input',{type:'checkbox',className:'ns-check',checked:on,onChange:function(){toggleSelCol(d.key,f.name);}}):h('span',{style:{width:14,flexShrink:0}}),
+                  h('span',{className:'fn',style:{flex:1,cursor:lin?'pointer':'default',color:on?'var(--orange)':null},onClick:lin?function(){setSelected({kind:'dataset',key:d.key});setSelectedCol({dsKey:d.key,field:f.name});openColDetail(d.key,f.name);}:null},lin?'⚡ ':'',f.name),
+                  h('span',{className:'ft'},f.type));
               }):h('div',{className:'muted'},'No columns match “'+fq+'”')),
             d.schemaFields.length>12?h('button',{className:'btn',style:{marginTop:6,width:'100%',justifyContent:'center'},onClick:function(){toggleFull('d:'+d.key);}},fullCols['d:'+d.key]?'▲ Show first 12 on node':('▼ Show all '+d.schemaFields.length+' on node')):null);
         })():h('div',{className:'muted'},'No schema facet'),
