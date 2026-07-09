@@ -55,6 +55,10 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
 .hex-glyph{width:16px;height:14px;background:var(--purple);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);flex-shrink:0}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .stat-card{background:var(--node-bg,var(--bg2));border:1px solid var(--border);border-radius:6px;padding:8px 6px;text-align:center;transition:border-color 0.15s}
+.flabel{display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);margin-bottom:5px}
+.finput{width:100%;padding:8px 10px;background:var(--bg0);border:1px solid var(--border);border-radius:6px;color:var(--t0);font-family:inherit;font-size:12px;outline:none}
+.finput:focus{border-color:var(--acc)}
+select.finput{cursor:pointer}
 .stat-card.link{cursor:pointer}
 .stat-card.link:hover{border-color:var(--acc)}
 .stat-card.link .stat-num{text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:2px}
@@ -118,6 +122,28 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--t0)}
 .modal-head button{background:transparent;border:0;color:var(--t2);font-size:18px;cursor:pointer}
 .modal pre{padding:14px;overflow:auto;font-size:10px;color:var(--t1);white-space:pre-wrap;word-break:break-all}
+.crumb{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:6px;background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--t1);z-index:15;max-width:60%;overflow:hidden;white-space:nowrap}
+.crumb .sep{color:var(--t3)}
+.crumb .cur{color:var(--t0);font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.crumb .sys-badge{display:inline-flex;align-items:center;gap:4px;background:var(--accbg);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:10px;flex-shrink:0}
+.impact-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:var(--bg1);border:1px solid var(--acc);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--t0);z-index:17;box-shadow:0 6px 20px rgba(0,0,0,0.3)}
+.impact-banner.down{border-color:var(--green)}
+.impact-banner.up{border-color:var(--blue)}
+.impact-banner b{font-weight:700}
+.impact-banner .ib-depth{display:flex;align-items:center;gap:6px;color:var(--t2)}
+.impact-banner input[type=range]{width:80px}
+.impact-banner .close{background:transparent;border:0;color:var(--t2);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
+.impact-banner .close:hover{color:var(--t0)}
+.ctxmenu{position:fixed;background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:4px;z-index:60;box-shadow:0 8px 30px rgba(0,0,0,0.4);min-width:180px}
+.ctxmenu .ctx-head{font-size:10px;color:var(--t3);padding:5px 10px 6px;border-bottom:1px solid var(--border);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctxmenu button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--t1);font-family:inherit;font-size:11px;padding:7px 10px;border-radius:5px;cursor:pointer}
+.ctxmenu button:hover{background:var(--bg3);color:var(--acc)}
+.tag-chip{display:inline-block;background:var(--bg2);border:1px solid var(--border);color:var(--t1);font-size:10px;padding:1px 7px;border-radius:10px;margin:2px 4px 2px 0}
+.owner-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--t1);padding:3px 0}
+.owner-chip .otype{color:var(--t3);font-size:9px;text-transform:uppercase;letter-spacing:0.4px}
+.sys-pill{display:inline-flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--t0)}
+.txlegend{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-size:10px;color:var(--t2)}
+.txlegend .ln{width:22px;height:0;align-self:center}
 </style>
 </head>
 <body>
@@ -129,6 +155,35 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
   function(){
   var NS_COLORS=['#4d9fff','#22c55e','#ff9f43','#a78bfa','#22d3ee','#ec4899','#f0f0f2','#00ff9d','#ff5f5f'];
   var JOB_COLOR='#a78bfa';
+
+  // §3 Graph data model — derive the storage/compute System (platform) a dataset
+  // lives on from its namespace. OpenLineage namespaces are typically scheme URIs
+  // (snowflake://, s3://, postgres://host:port). Enables cross-platform lineage.
+  var SYSTEM_MAP={snowflake:'Snowflake',bigquery:'BigQuery',postgres:'Postgres',postgresql:'Postgres',mysql:'MySQL',mariadb:'MySQL',redshift:'Redshift',s3:'S3',s3a:'S3',gs:'GCS',gcs:'GCS',abfss:'ADLS',abfs:'ADLS',wasbs:'ADLS',kafka:'Kafka',file:'File',hdfs:'HDFS',mssql:'SQLServer',sqlserver:'SQLServer',oracle:'Oracle',trino:'Trino',presto:'Presto',hive:'Hive',databricks:'Databricks',athena:'Athena',dbfs:'DBFS',clickhouse:'ClickHouse',cassandra:'Cassandra',mongodb:'MongoDB',elasticsearch:'Elasticsearch'};
+  var SYSTEM_ICONS={Snowflake:'❄',BigQuery:'▤',Postgres:'🐘',MySQL:'🐬',Redshift:'▧',S3:'🪣',GCS:'🪣',ADLS:'🪣',Kafka:'✉',File:'📄',HDFS:'🗄',SQLServer:'🗄',Oracle:'🗄',Trino:'◆',Presto:'◆',Hive:'🐝',Databricks:'▦',Athena:'◈',DBFS:'🗄',ClickHouse:'◉',Cassandra:'◎',MongoDB:'🌿',Elasticsearch:'🔎'};
+  function systemOf(ns){
+    ns=ns||'';
+    var m=ns.match(/^([a-z0-9+]+):\/\//i);
+    var scheme=m?m[1].toLowerCase():'';
+    if(scheme)return SYSTEM_MAP[scheme]||(scheme.charAt(0).toUpperCase()+scheme.slice(1));
+    var seg=ns.split(/[:.\/@]/)[0];// no scheme -> first segment as platform grouping
+    return seg?(SYSTEM_MAP[seg.toLowerCase()]||(seg.charAt(0).toUpperCase()+seg.slice(1))):'unknown';
+  }
+  function systemIcon(sys){return SYSTEM_ICONS[sys]||'▢';}
+
+  // §8 Column lineage — normalize OpenLineage transformation type/subtype/masking
+  // into a semantic class the UI can style distinctly. OL uses type DIRECT|INDIRECT
+  // with subtypes (IDENTITY, TRANSFORMATION, AGGREGATION, FILTER, GROUP_BY, JOIN,
+  // SORT, WINDOW, CONDITIONAL) plus a masking boolean.
+  function classifyTx(type,subtype,masking,hasDesc){
+    if(masking)return 'MASKING';
+    var t=(type||'').toUpperCase(),s=(subtype||'').toUpperCase();
+    if(s==='AGGREGATION'||s==='GROUP_BY')return 'AGGREGATION';
+    if(!t&&!hasDesc)return 'IDENTITY';
+    if(t==='IDENTITY'||s==='IDENTITY')return 'IDENTITY';
+    if(t==='INDIRECT'&&!hasDesc&&(s==='FILTER'||s==='JOIN'||s==='SORT'||s==='WINDOW'||s==='CONDITIONAL'))return 'FILTER';
+    return 'TRANSFORM';
+  }
 
   function dsKey(ns,name){return (ns||'')+'::'+(name||'');}
 
@@ -173,7 +228,7 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
     function ns(n){if(n&&nsOrder.indexOf(n)<0)nsOrder.push(n);}
     function ensureDs(d){
       var k=dsKey(d.namespace,d.name);
-      if(!datasets[k]){datasets[k]={key:k,namespace:d.namespace||'',name:d.name||'',schemaFields:[],columnLineage:null,producedByJobs:{},consumedByJobs:{},facets:{}};ns(d.namespace);}
+      if(!datasets[k]){datasets[k]={key:k,namespace:d.namespace||'',name:d.name||'',system:systemOf(d.namespace),schemaFields:[],columnLineage:null,producedByJobs:{},consumedByJobs:{},owners:[],tags:[],facets:{}};ns(d.namespace);}
       return datasets[k];
     }
     function addEdge(from,to){var id=from+'>'+to;if(!edgeSet[id]){edgeSet[id]=1;edges.push({from:from,to:to});}}
@@ -209,6 +264,13 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
         ds.schemaFields=facets.schema.fields.map(function(f){return{name:f.name,type:f.type||''};});
       }
       if(facets.columnLineage&&facets.columnLineage.fields)ds.columnLineage=facets.columnLineage.fields;
+      // §3 ownership + tags facets -> governance metadata on the node
+      if(facets.ownership&&Array.isArray(facets.ownership.owners))
+        ds.owners=facets.ownership.owners.map(function(o){return{name:o.name||'',type:o.type||''};}).filter(function(o){return o.name;});
+      var tg=[];
+      if(Array.isArray(facets.tags))facets.tags.forEach(function(t){tg.push(typeof t==='string'?t:(t.key?t.key+(t.value?'='+t.value:''):(t.name||'')));});
+      else if(facets.tags&&Array.isArray(facets.tags.tags))facets.tags.tags.forEach(function(t){tg.push(t.key?t.key+(t.value?'='+t.value:''):(t.name||t.value||''));});
+      if(tg.length)ds.tags=tg.filter(Boolean);
       Object.keys(facets).forEach(function(fk){if(fk[0]!=='_')ds.facets[fk]=facets[fk];});
     }
     function extractColumnEdges(ds,facets,out){
@@ -226,7 +288,8 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
           if(!tx&&inp.transformationDescription)tx=inp.transformationDescription;
           if(!type&&inp.transformationType)type=inp.transformationType;
           if(!tx&&spec.transformationDescription)tx=spec.transformationDescription;
-          out.push({toDs:ds.key,toField:outField,fromDs:dsKey(inp.namespace,inp.name),fromField:inp.field||'',transformation:tx,transformationType:type,transformationSubtype:subtype,masking:masking});
+          var txClass=classifyTx(type,subtype,masking,!!tx);
+          out.push({toDs:ds.key,toField:outField,fromDs:dsKey(inp.namespace,inp.name),fromField:inp.field||'',transformation:tx,transformationType:type,transformationSubtype:subtype,masking:masking,txClass:txClass});
         });
       });
     }
@@ -236,9 +299,10 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
 
     var dsList=Object.keys(datasets).map(function(k){return datasets[k];});
     var jobList=Object.keys(jobs).map(function(k){return jobs[k];});
-    var stats={datasets:dsList.length,jobs:jobList.length,namespaces:nsOrder.length,edges:edges.length,columnEdges:colEdges.length,events:events.length};
+    var systems=[];dsList.forEach(function(d){if(systems.indexOf(d.system)<0)systems.push(d.system);});
+    var stats={datasets:dsList.length,jobs:jobList.length,namespaces:nsOrder.length,systems:systems.length,edges:edges.length,columnEdges:colEdges.length,events:events.length};
 
-    var model={datasets:datasets,jobs:jobs,edges:edges,colEdges:colEdges,namespaces:nsOrder,nsColor:nsColor,stats:stats,issues:issues};
+    var model={datasets:datasets,jobs:jobs,edges:edges,colEdges:colEdges,namespaces:nsOrder,systems:systems,nsColor:nsColor,stats:stats,issues:issues};
     validate(model);
     return model;
   }
@@ -256,6 +320,27 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
     }
     Object.keys(adj).forEach(function(n){if(!state[n])dfs(n);});
     return Object.keys(cycleNodes);
+  }
+
+  // §5 Impact analysis (direction 'down') and root-cause (direction 'up').
+  // BFS over the structural dataset<->job graph from a start node id ('d:'/'j:'),
+  // bounded by maxDepth. Returns per-node depth, the traversed edge set, and a
+  // reachable count. Pure + testable.
+  function traverse(model,startId,direction,maxDepth){
+    maxDepth=(maxDepth==null)?Infinity:maxDepth;
+    var fwd={},rev={};
+    model.edges.forEach(function(e){(fwd[e.from]||(fwd[e.from]=[])).push(e.to);(rev[e.to]||(rev[e.to]=[])).push(e.from);});
+    var adj=direction==='up'?rev:fwd;
+    var depth={},edges={};depth[startId]=0;
+    var q=[startId];
+    while(q.length){
+      var n=q.shift();var d=depth[n];if(d>=maxDepth)continue;
+      (adj[n]||[]).forEach(function(m){
+        edges[direction==='up'?(m+'>'+n):(n+'>'+m)]=1;
+        if(depth[m]==null){depth[m]=d+1;q.push(m);}
+      });
+    }
+    return{depth:depth,edges:edges,count:Object.keys(depth).length-1,direction:direction,start:startId};
   }
 
   function validate(model){
@@ -278,7 +363,9 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
     var expanded=opts.expanded||{};
     var hidden=opts.hiddenNs||{};
     var manual=opts.manual||{};
-    var HEADER=30,ROWH=16,MAXF=12,DSW=160,JOBW=130;
+    var colFilter=opts.colFilter||{};// dsKey -> filter substring
+    var fullCols=opts.fullCols||{};// nodeId -> 1 (show all columns)
+    var HEADER=30,ROWH=16,MAXF=12,MAXFULL=200,DSW=160,JOBW=130;
     var COLGAP=opts.colGap!=null?opts.colGap:90;
     var ROWGAP=opts.rowGap!=null?opts.rowGap:26;
 
@@ -287,15 +374,23 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
     Object.keys(model.datasets).forEach(function(k){
       var d=model.datasets[k];if(!visible(d.namespace))return;
       var id='d:'+k;var exp=!!expanded[id];
-      var nf=Math.min(d.schemaFields.length,MAXF);
-      var h=exp&&nf>0?HEADER+nf*ROWH+6:46;
-      nodes[id]={id:id,kind:'dataset',key:k,name:d.name,namespace:d.namespace,color:model.nsColor[d.namespace]||'#888',w:DSW,h:h,expanded:exp,fields:d.schemaFields.slice(0,MAXF),moreFields:Math.max(0,d.schemaFields.length-MAXF)};
+      var allF=d.schemaFields;
+      var filt=(colFilter[k]||'').toLowerCase();
+      var matched=filt?allF.filter(function(f){return f.name.toLowerCase().indexOf(filt)>=0;}):allF;
+      // Show all matching columns when filtering or when the user expanded the
+      // node; otherwise cap at MAXF with a "show all" affordance.
+      var showAll=!!fullCols[id]||!!filt;
+      var cap=showAll?Math.min(matched.length,MAXFULL):MAXF;
+      var shown=matched.slice(0,cap);
+      var more=Math.max(0,matched.length-shown.length);
+      var h=exp&&shown.length?HEADER+shown.length*ROWH+(more||showAll||filt?18:6):46;
+      nodes[id]={id:id,kind:'dataset',key:k,name:d.name,namespace:d.namespace,system:d.system||systemOf(d.namespace),color:model.nsColor[d.namespace]||'#888',w:DSW,h:h,expanded:exp,fields:shown,moreFields:more,totalFields:allF.length,matchCount:matched.length,filtered:!!filt,showAll:showAll};
       order.push(id);
     });
     Object.keys(model.jobs).forEach(function(k){
       var j=model.jobs[k];if(!visible(j.namespace))return;
       var id='j:'+k;
-      nodes[id]={id:id,kind:'job',key:k,name:j.name,namespace:j.namespace,color:JOB_COLOR,w:JOBW,h:46,eventType:j.latestEventType};
+      nodes[id]={id:id,kind:'job',key:k,name:j.name,namespace:j.namespace,system:systemOf(j.namespace),color:JOB_COLOR,w:JOBW,h:46,eventType:j.latestEventType};
       order.push(id);
     });
 
@@ -318,6 +413,11 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
       });
     });
 
+    // §4 Cross-platform / cross-namespace: flag edges whose endpoints live in
+    // different namespaces or on different systems so the renderer can style the
+    // boundary crossing distinctly.
+    edges.forEach(function(e){var a=nodes[e.from],b=nodes[e.to];if(a&&b){e.crossNs=a.namespace!==b.namespace;e.crossSystem=a.system!==b.system;}});
+
     // rank via Kahn + longest path
     var indeg={},adj={};order.forEach(function(id){indeg[id]=0;adj[id]=[];});
     edges.forEach(function(e){adj[e.from].push(e.to);indeg[e.to]++;});
@@ -339,14 +439,43 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
     ranks.forEach(function(r){var maxW=0;byRank[r].forEach(function(id){maxW=Math.max(maxW,nodes[id].w);});rankX[r]=x;x+=maxW+COLGAP;});
     var totalW=x;
 
-    var maxRankH=0;
+    // Vertical placement: keep chains straight in L->R by aligning each node to
+    // the barycenter (average center) of its parents. A node with a single parent
+    // inherits the parent's Y (dead-straight); a node fed by several parents sits
+    // at their midpoint; only genuine collisions get pushed down by the min gap.
+    var childrenOf={},parentsOf={};
+    order.forEach(function(id){childrenOf[id]=[];parentsOf[id]=[];});
+    edges.forEach(function(e){if(childrenOf[e.from]){childrenOf[e.from].push(e.to);parentsOf[e.to].push(e.from);}});
+
     ranks.forEach(function(r){
-      var y=20;
-      byRank[r].sort(function(a,b){return nodes[a].name<nodes[b].name?-1:1;});
-      byRank[r].forEach(function(id){var nd=nodes[id];nd.x=rankX[r];nd.y=y;y+=nd.h+ROWGAP;});
-      maxRankH=Math.max(maxRankH,y);
+      var ids=byRank[r];
+      // desired center from already-placed parents (ranks run left->right)
+      ids.forEach(function(id){
+        var ps=parentsOf[id],sum=0,cnt=0;
+        ps.forEach(function(p){if(nodes[p].y!=null){sum+=nodes[p].y+nodes[p].h/2;cnt++;}});
+        nodes[id]._d=cnt?sum/cnt:null;
+      });
+      // order by desired center; sourceless (no placed parent) keep name order at end
+      ids.sort(function(a,b){
+        var da=nodes[a]._d,db=nodes[b]._d;
+        if(da==null&&db==null)return nodes[a].name<nodes[b].name?-1:1;
+        if(da==null)return 1;if(db==null)return -1;
+        return da-db;
+      });
+      // place top-down honoring desire, pushing down only to avoid overlap
+      var cursor=20;
+      ids.forEach(function(id){
+        var nd=nodes[id];
+        var top=nd._d!=null?(nd._d-nd.h/2):cursor;
+        if(top<cursor)top=cursor;
+        nd.x=rankX[r];nd.y=top;
+        cursor=top+nd.h+ROWGAP;
+        delete nd._d;
+      });
     });
-    var totalH=maxRankH+20;
+    var maxBottom=0;
+    order.forEach(function(id){maxBottom=Math.max(maxBottom,nodes[id].y+nodes[id].h);});
+    var totalH=maxBottom+20;
 
     // field anchor map for column edges
     function fieldY(nd,fname){
@@ -361,7 +490,7 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
       var fromId='d:'+ce.fromDs,toId='d:'+ce.toDs;
       var a=nodes[fromId],b=nodes[toId];if(!a||!b)return;
       if(!a.expanded&&!b.expanded)return; // only when at least one end expanded
-      colEdges.push({from:fromId,to:toId,fromField:ce.fromField,toField:ce.toField,transformation:ce.transformation,
+      colEdges.push({from:fromId,to:toId,fromField:ce.fromField,toField:ce.toField,transformation:ce.transformation,txClass:ce.txClass||'IDENTITY',
         y1:fieldY(a,ce.fromField),y2:fieldY(b,ce.toField)});
     });
 
@@ -406,11 +535,60 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
        }}}}]},
     {eventType:'COMPLETE',eventTime:'2024-03-15T10:10:00Z',run:{runId:'r3',facets:{}},job:{namespace:'etl',name:'customer_dim',facets:{}},
      inputs:[{namespace:'raw',name:'raw.customers',facets:{schema:{fields:[{name:'customer_id',type:'bigint'},{name:'name',type:'string'}]}}}],
-     outputs:[{namespace:'marts',name:'dim.customer',facets:{schema:{fields:[{name:'customer_id',type:'bigint'},{name:'name',type:'string'}]}}}]}
+     outputs:[{namespace:'marts',name:'dim.customer',facets:{schema:{fields:[{name:'customer_id',type:'bigint'},{name:'name',type:'string'},{name:'email',type:'string'}]}}}]},
+    // Cross-system publish into Snowflake: aggregation + masking + governance facets.
+    {eventType:'COMPLETE',eventTime:'2024-03-15T10:15:00Z',run:{runId:'r4',facets:{}},job:{namespace:'etl',name:'customer_revenue',facets:{}},
+     inputs:[{namespace:'marts',name:'fct.revenue',facets:{}},{namespace:'marts',name:'dim.customer',facets:{}}],
+     outputs:[{namespace:'snowflake://analytics',name:'agg.customer_revenue',facets:{
+       ownership:{owners:[{name:'analytics-team',type:'TEAM'},{name:'jsmith',type:'MAINTAINER'}]},
+       tags:{tags:[{key:'domain',value:'revenue'},{key:'tier',value:'gold'},{key:'contains',value:'PII'}]},
+       schema:{fields:[{name:'customer_id',type:'bigint'},{name:'customer_name',type:'string'},{name:'email_masked',type:'string'},{name:'total_revenue',type:'decimal'}]},
+       columnLineage:{fields:{
+         customer_id:{inputFields:[{namespace:'marts',name:'dim.customer',field:'customer_id'}]},
+         customer_name:{inputFields:[{namespace:'marts',name:'dim.customer',field:'name'}]},
+         email_masked:{inputFields:[{namespace:'marts',name:'dim.customer',field:'email',transformations:[{type:'DIRECT',subtype:'TRANSFORMATION',description:'sha256(email)',masking:true}]}]},
+         total_revenue:{inputFields:[{namespace:'marts',name:'fct.revenue',field:'total_amount',transformations:[{type:'DIRECT',subtype:'AGGREGATION',description:'SUM(total_amount)'}]}]}
+       }}}}]},
+    // Wide dataset (18 columns) to exercise per-node column expand + search.
+    {eventType:'COMPLETE',eventTime:'2024-03-15T10:20:00Z',run:{runId:'r5',facets:{}},job:{namespace:'etl',name:'build_customer_360',facets:{}},
+     inputs:[{namespace:'postgres://warehouse',name:'raw.customers_raw',facets:{schema:{fields:[
+       {name:'id',type:'bigint'},{name:'first_name',type:'string'},{name:'last_name',type:'string'},{name:'email',type:'string'},{name:'phone',type:'string'},{name:'address_line1',type:'string'},{name:'address_line2',type:'string'},{name:'city',type:'string'},{name:'state',type:'string'},{name:'postal_code',type:'string'},{name:'country',type:'string'},{name:'created_at',type:'timestamp'},{name:'updated_at',type:'timestamp'},{name:'segment',type:'string'},{name:'lifetime_value',type:'decimal'},{name:'churn_score',type:'double'},{name:'last_order_date',type:'date'},{name:'total_orders',type:'int'}
+     ]}}}],
+     outputs:[{namespace:'snowflake://analytics',name:'wide.customer_360',facets:{schema:{fields:[
+       {name:'id',type:'bigint'},{name:'first_name',type:'string'},{name:'last_name',type:'string'},{name:'email',type:'string'},{name:'phone',type:'string'},{name:'address_line1',type:'string'},{name:'address_line2',type:'string'},{name:'city',type:'string'},{name:'state',type:'string'},{name:'postal_code',type:'string'},{name:'country',type:'string'},{name:'created_at',type:'timestamp'},{name:'updated_at',type:'timestamp'},{name:'segment',type:'string'},{name:'lifetime_value',type:'decimal'},{name:'churn_score',type:'double'},{name:'last_order_date',type:'date'},{name:'total_orders',type:'int'}
+     ]}}}]}
   ];
 
+  // Parse a git repo reference into provider/host/path. github.com -> GitHub API,
+  // any other host -> GitLab API (supports self-hosted). Handles bare "owner/repo"
+  // (GitHub) and web URLs that embed a branch (/tree/<branch>/... or /-/tree/...).
+  function parseRepoUrl(url){
+    if(!url||typeof url!=='string')return null;
+    url=url.trim().replace(/\.git(\/)?$/,'').replace(/\/+$/,'');
+    if(!url)return null;
+    var m=url.match(/^https?:\/\/([^\/]+)\/(.+)$/i);
+    if(!m){
+      var s=url.match(/^([\w.-]+)\/([\w.-]+)$/);// bare owner/repo -> github
+      if(s)return{provider:'github',host:'github.com',path:s[1]+'/'+s[2],owner:s[1],repo:s[2],branch:null};
+      return null;
+    }
+    var host=m[1].toLowerCase(),path=m[2].split('#')[0].split('?')[0];
+    var branch=null,dash=path.indexOf('/-/');
+    if(dash>=0){// GitLab web URL: <group/.../repo>/-/tree|blob/<branch>/...
+      var rest=path.slice(dash+3);path=path.slice(0,dash);
+      var tb=rest.match(/^(?:tree|blob)\/([^\/]+)/);if(tb)branch=decodeURIComponent(tb[1]);
+    }else{
+      var gh=path.match(/^([^\/]+\/[^\/]+)\/(?:tree|blob)\/([^\/]+)/);// GitHub web URL
+      if(gh){path=gh[1];branch=decodeURIComponent(gh[2]);}
+    }
+    path=path.replace(/\/+$/,'');
+    var provider=(host==='github.com')?'github':'gitlab';
+    var parts=path.split('/').filter(Boolean);
+    return{provider:provider,host:host,path:path,owner:parts[0]||'',repo:parts[parts.length-1]||'',branch:branch};
+  }
+
   var G=(typeof window!=='undefined')?window:globalThis;
-  G.LineageEngine={parseFileContent:parseFileContent,buildModel:buildModel,validate:validate,detectCycles:detectCycles,computeLayout:computeLayout,dsKey:dsKey,DEMO_EVENTS:DEMO_EVENTS,NS_COLORS:NS_COLORS};
+  G.LineageEngine={parseFileContent:parseFileContent,buildModel:buildModel,validate:validate,detectCycles:detectCycles,computeLayout:computeLayout,traverse:traverse,systemOf:systemOf,systemIcon:systemIcon,classifyTx:classifyTx,dsKey:dsKey,parseRepoUrl:parseRepoUrl,DEMO_EVENTS:DEMO_EVENTS,NS_COLORS:NS_COLORS};
 }
 )();
 /* LINEAGE_ENGINE_END */
@@ -453,6 +631,17 @@ function App(){
   var s_col=useState(null),colDetail=s_col[0],setColDetail=s_col[1];// column transformation popup modal
   var s_theme=useState('dark'),theme=s_theme[0],setTheme=s_theme[1];// 'dark' | 'light'
   var s_selCol=useState(null),selectedCol=s_selCol[0],setSelectedCol=s_selCol[1];// {dsKey,field} for highlighting
+  var s_prog=useState(''),progress=s_prog[0],setProgress=s_prog[1];// loading progress text
+  var s_repoModal=useState(false),repoModal=s_repoModal[0],setRepoModal=s_repoModal[1];
+  var s_repoUrl=useState(''),repoUrl=s_repoUrl[0],setRepoUrl=s_repoUrl[1];
+  var s_repoAuth=useState('none'),repoAuth=s_repoAuth[0],setRepoAuth=s_repoAuth[1];// 'none' | 'pat'
+  var s_repoToken=useState(''),repoToken=s_repoToken[0],setRepoToken=s_repoToken[1];
+  var s_repoBranch=useState(''),repoBranch=s_repoBranch[0],setRepoBranch=s_repoBranch[1];
+  var s_impact=useState(null),impact=s_impact[0],setImpact=s_impact[1];// §5 {mode:'down'|'up',startId}
+  var s_tdepth=useState(4),tdepth=s_tdepth[0],setTdepth=s_tdepth[1];// traversal depth cap
+  var s_ctx=useState(null),ctxMenu=s_ctx[0],setCtxMenu=s_ctx[1];// {x,y,id,kind,key,name}
+  var s_colFilter=useState({}),colFilter=s_colFilter[0],setColFilter=s_colFilter[1];// dsKey -> per-node column filter
+  var s_fullCols=useState({}),fullCols=s_fullCols[0],setFullCols=s_fullCols[1];// nodeId -> show all columns
   var svgRef=useRef(null),zoomRef=useRef(null),gRef=useRef(null);
   var folderInputRef=useRef(null);
   var manualRef=useRef({});// nodeId -> {x,y} manual drag overrides
@@ -506,6 +695,9 @@ function App(){
 
   var expanded=useMemo(function(){
     var e={};
+    // A column filter or an explicit "show all" always expands its node, even in table view.
+    Object.keys(colFilter).forEach(function(k){if(colFilter[k])e['d:'+k]=1;});
+    Object.keys(fullCols).forEach(function(id){if(fullCols[id])e[id]=1;});
     if(viewMode==='table')return e;
     if(selected&&selected.kind==='dataset'){
       e['d:'+selected.key]=1;
@@ -516,14 +708,33 @@ function App(){
       Object.keys(colChain.datasets).forEach(function(dk){e['d:'+dk]=1;});
     }
     return e;
-  },[selected,model,viewMode,colChain]);
+  },[selected,model,viewMode,colChain,colFilter,fullCols]);
 
   var layout=useMemo(function(){
     if(!model)return null;
-    return E.computeLayout(model,{direction:dir,expanded:expanded,hiddenNs:hiddenNs,colGap:gap,rowGap:Math.max(12,Math.round(gap*0.29)),manual:manualRef.current});
-  },[model,dir,expanded,hiddenNs,gap,manualV]);
+    return E.computeLayout(model,{direction:dir,expanded:expanded,hiddenNs:hiddenNs,colGap:gap,rowGap:Math.max(12,Math.round(gap*0.29)),manual:manualRef.current,colFilter:colFilter,fullCols:fullCols});
+  },[model,dir,expanded,hiddenNs,gap,manualV,colFilter,fullCols]);
+
+  function toggleFull(id){setFullCols(function(p){var c=Object.assign({},p);if(c[id])delete c[id];else c[id]=1;return c;});}
+  function setDsFilter(k,v){setColFilter(function(p){var c=Object.assign({},p);if(v)c[k]=v;else delete c[k];return c;});}
 
   function resetLayout(){manualRef.current={};setManualV(function(v){return v+1;});}
+
+  // §5 Impact / root-cause traversal result over the structural graph.
+  var impactResult=useMemo(function(){
+    if(!impact||!model)return null;
+    return E.traverse(model,impact.startId,impact.mode,tdepth);
+  },[impact,tdepth,model]);
+  function startImpact(mode,id){setImpact({mode:mode,startId:id});setCtxMenu(null);}
+  function clearImpact(){setImpact(null);}
+  // Dismiss the context menu on any outside interaction.
+  useEffect(function(){
+    if(!ctxMenu)return;
+    var close=function(){setCtxMenu(null);};
+    window.addEventListener('mousedown',close);window.addEventListener('scroll',close,true);
+    window.addEventListener('resize',close);
+    return function(){window.removeEventListener('mousedown',close);window.removeEventListener('scroll',close,true);window.removeEventListener('resize',close);};
+  },[ctxMenu]);
 
   // Theme toggle
   function toggleTheme(){
@@ -549,12 +760,76 @@ function App(){
   function loadEvents(events,parseIssues){
     try{
       var m=E.buildModel(events,parseIssues||[]);
-      setModel(m);setSelected(null);setErr(null);
+      setModel(m);setSelected(null);setErr(null);setImpact(null);setCtxMenu(null);setColFilter({});setFullCols({});
       if(m.issues.length&&m.stats.datasets===0)setTab('ISSUES');else setTab('DETAILS');
     }catch(e){setErr('Failed to build model: '+(e.message||e));}
   }
 
   function loadDemo(){setLoading(true);setTimeout(function(){loadEvents(E.DEMO_EVENTS.slice(),[]);setLoading(false);},50);}
+
+  function b64utf8(b64){var bin=atob((b64||'').replace(/\s/g,''));try{var by=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)by[i]=bin.charCodeAt(i);return new TextDecoder('utf-8').decode(by);}catch(e){return bin;}}
+  function authHeaders(info){
+    var hdr={};
+    if(info.provider==='github')hdr['Accept']='application/vnd.github.v3+json';
+    if(repoAuth==='pat'&&repoToken){
+      if(info.provider==='github')hdr['Authorization']='Bearer '+repoToken;
+      else hdr['PRIVATE-TOKEN']=repoToken;
+    }
+    return hdr;
+  }
+  async function ghDefaultBranch(info,hdr){var r=await fetch('https://api.github.com/repos/'+info.owner+'/'+info.repo,{headers:hdr});if(!r.ok)throw new Error('GitHub repo '+r.status+(r.status===404?' (not found / private — add a token?)':r.status===403?' (rate limited — add a token for 5000 req/hr)':''));return (await r.json()).default_branch||'main';}
+  async function glDefaultBranch(info,hdr){var r=await fetch('https://'+info.host+'/api/v4/projects/'+encodeURIComponent(info.path),{headers:hdr});if(!r.ok)throw new Error('GitLab project '+r.status+(r.status===404?' (not found / private?)':''));return (await r.json()).default_branch||'main';}
+
+  async function loadRepo(){
+    var info=E.parseRepoUrl(repoUrl);
+    if(!info){setErr('Invalid repo URL. Use https://github.com/owner/repo or https://gitlab.example.com/group/repo');return;}
+    setRepoModal(false);setLoading(true);setErr(null);setProgress('Connecting to '+info.host+'…');
+    try{
+      var hdr=authHeaders(info);
+      var branch=repoBranch.trim()||info.branch;
+      var jsonPaths=[];
+      if(info.provider==='github'){
+        if(!branch)branch=await ghDefaultBranch(info,hdr);
+        setProgress('Fetching file tree ('+branch+')…');
+        var tr=await fetch('https://api.github.com/repos/'+info.owner+'/'+info.repo+'/git/trees/'+encodeURIComponent(branch)+'?recursive=1',{headers:hdr});
+        if(!tr.ok)throw new Error('GitHub tree '+tr.status+(tr.status===403?' (rate limited — add a token)':''));
+        var td=await tr.json();
+        (td.tree||[]).forEach(function(n){if(n.type==='blob'&&/\.json$/i.test(n.path))jsonPaths.push(n.path);});
+      }else{
+        if(!branch)branch=await glDefaultBranch(info,hdr);
+        setProgress('Fetching file tree ('+branch+')…');
+        var page=1,guard=0;
+        while(guard++<60){
+          var tg=await fetch('https://'+info.host+'/api/v4/projects/'+encodeURIComponent(info.path)+'/repository/tree?recursive=true&per_page=100&page='+page+'&ref='+encodeURIComponent(branch),{headers:hdr});
+          if(!tg.ok)throw new Error('GitLab tree '+tg.status);
+          var arr=await tg.json();
+          arr.forEach(function(n){if(n.type==='blob'&&/\.json$/i.test(n.path))jsonPaths.push(n.path);});
+          var next=tg.headers.get('x-next-page');if(!next)break;page=parseInt(next,10);
+        }
+      }
+      if(!jsonPaths.length){setLoading(false);setProgress('');setErr('No .json files found in '+info.path+' (branch '+branch+')');return;}
+      var allEvents=[],allIssues=[];
+      for(var i=0;i<jsonPaths.length;i++){
+        setProgress('Reading '+(i+1)+'/'+jsonPaths.length+': '+jsonPaths[i]);
+        try{
+          var text;
+          if(info.provider==='github'){
+            var cr=await fetch('https://api.github.com/repos/'+info.owner+'/'+info.repo+'/contents/'+jsonPaths[i].split('/').map(encodeURIComponent).join('/')+'?ref='+encodeURIComponent(branch),{headers:hdr});
+            if(!cr.ok)throw new Error('HTTP '+cr.status);
+            var cd=await cr.json();text=cd.content?b64utf8(cd.content):'';
+          }else{
+            var gr=await fetch('https://'+info.host+'/api/v4/projects/'+encodeURIComponent(info.path)+'/repository/files/'+encodeURIComponent(jsonPaths[i])+'/raw?ref='+encodeURIComponent(branch),{headers:hdr});
+            if(!gr.ok)throw new Error('HTTP '+gr.status);
+            text=await gr.text();
+          }
+          var pr=E.parseFileContent(text,jsonPaths[i]);
+          allEvents=allEvents.concat(pr.events);allIssues=allIssues.concat(pr.issues);
+        }catch(e){allIssues.push({file:jsonPaths[i],severity:'high',reason:'Fetch error: '+(e.message||e)});}
+      }
+      loadEvents(allEvents,allIssues);
+    }catch(e){setErr('Failed to load repo: '+(e.message||e));}
+    setLoading(false);setProgress('');
+  }
 
   async function readFileObjs(fileObjs){
     setLoading(true);setErr(null);
@@ -598,6 +873,12 @@ function App(){
     var selId=selected?(selected.kind+':').replace('dataset:','d:').replace('job:','j:')+selected.key:null;
     var connected={};
     if(selId){layout.edges.forEach(function(e){if(e.from===selId||e.to===selId){connected[e.from]=1;connected[e.to]=1;}});}
+    // §5 impact/root-cause highlight sets (null when inactive)
+    var impSet=impactResult?impactResult.depth:null;
+    var impEdges=impactResult?impactResult.edges:null;
+    var impMode=impact?impact.mode:null;
+    var cvar=function(n,f){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||f;};
+    var greenC=cvar('--green','#22c55e'),blueC=cvar('--blue','#4d9fff'),cyanC=cvar('--cyan','#22d3ee');
 
     function box(id){return nodeMap[id];}
     function anchorOut(n){return dir==='LR'?[n.x+n.w,n.y+n.h/2]:[n.x+n.w/2,n.y+n.h];}
@@ -618,17 +899,34 @@ function App(){
     }
     function drawEdges(){
       eg.selectAll('*').remove();cg.selectAll('*').remove();
-      var edgeClr=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
-      var accColor=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
+      var cv=function(n,f){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||f;};
+      var edgeClr=cv('--edge-color','#3a3a44'),accColor=cv('--acc','#9575cd');
       // Use full transitive chain for active edges
       var activeColEdges=colChain?colChain.edgeKeys:{};
       var hasActiveCol=Object.keys(activeColEdges).length>0;
       layout.edges.forEach(function(e){
         var a=anchorOut(box(e.from)),b=anchorIn(box(e.to));
+        var inImpact=impEdges&&impEdges[e.from+'>'+e.to];
+        var dim=impSet&&!inImpact;
         var hot=selId&&(e.from===selId||e.to===selId);
-        var p=eg.append('path').attr('d',path(a,b)).attr('fill','none').attr('stroke',hot?accColor:edgeClr).attr('stroke-width',hot?1.8:1).attr('marker-end',hot?'url(#arrHot)':'url(#arr)');
-        if(e.bypass)p.attr('stroke-dasharray','5,4').attr('opacity',0.7);// lineage through a hidden job
+        var stroke=edgeClr,w=1,dash=null,op=1,marker='url(#arr)';
+        if(inImpact){stroke=impMode==='up'?blueC:greenC;w=2;marker=impMode==='up'?'url(#arrUp)':'url(#arrDown)';}
+        else if(hot){stroke=accColor;w=1.8;marker='url(#arrHot)';}
+        // §4 cross-system boundary crossing (when not otherwise emphasized)
+        if(e.crossSystem&&!inImpact&&!hot){stroke=cyanC;dash='7,4';op=0.9;}
+        if(e.bypass){dash='5,4';op=Math.min(op,0.7);}// lineage through a hidden job
+        if(dim)op=0.1;
+        var p=eg.append('path').attr('d',path(a,b)).attr('fill','none').attr('stroke',stroke).attr('stroke-width',w).attr('marker-end',marker).attr('opacity',op);
+        if(dash)p.attr('stroke-dasharray',dash);
       });
+      // §8 per-transformation-class visual language for column edges
+      var TXST={
+        IDENTITY:{color:cv('--t3','#5c5c66'),width:1,dash:null,op:0.55},
+        TRANSFORM:{color:'#ff9f43',width:1.6,dash:null,op:0.9},
+        AGGREGATION:{color:'#ff9f43',width:2.8,dash:null,op:0.95},
+        FILTER:{color:'#ff9f43',width:1,dash:'2,3',op:0.7},
+        MASKING:{color:cv('--red','#ff5f5f'),width:1.5,dash:'4,3',op:0.9}
+      };
       if(dir==='LR'){
         layout.colEdges.forEach(function(ce,idx){
           var a=box(ce.from),b=box(ce.to);if(!a||!b)return;
@@ -649,8 +947,10 @@ function App(){
             // Target dot
             cg.append('circle').attr('cx',pb[0]).attr('cy',pb[1]).attr('r',4).attr('fill','#ff9f43').attr('opacity',0.9);
           }else{
-            // Default column edges (no selection)
-            cg.append('path').attr('d',path(pa,pb)).attr('fill','none').attr('stroke','#ff9f43').attr('stroke-width',1).attr('stroke-dasharray','3,3').attr('opacity',0.85);
+            // Default column edges styled by transformation class
+            var st=TXST[ce.txClass]||TXST.IDENTITY;
+            var pth=cg.append('path').attr('d',path(pa,pb)).attr('fill','none').attr('stroke',st.color).attr('stroke-width',st.width).attr('opacity',st.op).attr('marker-end','url(#arrCol)');
+            if(st.dash)pth.attr('stroke-dasharray',st.dash);
           }
         });
       }
@@ -662,6 +962,12 @@ function App(){
     layout.nodes.forEach(function(n){
       var grp=ng.append('g').attr('transform','translate('+n.x+','+n.y+')').style('cursor','grab');
       var isSel=selId===n.id;
+      // §5 impact/root-cause node role
+      var impInfo=impSet?impSet[n.id]:undefined;
+      var inImp=impSet&&impInfo!=null;
+      var dimNode=impSet&&(impInfo==null);
+      var impStroke=(inImp&&!isSel)?(impMode==='up'?blueC:greenC):null;
+      if(dimNode)grp.attr('opacity',0.22);
       var nodeBg=getComputedStyle(document.documentElement).getPropertyValue('--node-bg').trim()||'#161619';
       var accColor=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
       var edgeClr=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
@@ -669,16 +975,18 @@ function App(){
         // Distinct hexagon glyph for jobs/transforms (points at left/right for LR flow anchors)
         var hi=Math.min(16,n.h/2);
         var hex='M'+hi+',0 L'+(n.w-hi)+',0 L'+n.w+','+(n.h/2)+' L'+(n.w-hi)+','+n.h+' L'+hi+','+n.h+' L0,'+(n.h/2)+' Z';
-        grp.append('path').attr('d',hex).attr('fill',nodeBg).attr('stroke',isSel?accColor:n.color).attr('stroke-width',isSel?2:1.4);
+        grp.append('path').attr('d',hex).attr('fill',nodeBg).attr('stroke',isSel?accColor:(impStroke||n.color)).attr('stroke-width',(isSel||impStroke)?2:1.4);
         if(isSel)grp.append('path').attr('d',hex).attr('fill','none').attr('stroke',accColor).attr('stroke-width',5).attr('opacity',0.12);
         grp.append('text').attr('x',n.w/2).attr('y',21).attr('text-anchor','middle').attr('font-size','14px').attr('fill',n.color).text('⚙');
         grp.append('text').attr('x',n.w/2).attr('y',35).attr('text-anchor','middle').attr('class','node-label').attr('font-size','10px').text(trunc(n.name,14));
       }else{
         grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',5)
-          .attr('fill',nodeBg).attr('stroke',isSel?accColor:n.color).attr('stroke-width',isSel?2:1);
+          .attr('fill',nodeBg).attr('stroke',isSel?accColor:(impStroke||n.color)).attr('stroke-width',(isSel||impStroke)?2:1);
         if(isSel)grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',5).attr('fill','none').attr('stroke',accColor).attr('stroke-width',5).attr('opacity',0.12);
-        grp.append('text').attr('x',9).attr('y',18).attr('class','node-label').text(trunc(n.name,20));
-        grp.append('text').attr('x',9).attr('y',30).attr('class','node-sub').text(trunc(n.namespace,24));
+        grp.append('text').attr('x',9).attr('y',18).attr('class','node-label').text(trunc(n.name,16));
+        grp.append('text').attr('x',9).attr('y',30).attr('class','node-sub').text(trunc(n.namespace,16));
+        // §3/§4 system (platform) badge, top-right
+        grp.append('text').attr('x',n.w-9).attr('y',18).attr('text-anchor','end').attr('class','node-sub').attr('fill',n.color).text(E.systemIcon(n.system)+' '+trunc(n.system,9));
         if(n.expanded&&n.fields.length){
           grp.append('line').attr('x1',0).attr('x2',n.w).attr('y1',HEADER).attr('y2',HEADER).attr('stroke','#2d2d35');
           n.fields.forEach(function(f,i){
@@ -701,9 +1009,25 @@ function App(){
               fr.on('click',function(ev){ev.stopPropagation();setSelected({kind:'dataset',key:n.key});setSelectedCol({dsKey:n.key,field:f.name});openColDetail(n.key,f.name);});
             }
           });
-          if(n.moreFields)grp.append('text').attr('x',9).attr('y',HEADER+n.fields.length*ROWH+9).attr('class','node-sub').text('+'+n.moreFields+' more');
+          // Footer row: match count when filtering, else a clickable show-all / show-fewer toggle
+          var fy=HEADER+n.fields.length*ROWH+9;
+          if(n.filtered){
+            grp.append('text').attr('x',9).attr('y',fy).attr('class','node-sub').attr('fill',accColor).text(n.matchCount+' / '+n.totalFields+' match'+(n.matchCount===1?'':'es'));
+          }else if(n.moreFields||n.showAll){
+            var msg=n.showAll?('▲ show first '+12):('▼ +'+n.moreFields+' more — show all '+n.totalFields);
+            var ft=grp.append('text').attr('x',9).attr('y',fy).attr('class','node-sub').attr('fill',accColor).style('cursor','pointer').text(msg);
+            ft.on('mousedown',function(ev){ev.stopPropagation();});
+            ft.on('click',function(ev){ev.stopPropagation();toggleFull(n.id);});
+          }
         }
       }
+      // §5 impact depth badge (hops from the analysis root)
+      if(inImp&&impInfo>0){
+        var bx=n.kind==='job'?14:3;
+        grp.append('circle').attr('cx',bx).attr('cy',3).attr('r',7.5).attr('fill',impMode==='up'?blueC:greenC).attr('stroke',nodeBg).attr('stroke-width',1.5);
+        grp.append('text').attr('x',bx).attr('y',6).attr('text-anchor','middle').attr('font-size','9px').attr('font-weight','700').attr('fill','#fff').text(impInfo);
+      }
+      grp.on('contextmenu',function(ev){ev.preventDefault();ev.stopPropagation();setCtxMenu({x:ev.clientX,y:ev.clientY,id:n.id,kind:n.kind,key:n.key,name:n.name});});
       var drag=d3.drag()
         .on('start',function(ev){ev.sourceEvent.stopPropagation();grp.raise().style('cursor','grabbing');grp.node().__moved=false;})
         .on('drag',function(ev){n.x+=ev.dx;n.y+=ev.dy;grp.attr('transform','translate('+n.x+','+n.y+')');manualRef.current[n.id]={x:n.x,y:n.y};grp.node().__moved=true;drawEdges();})
@@ -715,14 +1039,15 @@ function App(){
     var defs=svg.append('defs');
     var edgeClrMk=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
     var accColorMk=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
-    [['arr',edgeClrMk],['arrHot',accColorMk],['arrCol','#ff9f43']].forEach(function(m){
+    var greenMk=getComputedStyle(document.documentElement).getPropertyValue('--green').trim()||'#22c55e';
+    var blueMk=getComputedStyle(document.documentElement).getPropertyValue('--blue').trim()||'#4d9fff';
+    [['arr',edgeClrMk],['arrHot',accColorMk],['arrCol','#ff9f43'],['arrDown',greenMk],['arrUp',blueMk]].forEach(function(m){
       defs.append('marker').attr('id',m[0]).attr('markerWidth',7).attr('markerHeight',7).attr('refX',6).attr('refY',3).attr('orient','auto')
         .append('path').attr('d','M0,0 L6,3 L0,6 Z').attr('fill',m[1]);
     });
 
-    var zoom=d3.zoom().scaleExtent([0.1,3]).on('zoom',function(ev){g.attr('transform',ev.transform);});
+    var zoom=d3.zoom().scaleExtent([0.1,3]).on('zoom',function(ev){g.attr('transform',ev.transform);svgRef.current.__lastT=ev.transform;});
     zoomRef.current=zoom;svg.call(zoom);
-    fit();
     function fit(){
       var sw=svgRef.current.clientWidth||800,sh=svgRef.current.clientHeight||600;
       var bb;try{bb=g.node().getBBox();}catch(e){return;}
@@ -734,10 +1059,31 @@ function App(){
       // Center the rendered content in the viewport (bb.x/y are content-local origin)
       var tx=sw/2-scale*(bb.x+bb.width/2);
       var ty=sh/2-scale*(bb.y+bb.height/2);
-      svg.call(zoom.transform,d3.zoomIdentity.translate(tx,ty).scale(scale));
+      var t=d3.zoomIdentity.translate(tx,ty).scale(scale);
+      svg.call(zoom.transform,t);svgRef.current.__lastT=t;
     }
-    svgRef.current.__fit=fit;
-  },[layout,selected,dir,theme,selectedCol]);
+    // Pan/zoom a specific node to the viewport center (search + focus).
+    function focusOn(id,animate){
+      var nd=nodeMap[id];if(!nd)return false;
+      var sw=svgRef.current.clientWidth||800,sh=svgRef.current.clientHeight||600;
+      var cur=svgRef.current.__lastT;
+      var scale=cur?Math.max(0.6,Math.min(cur.k,1.4)):1;// keep a legible zoom level
+      var cx=nd.x+nd.w/2,cy=nd.y+nd.h/2;
+      var t=d3.zoomIdentity.translate(sw/2-scale*cx,sh/2-scale*cy).scale(scale);
+      (animate?svg.transition().duration(400):svg).call(zoom.transform,t);
+      svgRef.current.__lastT=t;return true;
+    }
+    svgRef.current.__fit=fit;svgRef.current.__focusOn=focusOn;
+    // Viewport policy: honor an explicit focus request (search); otherwise fit
+    // only when graph structure changed; else preserve the user's pan/zoom so
+    // selecting/impact toggles don't yank the view around.
+    var structKey=layout.width+'x'+layout.height+'|'+dir+'|'+layout.nodes.length;
+    var focusReq=svgRef.current.__focusReq;svgRef.current.__focusReq=null;
+    if(focusReq&&focusOn(focusReq,true)){/* centered on match */}
+    else if(svgRef.current.__structKey!==structKey||!svgRef.current.__lastT){fit();}
+    else{svg.call(zoom.transform,svgRef.current.__lastT);}// reapply prior transform to rebuilt <g>
+    svgRef.current.__structKey=structKey;
+  },[layout,selected,dir,theme,selectedCol,impactResult]);
 
   function trunc(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
   function zoomBy(k){if(zoomRef.current&&svgRef.current)d3.select(svgRef.current).transition().duration(150).call(zoomRef.current.scaleBy,k);}
@@ -745,15 +1091,26 @@ function App(){
   // Re-fit after a panel collapses/expands (canvas width changed)
   useEffect(function(){var t=setTimeout(doFit,240);return function(){clearTimeout(t);};},[railOpen,panelOpen]);
 
-  // search -> select first match
+  // search -> select first match (dataset, then job, then column) and focus it
   useEffect(function(){
     if(!query||!model)return;
-    var q=query.toLowerCase();
+    var q=query.trim().toLowerCase();if(!q)return;
+    var pick=null,col=null;
     var d=Object.keys(model.datasets).find(function(k){return model.datasets[k].name.toLowerCase().indexOf(q)>=0;});
-    if(d){setSelected({kind:'dataset',key:d});return;}
-    var j=Object.keys(model.jobs).find(function(k){return model.jobs[k].name.toLowerCase().indexOf(q)>=0;});
-    if(j)setSelected({kind:'job',key:j});
-  },[query]);
+    if(d)pick={kind:'dataset',key:d};
+    if(!pick){
+      var j=Object.keys(model.jobs).find(function(k){return model.jobs[k].name.toLowerCase().indexOf(q)>=0;});
+      if(j)pick={kind:'job',key:j};
+    }
+    if(!pick){// column-name match -> select the owning dataset and highlight the field
+      var ck=Object.keys(model.datasets).find(function(k){return model.datasets[k].schemaFields.some(function(f){return f.name.toLowerCase().indexOf(q)>=0;});});
+      if(ck){var f=model.datasets[ck].schemaFields.find(function(f){return f.name.toLowerCase().indexOf(q)>=0;});pick={kind:'dataset',key:ck};col={dsKey:ck,field:f.name};}
+    }
+    if(!pick)return;
+    if(svgRef.current)svgRef.current.__focusReq=(pick.kind==='dataset'?'d:':'j:')+pick.key;
+    setSelected(pick);
+    if(col)setSelectedCol(col);
+  },[query,model]);
 
   // Auto-switch to COLUMNS tab when in column view mode and a dataset is selected
   // Also clear selected column when dataset selection changes
@@ -811,6 +1168,7 @@ function App(){
       h('div',{className:'logo'},'L'),
       h('div',{className:'logo-text'},'LineageFlow'),
       h('button',{className:'btn primary',onClick:openFolder},'📁 Open folder'),
+      h('button',{className:'btn',onClick:function(){setRepoModal(true);}},'⎇ Git repo'),
       h('div',{className:'search'},h('span',{style:{color:'var(--t3)'}},'⌕'),h('input',{placeholder:'Search datasets, jobs, columns',value:query,onChange:function(e){setQuery(e.target.value);}})),
       model&&h('div',{className:'chips'},
         h('span',{className:'chip'},h('b',null,model.stats.datasets),' datasets'),h('span',{className:'dot'},'·'),
@@ -821,6 +1179,7 @@ function App(){
       h('button',{className:'theme-toggle',onClick:toggleTheme,title:theme==='dark'?'Switch to light theme':'Switch to dark theme'},theme==='dark'?'☀️':'🌙')
     ),
     err&&h('div',{style:{background:'rgba(255,95,95,0.12)',color:'var(--red)',padding:'8px 16px',fontSize:11,borderBottom:'1px solid var(--border)'}},err),
+    loading&&progress&&h('div',{style:{background:'var(--accbg)',color:'var(--acc)',padding:'8px 16px',fontSize:11,borderBottom:'1px solid var(--border)'}},'⏳ '+progress),
     // body
     !model?
       h('div',{className:'empty'},
@@ -829,8 +1188,9 @@ function App(){
         h('p',null,'Open a folder of openlineage.json event files to explore datasets, jobs, and column-level lineage. Files may be single events, JSON arrays, or NDJSON.'),
         h('div',{className:'row'},
           h('button',{className:'btn primary',onClick:openFolder},'📁 Open folder'),
+          h('button',{className:'btn',onClick:function(){setRepoModal(true);}},'⎇ Git repo'),
           h('button',{className:'btn',onClick:loadDemo},'▶ Load demo')),
-        loading&&h('div',{className:'muted'},'Loading…'))
+        loading&&h('div',{className:'muted'},progress||'Loading…'))
     :
       h('div',{className:'body'},
         // rail
@@ -841,6 +1201,7 @@ function App(){
               [['Datasets',model.stats.datasets,'var(--blue)',null],
                ['Jobs',model.stats.jobs,'var(--purple)','JOBS'],
                ['Namespaces',model.stats.namespaces,'var(--cyan)','NS'],
+               ['Systems',model.stats.systems,'var(--green)',null],
                ['Edges',model.stats.edges,'var(--t0)',null],
                ['Column links',model.stats.columnEdges,'var(--orange)','COLUMNS'],
                ['Issues',model.issues.length,model.issues.length?'var(--red)':'var(--green)','ISSUES']
@@ -872,13 +1233,37 @@ function App(){
             h('div',{className:'rail-title'},'Legend'),
             h('div',{className:'legend-row'},h('span',{className:'sw',style:{border:'1px solid var(--blue)',background:'transparent'}}),'Dataset'),
             h('div',{className:'legend-row'},h('span',{className:'hex-glyph'}),'Job (transform)'),
-            h('div',{className:'legend-row'},h('span',{style:{width:16,height:0,borderTop:'1px dashed var(--orange)'}}),'Column lineage'))
+            h('div',{className:'legend-row'},h('span',{style:{width:18,borderTop:'2px dashed var(--cyan)'}}),'Cross-system edge'),
+            h('div',{className:'legend-row'},h('span',{style:{width:18,borderTop:'2px solid var(--green)'}}),'Impact (downstream)'),
+            h('div',{className:'legend-row'},h('span',{style:{width:18,borderTop:'2px solid var(--blue)'}}),'Root cause (upstream)'),
+            h('div',{className:'rail-title',style:{marginTop:12}},'Column transforms'),
+            h('div',{className:'txlegend'},
+              h('span',{className:'ln',style:{borderTop:'1px solid var(--t3)'}}),h('span',null,'Identity'),
+              h('span',{className:'ln',style:{borderTop:'2px solid var(--orange)'}}),h('span',null,'Transform'),
+              h('span',{className:'ln',style:{borderTop:'3px solid var(--orange)'}}),h('span',null,'Aggregation'),
+              h('span',{className:'ln',style:{borderTop:'1px dashed var(--orange)'}}),h('span',null,'Filter'),
+              h('span',{className:'ln',style:{borderTop:'2px dashed var(--red)'}}),h('span',null,'Masking')))
         ),
         // canvas
         h('div',{className:'canvas-wrap'},
           h('svg',{ref:svgRef}),
           h('button',{className:'edge-toggle left',title:railOpen?'Collapse left panel':'Expand left panel',onClick:function(){setRailOpen(!railOpen);}},railOpen?'‹':'›'),
           h('button',{className:'edge-toggle right',title:panelOpen?'Collapse right panel':'Expand right panel',onClick:function(){setPanelOpen(!panelOpen);}},panelOpen?'›':'‹'),
+          // §5 breadcrumb: system ▸ namespace ▸ node
+          selNode&&h('div',{className:'crumb'},
+            h('span',{className:'sys-badge'},selected.kind==='dataset'?(E.systemIcon(selNode.system)+' '+selNode.system):'⚙ Job'),
+            h('span',{className:'sep'},'▸'),
+            h('span',null,trunc(selNode.namespace,20)),
+            h('span',{className:'sep'},'▸'),
+            h('span',{className:'cur'},trunc(selNode.name,24))),
+          // §5 impact / root-cause banner
+          impact&&impactResult&&h('div',{className:'impact-banner '+impact.mode},
+            h('span',null,impact.mode==='down'?'⬇':'⬆'),
+            h('span',null,impact.mode==='down'?'Impact':'Root cause',': ',h('b',null,impactResult.count),' '+(impact.mode==='down'?'downstream':'upstream')+' node'+(impactResult.count===1?'':'s')),
+            h('span',{className:'ib-depth'},'depth ≤',
+              h('input',{type:'range',min:1,max:10,value:tdepth,onChange:function(e){setTdepth(parseInt(e.target.value,10));}}),
+              h('b',null,tdepth)),
+            h('button',{className:'close',onClick:clearImpact,title:'Clear analysis'},'×')),
           h('div',{className:'zoom-ctl'},
             h('button',{onClick:function(){zoomBy(1.3);}},'+'),
             h('button',{onClick:function(){zoomBy(0.77);}},'−'),
@@ -919,7 +1304,39 @@ function App(){
     modal&&h('div',{className:'modal-bg',onClick:function(){setModal(null);}},
       h('div',{className:'modal',onClick:function(e){e.stopPropagation();}},
         h('div',{className:'modal-head'},h('span',null,modal.title),h('button',{onClick:function(){setModal(null);}},'×')),
-        h('pre',null,modal.body)))
+        h('pre',null,modal.body))),
+    repoModal&&(function(){var info=E.parseRepoUrl(repoUrl);return h('div',{className:'modal-bg',onClick:function(){setRepoModal(false);}},
+      h('div',{className:'modal',onClick:function(e){e.stopPropagation();}},
+        h('div',{className:'modal-head'},h('span',null,'⎇ Load from Git repository'),h('button',{onClick:function(){setRepoModal(false);}},'×')),
+        h('div',{style:{padding:16,display:'flex',flexDirection:'column',gap:12,overflow:'auto'}},
+          h('div',null,
+            h('label',{className:'flabel'},'Repository URL'),
+            h('input',{className:'finput',value:repoUrl,placeholder:'https://gitlab.com/group/project  or  https://github.com/owner/repo',onChange:function(e){setRepoUrl(e.target.value);}}),
+            h('div',{className:'muted',style:{marginTop:4}},info?('Detected: '+(info.provider==='github'?'GitHub':'GitLab')+' · '+info.host+' · '+info.path+(info.branch?' @ '+info.branch:'')):(repoUrl?'Unrecognized URL':'github.com, gitlab.com, or self-hosted GitLab'))),
+          h('div',{style:{display:'flex',gap:12}},
+            h('div',{style:{flex:1}},
+              h('label',{className:'flabel'},'Auth'),
+              h('select',{className:'finput',value:repoAuth,onChange:function(e){setRepoAuth(e.target.value);}},
+                h('option',{value:'none'},'None (public)'),
+                h('option',{value:'pat'},'Personal Access Token'))),
+            h('div',{style:{flex:1}},
+              h('label',{className:'flabel'},'Branch (optional)'),
+              h('input',{className:'finput',value:repoBranch,placeholder:'default',onChange:function(e){setRepoBranch(e.target.value);}}))),
+          repoAuth==='pat'&&h('div',null,
+            h('label',{className:'flabel'},'Token'),
+            h('input',{className:'finput',type:'password',value:repoToken,placeholder:'PAT with read_repository scope',onChange:function(e){setRepoToken(e.target.value);}}),
+            h('div',{className:'muted',style:{marginTop:4}},'Token stays in your browser; sent only to '+(info?info.host:'the repo host')+'.')),
+          h('div',{className:'muted',style:{fontSize:10}},'Reads every .json file in the repo and parses OpenLineage events. Self-hosted GitLab must allow browser CORS.'),
+          h('div',{style:{display:'flex',gap:8,justifyContent:'flex-end',marginTop:4}},
+            h('button',{className:'btn',onClick:function(){setRepoModal(false);}},'Cancel'),
+            h('button',{className:'btn primary',onClick:loadRepo,disabled:!info},'Load repository')))));})(),
+    // §5 node context menu (right-click)
+    ctxMenu&&h('div',{className:'ctxmenu',style:{left:Math.min(ctxMenu.x,window.innerWidth-190),top:Math.min(ctxMenu.y,window.innerHeight-160)},onMouseDown:function(e){e.stopPropagation();}},
+      h('div',{className:'ctx-head'},(ctxMenu.kind==='job'?'⚙ ':'▢ ')+trunc(ctxMenu.name,22)),
+      h('button',{onClick:function(){setSelected({kind:ctxMenu.kind,key:ctxMenu.key});setTab('DETAILS');setCtxMenu(null);}},'🔍 Inspect'),
+      h('button',{onClick:function(){startImpact('down',ctxMenu.id);}},'⬇ Trace downstream (impact)'),
+      h('button',{onClick:function(){startImpact('up',ctxMenu.id);}},'⬆ Trace upstream (root cause)'),
+      impact&&h('button',{onClick:function(){clearImpact();setCtxMenu(null);}},'✕ Clear analysis'))
   );
 
   function renderPanel(){
@@ -937,9 +1354,29 @@ function App(){
       return h(React.Fragment,null,
         h('div',{style:{display:'flex',alignItems:'center',gap:6}},h('span',{className:'sw',style:{background:model.nsColor[d.namespace]}}),h('span',{style:{color:'var(--t0)',fontSize:12}},d.name)),
         h('div',{className:'muted',style:{marginTop:2}},d.namespace),
+        h('div',{style:{display:'flex',alignItems:'center',gap:8,marginTop:8}},h('span',{className:'sys-pill'},E.systemIcon(d.system)+' '+d.system)),
+        h('div',{style:{display:'flex',gap:6,marginTop:8}},
+          h('button',{className:'btn',onClick:function(){startImpact('down','d:'+d.key);}},'⬇ Impact'),
+          h('button',{className:'btn',onClick:function(){startImpact('up','d:'+d.key);}},'⬆ Root cause')),
         h('div',{style:{marginTop:8}},h('button',{className:'btn',onClick:function(){setModal({title:d.key,body:JSON.stringify(d.facets,null,2)});}},'View facets')),
+        d.owners.length?h(React.Fragment,null,h('div',{className:'sec-label'},'Owners'),h('div',{className:'box'},d.owners.map(function(o,i){return h('div',{key:i,className:'owner-chip'},h('span',null,'👤 '+o.name),o.type&&h('span',{className:'otype'},o.type));}))):null,
+        d.tags.length?h(React.Fragment,null,h('div',{className:'sec-label'},'Tags'),h('div',null,d.tags.map(function(t,i){return h('span',{key:i,className:'tag-chip'},t);}))):null,
         h('div',{className:'sec-label'},'Schema ('+d.schemaFields.length+')'),
-        d.schemaFields.length?h('div',{className:'box'},d.schemaFields.map(function(f,i){return h('div',{key:i,className:'field-row'},h('span',{className:'fn'},f.name),h('span',{className:'ft'},f.type));})):h('div',{className:'muted'},'No schema facet'),
+        d.schemaFields.length?(function(){
+          var fq=(colFilter[d.key]||'').toLowerCase();
+          var fs=fq?d.schemaFields.filter(function(f){return f.name.toLowerCase().indexOf(fq)>=0;}):d.schemaFields;
+          return h(React.Fragment,null,
+            d.schemaFields.length>6?h('input',{className:'finput',style:{marginBottom:6,fontSize:11,padding:'6px 8px'},placeholder:'Search columns…',value:colFilter[d.key]||'',onChange:function(e){setDsFilter(d.key,e.target.value);}}):null,
+            h('div',{className:'box',style:{maxHeight:240,overflowY:'auto'}},
+              fs.length?fs.map(function(f,i){
+                var lin=hasColLineage(d.key,f.name);
+                return h('div',{key:i,className:'field-row',style:{cursor:lin?'pointer':'default',padding:'3px 4px',borderRadius:4},
+                  title:lin?'View column lineage':null,
+                  onClick:lin?function(){setSelected({kind:'dataset',key:d.key});setSelectedCol({dsKey:d.key,field:f.name});openColDetail(d.key,f.name);}:null},
+                  h('span',{className:'fn'},lin?'⚡ ':'',f.name),h('span',{className:'ft'},f.type));
+              }):h('div',{className:'muted'},'No columns match “'+fq+'”')),
+            d.schemaFields.length>12?h('button',{className:'btn',style:{marginTop:6,width:'100%',justifyContent:'center'},onClick:function(){toggleFull('d:'+d.key);}},fullCols['d:'+d.key]?'▲ Show first 12 on node':('▼ Show all '+d.schemaFields.length+' on node')):null);
+        })():h('div',{className:'muted'},'No schema facet'),
         h('div',{className:'sec-label'},'Produced by'),
         Object.keys(d.producedByJobs).length?Object.keys(d.producedByJobs).map(function(jk){return h('div',{key:jk,className:'list-item',onClick:function(){setSelected({kind:'job',key:jk});}},jk.split('::')[1]||jk);}):h('div',{className:'muted'},'—'),
         h('div',{className:'sec-label'},'Consumed by'),
@@ -950,6 +1387,9 @@ function App(){
     return h(React.Fragment,null,
       h('div',{style:{display:'flex',alignItems:'center',gap:6}},h('span',{className:'sw',style:{background:'var(--purple)',borderRadius:6}}),h('span',{style:{color:'var(--t0)',fontSize:12}},j.name)),
       h('div',{className:'muted',style:{marginTop:2}},j.namespace),
+      h('div',{style:{display:'flex',gap:6,marginTop:8}},
+        h('button',{className:'btn',onClick:function(){startImpact('down','j:'+j.key);}},'⬇ Impact'),
+        h('button',{className:'btn',onClick:function(){startImpact('up','j:'+j.key);}},'⬆ Root cause')),
       h('div',{className:'box',style:{marginTop:10}},
         h('div',{className:'kv'},h('span',{className:'k'},'Latest event'),h('span',{className:'v'},j.latestEventType||'—')),
         h('div',{className:'kv'},h('span',{className:'k'},'Runs'),h('span',{className:'v'},j.runs.length)),
