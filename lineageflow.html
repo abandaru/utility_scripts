@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -142,6 +142,12 @@ select.finput{cursor:pointer}
 .owner-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--t1);padding:3px 0}
 .owner-chip .otype{color:var(--t3);font-size:9px;text-transform:uppercase;letter-spacing:0.4px}
 .sys-pill{display:inline-flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--t0)}
+.grpmenu-btn{background:var(--bg1);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-family:inherit;font-size:11px;padding:6px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.grpmenu-btn:hover{border-color:var(--acc);color:var(--acc)}
+.grpmenu-btn .gb-badge{background:var(--accbg);color:var(--acc);border-radius:10px;padding:0 6px;font-size:10px}
+.grpmenu{margin-top:4px;background:var(--bg1);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.45);width:250px;overflow:hidden}
+.grpmenu-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3)}
+.grpmenu-list{max-height:300px;overflow-y:auto;padding:6px}
 .txlegend{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-size:10px;color:var(--t2)}
 .txlegend .ln{width:22px;height:0;align-self:center}
 </style>
@@ -658,7 +664,7 @@ function App(){
   var s_gap=useState(90),gap=s_gap[0],setGap=s_gap[1];// horizontal min distance px
   var s_manualV=useState(0),manualV=s_manualV[0],setManualV=s_manualV[1];// bump to re-layout after drag
   var s_col=useState(null),colDetail=s_col[0],setColDetail=s_col[1];// column transformation popup modal
-  var s_theme=useState('dark'),theme=s_theme[0],setTheme=s_theme[1];// 'dark' | 'light'
+  var s_theme=useState('light'),theme=s_theme[0],setTheme=s_theme[1];// 'light' (default) | 'dark'
   var s_selCol=useState(null),selectedCol=s_selCol[0],setSelectedCol=s_selCol[1];// {dsKey,field} primary (drives modal)
   var s_selCols=useState({}),selCols=s_selCols[0],setSelCols=s_selCols[1];// multi-select: key -> {dsKey,field}
   var s_prog=useState(''),progress=s_prog[0],setProgress=s_prog[1];// loading progress text
@@ -672,8 +678,9 @@ function App(){
   var s_ctx=useState(null),ctxMenu=s_ctx[0],setCtxMenu=s_ctx[1];// {x,y,id,kind,key,name}
   var s_colFilter=useState({}),colFilter=s_colFilter[0],setColFilter=s_colFilter[1];// dsKey -> per-node column filter
   var s_fullCols=useState({}),fullCols=s_fullCols[0],setFullCols=s_fullCols[1];// nodeId -> show all columns
-  var s_groupBy=useState('none'),groupBy=s_groupBy[0],setGroupBy=s_groupBy[1];// 'none' | 'namespace' | 'system'
+  var s_groupBy=useState('namespace'),groupBy=s_groupBy[0],setGroupBy=s_groupBy[1];// default 'namespace' | 'none' | 'system'
   var s_expGroups=useState({}),expGroups=s_expGroups[0],setExpGroups=s_expGroups[1];// groupKey -> 1 (drilled-down)
+  var s_grpMenu=useState(false),grpMenu=s_grpMenu[0],setGrpMenu=s_grpMenu[1];// group multi-select dropdown open
   var svgRef=useRef(null),zoomRef=useRef(null),gRef=useRef(null);
   var folderInputRef=useRef(null);
   var manualRef=useRef({});// nodeId -> {x,y} manual drag overrides
@@ -743,7 +750,25 @@ function App(){
   },[model,dir,expanded,hiddenNs,gap,manualV,colFilter,fullCols,groupBy,expGroups]);
 
   function toggleGroup(g){setExpGroups(function(p){var c=Object.assign({},p);if(c[g])delete c[g];else c[g]=1;return c;});}
-  function changeGroupBy(mode){setGroupBy(mode);setExpGroups({});manualRef.current={};}
+  function changeGroupBy(mode){setGroupBy(mode);setExpGroups({});setGrpMenu(false);manualRef.current={};}
+  // list of group keys + member counts for the current grouping mode
+  function groupList(){
+    if(!model||groupBy==='none')return [];
+    var keys=groupBy==='system'?model.systems:model.namespaces;
+    return keys.map(function(g){
+      var dc=0,jc=0;
+      Object.keys(model.datasets).forEach(function(k){var d=model.datasets[k];var key=groupBy==='system'?(d.system||E.systemOf(d.namespace)):d.namespace;if(key===g)dc++;});
+      Object.keys(model.jobs).forEach(function(k){var j=model.jobs[k];var key=groupBy==='system'?E.systemOf(j.namespace):j.namespace;if(key===g)jc++;});
+      return{key:g,dc:dc,jc:jc,color:groupBy==='namespace'?model.nsColor[g]:'var(--acc)'};
+    });
+  }
+  // close the group dropdown on any outside interaction
+  useEffect(function(){
+    if(!grpMenu)return;
+    var close=function(){setGrpMenu(false);};
+    window.addEventListener('mousedown',close);
+    return function(){window.removeEventListener('mousedown',close);};
+  },[grpMenu]);
 
   function toggleFull(id){setFullCols(function(p){var c=Object.assign({},p);if(c[id])delete c[id];else c[id]=1;return c;});}
   function setDsFilter(k,v){setColFilter(function(p){var c=Object.assign({},p);if(v)c[k]=v;else delete c[k];return c;});}
@@ -1112,15 +1137,17 @@ function App(){
       svgRef.current.__lastT=t;return true;
     }
     svgRef.current.__fit=fit;svgRef.current.__focusOn=focusOn;
-    // Viewport policy: honor an explicit focus request (search); otherwise fit
-    // only when graph structure changed; else preserve the user's pan/zoom so
-    // selecting/impact toggles don't yank the view around.
-    var structKey=layout.width+'x'+layout.height+'|'+dir+'|'+layout.nodes.length;
+    // Viewport policy: fit only on a *major* change (new model, direction,
+    // grouping mode, spacing). Minor changes — drilling a group, selecting,
+    // expanding columns, impact toggles — preserve the user's pan/zoom so the
+    // view never yanks/rescales under them. An explicit focus request wins.
+    var major=dir+'|'+groupBy+'|'+gap+'|'+viewMode;
+    var modelChanged=svgRef.current.__model!==model;svgRef.current.__model=model;
     var focusReq=svgRef.current.__focusReq;svgRef.current.__focusReq=null;
     if(focusReq&&focusOn(focusReq,true)){/* centered on match */}
-    else if(svgRef.current.__structKey!==structKey||!svgRef.current.__lastT){fit();}
+    else if(modelChanged||svgRef.current.__major!==major||!svgRef.current.__lastT){fit();}
     else{svg.call(zoom.transform,svgRef.current.__lastT);}// reapply prior transform to rebuilt <g>
-    svgRef.current.__structKey=structKey;
+    svgRef.current.__major=major;
   },[layout,selected,dir,theme,selectedCol,impactResult]);
 
   function trunc(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
@@ -1229,7 +1256,7 @@ function App(){
     !model?
       h('div',{className:'empty'},
         h('div',{style:{fontSize:40}},'🔗'),
-        h('h2',null,'Visualize OpenLineage lineage'),
+        h('h2',null,'Visualize OpenLineage'),
         h('p',null,'Open a folder of openlineage.json event files to explore datasets, jobs, and column-level lineage. Files may be single events, JSON arrays, or NDJSON.'),
         h('div',{className:'row'},
           h('button',{className:'btn primary',onClick:openFolder},'📁 Open folder'),
@@ -1254,9 +1281,6 @@ function App(){
                 h('div',{className:'stat-num',style:{color:s[2]}},s[1]),
                 h('div',{className:'stat-label'},s[0]));}))),
           h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Namespaces'),
-            model.namespaces.map(nsRow)),
-          h('div',{className:'rail-sec'},
             h('div',{className:'rail-title'},'Lineage view'),
             h('div',{className:'toggle'},
               h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
@@ -1269,11 +1293,6 @@ function App(){
               h('span',{className:groupBy==='namespace'?'on':'',onClick:function(){changeGroupBy('namespace');}},'Namespace'),
               h('span',{className:groupBy==='system'?'on':'',onClick:function(){changeGroupBy('system');}},'System')),
             h('div',{className:'muted',style:{marginTop:6}},groupBy==='none'?'Flat table-level graph':'Click a group to drill down to tables')),
-          h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Layout'),
-            h('div',{className:'toggle'},
-              h('span',{className:dir==='LR'?'on':'',onClick:function(){setDir('LR');}},'L → R'),
-              h('span',{className:dir==='TB'?'on':'',onClick:function(){setDir('TB');}},'T ↓ B'))),
           h('div',{className:'rail-sec'},
             h('div',{className:'rail-title'},'Node spacing'),
             h('div',{style:{display:'flex',alignItems:'center',gap:8}},
@@ -1308,14 +1327,30 @@ function App(){
             h('span',null,trunc(selNode.namespace,20)),
             h('span',{className:'sep'},'▸'),
             h('span',{className:'cur'},trunc(selNode.name,24))),
-          // grouped drill-down bar: shows expanded groups; click a chip to collapse
-          groupBy!=='none'&&h('div',{className:'crumb',style:{top:selNode?50:10}},
-            h('span',{className:'sys-badge'},'▤ '+groupBy),
-            Object.keys(expGroups).length?h(React.Fragment,null,
-              h('span',{className:'sep'},'▸'),
-              Object.keys(expGroups).map(function(g){return h('span',{key:g,className:'tag-chip',style:{cursor:'pointer'},title:'Collapse group',onClick:function(){toggleGroup(g);}},trunc(g,16)+' ✕');}),
-              h('span',{className:'tag-chip',style:{cursor:'pointer',borderColor:'var(--acc)',color:'var(--acc)'},onClick:function(){setExpGroups({});}},'collapse all')
-            ):h('span',{className:'muted',style:{marginLeft:6}},'click a group to drill in')),
+          // grouped drill-down: compact multi-select dropdown of groups
+          groupBy!=='none'&&(function(){
+            var gl=groupList();var openCount=Object.keys(expGroups).length;
+            return h('div',{style:{position:'absolute',top:selNode?50:10,left:10,zIndex:16},onMouseDown:function(e){e.stopPropagation();}},
+              h('button',{className:'grpmenu-btn',onClick:function(){setGrpMenu(!grpMenu);}},
+                (groupBy==='system'?'▧':'▤'),' ',groupBy,
+                h('span',{className:'gb-badge'},openCount+'/'+gl.length+' open'),
+                grpMenu?'▲':'▾'),
+              grpMenu&&h('div',{className:'grpmenu'},
+                h('div',{className:'grpmenu-head'},
+                  h('span',null,'Drill into groups'),
+                  h('div',{style:{display:'flex',gap:6}},
+                    h('button',{className:'btn',style:{padding:'2px 7px',minHeight:0,fontSize:10},onClick:function(){var all={};gl.forEach(function(x){all[x.key]=1;});setExpGroups(all);}},'All'),
+                    h('button',{className:'btn',style:{padding:'2px 7px',minHeight:0,fontSize:10},onClick:function(){setExpGroups({});}},'None'))),
+                h('div',{className:'grpmenu-list'},
+                  gl.map(function(x){var on=!!expGroups[x.key];
+                    return h('div',{key:x.key,className:'ns-row'+(on?'':' off'),onClick:function(){toggleGroup(x.key);}},
+                      h('input',{type:'checkbox',className:'ns-check',checked:on,readOnly:true,tabIndex:-1,'aria-label':'Drill '+x.key}),
+                      h('span',{className:'sw',style:{background:x.color}}),
+                      h('div',{className:'ns-info'},
+                        h('div',{className:'ns-name'},(groupBy==='system'?E.systemIcon(x.key)+' ':'')+trunc(x.key,20)),
+                        h('div',{className:'ns-sub'},x.dc+' tables · '+x.jc+' jobs')));
+                  }))));
+          })(),
           // §5 impact / root-cause banner
           impact&&impactResult&&h('div',{className:'impact-banner '+impact.mode},
             h('span',null,impact.mode==='down'?'⬇':'⬆'),
