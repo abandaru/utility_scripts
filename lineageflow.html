@@ -148,11 +148,15 @@ select.finput{cursor:pointer}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--t0)}
 .modal-head button{background:transparent;border:0;color:var(--t2);font-size:18px;cursor:pointer}
 .modal pre{padding:14px;overflow:auto;font-size:10px;color:var(--t1);white-space:pre-wrap;word-break:break-all}
-.crumb{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:6px;background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--t1);z-index:15;max-width:60%;overflow:hidden;white-space:nowrap}
-.crumb .sep{color:var(--t3)}
-.crumb .cur{color:var(--t0);font-weight:600;overflow:hidden;text-overflow:ellipsis}
-.crumb .sys-badge{display:inline-flex;align-items:center;gap:4px;background:var(--accbg);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:10px;flex-shrink:0}
-.impact-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:var(--bg1);border:1px solid var(--acc);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--t0);z-index:17;box-shadow:0 6px 20px rgba(0,0,0,0.3)}
+/* Breadcrumb — inline flow so long paths wrap to extra lines (never hidden),
+   width fits content up to a cap. Segments are clickable to navigate. */
+.crumb{position:absolute;top:10px;left:10px;display:block;width:max-content;max-width:min(56%,540px);background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:5px 11px;font-size:11px;color:var(--t1);z-index:15;line-height:1.7;white-space:normal}
+.crumb .sep{color:var(--t3);margin:0 4px}
+.crumb .cur{color:var(--t0);font-weight:600}
+.crumb .sys-badge{display:inline-flex;align-items:center;gap:4px;background:var(--accbg);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:10px}
+.crumb .crumb-seg{cursor:pointer;border-radius:3px;padding:0 2px;transition:color 0.15s,background 0.15s}
+.crumb .crumb-seg:hover{color:var(--acc);background:var(--accbg)}
+.impact-banner{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:var(--bg1);border:1px solid var(--acc);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--t0);z-index:17;box-shadow:0 6px 20px rgba(0,0,0,0.3);max-width:70%}
 .impact-banner.down{border-color:var(--green)}
 .impact-banner.up{border-color:var(--blue)}
 .impact-banner b{font-weight:700}
@@ -209,7 +213,7 @@ select.finput{cursor:pointer}
 .lib-item .li-sub{color:var(--t3);font-size:10px;margin-top:2px}
 .lib-item .li-del{background:transparent;border:0;color:var(--t3);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
 .lib-item .li-del:hover{color:var(--red);background:var(--bg2)}
-.focus-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--bg1);border:1px solid var(--acc);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--t0);z-index:17;box-shadow:0 6px 20px rgba(0,0,0,0.3)}
+.focus-banner{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--bg1);border:1px solid var(--acc);border-radius:8px;padding:7px 14px;font-size:11px;color:var(--t0);z-index:17;box-shadow:0 6px 20px rgba(0,0,0,0.3);max-width:70%}
 .focus-banner .fb-close{background:transparent;border:0;color:var(--t2);cursor:pointer;font-size:16px;line-height:1}
 .minimap{position:absolute;right:12px;bottom:12px;background:var(--bg1);border:1px solid var(--border);border-radius:8px;overflow:hidden;z-index:15;box-shadow:0 4px 16px rgba(0,0,0,0.25)}
 .minimap-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 8px;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);border-bottom:1px solid var(--border)}
@@ -443,6 +447,11 @@ select.finput{cursor:pointer}
     // models render only their explored subgraph. null => build everything.
     var only=opts.only||null;
     function allow(id){return !only||only[id];}
+    // §Extension: external positions (e.g. from ELK layered layout). When
+    // provided as {nodeId:{x,y}} (top-left, already in `dir` orientation), the
+    // internal ranking/barycenter placement is skipped and these coordinates are
+    // used instead — giving clean, overlap-free, straightened large graphs.
+    var positions=opts.positions||null;
     var HEADER=44,ROWH=16,MAXF=12,MAXFULL=200,DSW=160,DSWMAX=320,JOBW=120,JOBWMAX=260;
     var COLGAP=opts.colGap!=null?opts.colGap:90;
     var ROWGAP=opts.rowGap!=null?opts.rowGap:26;
@@ -538,6 +547,11 @@ select.finput{cursor:pointer}
     // boundary crossing distinctly.
     edges.forEach(function(e){var a=nodes[e.from],b=nodes[e.to];if(a&&b){e.crossNs=a.namespace!==b.namespace;e.crossSystem=a.system!==b.system;}});
 
+    var totalW=0,totalH=0;
+    if(positions){
+      // External layered layout (ELK): use provided top-left coords directly.
+      order.forEach(function(id){var p=positions[id];nodes[id].x=(p&&p.x!=null)?p.x:20;nodes[id].y=(p&&p.y!=null)?p.y:20;});
+    }else{
     // rank via Kahn + longest path
     var indeg={},adj={};order.forEach(function(id){indeg[id]=0;adj[id]=[];});
     edges.forEach(function(e){adj[e.from].push(e.to);indeg[e.to]++;});
@@ -557,7 +571,7 @@ select.finput{cursor:pointer}
     // column x per rank (variable node widths => use max width in rank * rank index spacing)
     var rankX={},x=20;
     ranks.forEach(function(r){var maxW=0;byRank[r].forEach(function(id){maxW=Math.max(maxW,nodes[id].w);});rankX[r]=x;x+=maxW+COLGAP;});
-    var totalW=x;
+    totalW=x;
 
     // Vertical placement: keep chains straight in L->R by aligning each node to
     // the barycenter (average center) of its parents. A node with a single parent
@@ -595,7 +609,8 @@ select.finput{cursor:pointer}
     });
     var maxBottom=0;
     order.forEach(function(id){maxBottom=Math.max(maxBottom,nodes[id].y+nodes[id].h);});
-    var totalH=maxBottom+20;
+    totalH=maxBottom+20;
+    }
 
     // field anchor map for column edges
     function fieldY(nd,fname){
@@ -616,7 +631,7 @@ select.finput{cursor:pointer}
 
     var nodeList=order.map(function(id){return nodes[id];});
 
-    if(dir==='TB'){
+    if(dir==='TB'&&!positions){// ELK positions are already in TB orientation
       nodeList.forEach(function(nd){var t=nd.x;nd.x=nd.y;nd.y=t;});
       var tw=totalW;totalW=totalH;totalH=tw;
     }
@@ -1213,6 +1228,9 @@ select.finput{cursor:pointer}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" integrity="sha384-su5kReKyYlIFrI62mbQRKXHzFobMa7BHp1cK6julLPbnYcCW9NIZKJiTODjLPeDh" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- ELK (Eclipse Layout Kernel) — layered graph layout for clean, overlap-free,
+     straightened large-graph rendering. Positions feed LineageEngine.computeLayout. -->
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js" integrity="sha384-KO35c6PFq7tFxAEx6FtATwL9vOBOmCzQYr7GM0iTr3oO22s7Jc9OkclOH4AV7jwK" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <script>
 (function(){
@@ -1284,6 +1302,11 @@ function App(){
   var s_focusExp=useState({}),focusExpanded=s_focusExp[0],setFocusExpanded=s_focusExp[1];// nodeId -> 1
   var svgRef=useRef(null),zoomRef=useRef(null),gRef=useRef(null),miniRef=useRef(null);
   var s_mini=useState(true),miniOpen=s_mini[0],setMiniOpen=s_mini[1];
+  // ELK layered layout: on by default when elkjs is available. {sig,pos} caches
+  // the last computed positions keyed by the current node-set signature.
+  var s_elk=useState(typeof ELK!=='undefined'),elkOn=s_elk[0],setElkOn=s_elk[1];
+  var s_elkPos=useState(null),elkPos=s_elkPos[0],setElkPos=s_elkPos[1];
+  var s_elkBusy=useState(false),elkBusy=s_elkBusy[0],setElkBusy=s_elkBusy[1];
   var s_help=useState(false),helpOpen=s_help[0],setHelpOpen=s_help[1];
   var s_events=useState([]),events=s_events[0],setEvents=s_events[1];// raw loaded OpenLineage events (for export)
   var s_vlMenu=useState(false),vlMenu=s_vlMenu[0],setVlMenu=s_vlMenu[1];// ViewLineage dropdown
@@ -1402,10 +1425,50 @@ function App(){
     });
   }
 
-  var layout=useMemo(function(){
+  // Base layout (internal barycenter placement) — always available; also supplies
+  // node sizes + edges that ELK positions.
+  var layoutOpts=function(pos){return{direction:dir,expanded:expanded,hiddenNs:hiddenNs,colGap:gap,rowGap:Math.max(12,Math.round(gap*0.29)),manual:manualRef.current,colFilter:colFilter,fullCols:fullCols,groupBy:(focusOnly||groupBy==='none')?null:groupBy,expandedGroups:expGroups,only:focusOnly,positions:pos||null};};
+  var layoutBase=useMemo(function(){
     if(!model)return null;
-    return E.computeLayout(model,{direction:dir,expanded:expanded,hiddenNs:hiddenNs,colGap:gap,rowGap:Math.max(12,Math.round(gap*0.29)),manual:manualRef.current,colFilter:colFilter,fullCols:fullCols,groupBy:(focusOnly||groupBy==='none')?null:groupBy,expandedGroups:expGroups,only:focusOnly});
+    return E.computeLayout(model,layoutOpts(null));
   },[model,dir,expanded,hiddenNs,gap,manualV,colFilter,fullCols,groupBy,expGroups,focusOnly]);
+
+  // Signature of the node set (ids + sizes + direction) — ELK re-runs only when
+  // this changes (drilling, expanding columns, focus hops, spacing, direction).
+  var elkSig=useMemo(function(){
+    if(!layoutBase)return null;
+    return dir+'|'+gap+'|'+layoutBase.nodes.map(function(n){return n.id+':'+n.w+'x'+n.h;}).join(',');
+  },[layoutBase,dir,gap]);
+
+  // Run ELK layered layout off the base graph whenever the node set changes.
+  useEffect(function(){
+    if(!elkOn||!layoutBase||typeof ELK==='undefined'||!layoutBase.nodes.length){return;}
+    var sig=elkSig,cancelled=false;
+    setElkBusy(true);
+    var elk=new ELK();
+    var spNode=Math.max(18,Math.round(gap*0.35)),spLayer=Math.max(50,Math.round(gap*1.1));
+    elk.layout({id:'root',
+      layoutOptions:{'elk.algorithm':'layered','elk.direction':dir==='TB'?'DOWN':'RIGHT',
+        'elk.spacing.nodeNode':String(spNode),'elk.layered.spacing.nodeNodeBetweenLayers':String(spLayer),
+        'elk.layered.crossingMinimization.strategy':'LAYER_SWEEP','elk.layered.nodePlacement.strategy':'BRANDES_KOEPF',
+        'elk.layered.nodePlacement.bk.fixedAlignment':'BALANCED','elk.edgeRouting':'POLYLINE','elk.layered.mergeEdges':'true'},
+      children:layoutBase.nodes.map(function(n){return{id:n.id,width:n.w,height:n.h};}),
+      edges:layoutBase.edges.map(function(e,i){return{id:'e'+i,sources:[e.from],targets:[e.to]};})
+    }).then(function(res){
+      if(cancelled)return;
+      var pos={};(res.children||[]).forEach(function(c){pos[c.id]={x:c.x,y:c.y};});
+      setElkPos({sig:sig,pos:pos});setElkBusy(false);
+    }).catch(function(){if(!cancelled){setElkBusy(false);}});
+    return function(){cancelled=true;};
+  },[elkSig,elkOn]);
+
+  // Final layout: apply ELK positions when they match the current node set;
+  // otherwise fall back to the internal placement (also used while ELK computes).
+  var layout=useMemo(function(){
+    if(!model||!layoutBase)return layoutBase;
+    if(elkOn&&elkPos&&elkPos.sig===elkSig)return E.computeLayout(model,layoutOpts(elkPos.pos));
+    return layoutBase;
+  },[layoutBase,elkPos,elkOn,elkSig,model,manualV]);
 
   function toggleGroup(g){setExpGroups(function(p){var c=Object.assign({},p);if(c[g])delete c[g];else c[g]=1;return c;});}
   function changeGroupBy(mode){setGroupBy(mode);setExpGroups({});setGrpMenu(false);manualRef.current={};}
@@ -2077,7 +2140,10 @@ function App(){
     // grouping mode, spacing). Minor changes — drilling a group, selecting,
     // expanding columns, impact toggles — preserve the user's pan/zoom so the
     // view never yanks/rescales under them. An explicit focus request wins.
-    var major=dir+'|'+groupBy+'|'+gap+'|'+viewMode;
+    // Fold the active ELK signature into the major key so the view re-fits once
+    // when layered positions apply (nodes move to their final, clean placement).
+    var elkTag=(elkOn&&elkPos&&elkPos.sig===elkSig)?('elk:'+elkPos.sig.length):'base';
+    var major=dir+'|'+groupBy+'|'+gap+'|'+viewMode+'|'+elkTag;
     var modelChanged=svgRef.current.__model!==model;svgRef.current.__model=model;
     var focusReq=svgRef.current.__focusReq;svgRef.current.__focusReq=null;
     if(focusReq&&focusOn(focusReq,true)){/* centered on match */}
@@ -2305,9 +2371,9 @@ function App(){
       h('div',{className:'empty'},
         h('div',{style:{fontSize:40}},'🔗'),
         h('h2',null,'Visualize OpenLineage'),
-        h('p',null,'Upload an ETL Mapping Specification (.xlsx) to validate and generate OpenLineage design-time events, or open a folder of openlineage.json event files. Files may be single events, JSON arrays, or NDJSON.'),
+        h('p',null,'Upload an ETL Mapping Specification (.xlsx) lineage template-V2 to validate and generate OpenLineage design-time events, or open a folder of openlineage.json event files. Files may be single events'),
         h('div',{className:'row'},
-          h('button',{className:'btn',onClick:openMapping},'📥 Import MappingSpecifications-V2'),
+          h('button',{className:'btn',onClick:openMapping},'📥 Import MappingSpecifications'),
           h('button',{className:'btn',onClick:openFolder},'📁 Open folder'),
           h('button',{className:'btn',onClick:function(){setRepoModal(true);}},'⎇ Git repo'),
           h('button',{className:'btn',onClick:loadDemo},'▶ Load demo')),
@@ -2356,6 +2422,12 @@ function App(){
               h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
               h('span',{className:viewMode==='column'?'on':'',onClick:function(){setViewMode('column');}},'Column')),
             h('div',{className:'muted',style:{marginTop:6}},viewMode==='column'?'Select a dataset to expand columns':'Dataset & job level only')),
+          typeof ELK!=='undefined'?h('div',{className:'rail-sec'},
+            h('div',{className:'rail-title'},'Layout'),
+            h('div',{className:'toggle'},
+              h('span',{className:elkOn?'on':'',onClick:function(){setElkOn(true);}},'Layered'),
+              h('span',{className:!elkOn?'on':'',onClick:function(){setElkOn(false);}},'Compact')),
+            h('div',{className:'muted',style:{marginTop:6}},elkBusy?'⏳ Computing layout…':(elkOn?'Overlap-free, straightened layering — best for large graphs':'Fast internal placement'))):null,
           h('div',{className:'rail-sec'},
             h('div',{className:'rail-title'},'Node spacing'),
             h('div',{style:{display:'flex',alignItems:'center',gap:8}},
@@ -2385,11 +2457,15 @@ function App(){
           h('button',{className:'edge-toggle right',title:panelOpen?'Collapse right panel':'Expand right panel',onClick:function(){setPanelOpen(!panelOpen);}},panelOpen?'›':'‹'),
           // §5 breadcrumb: system ▸ namespace ▸ node
           selNode&&h('div',{className:'crumb'},
-            h('span',{className:'sys-badge'},selected.kind==='dataset'?(E.systemIcon(selNode.system)+' '+selNode.system):'⚙ Job'),
+            h('span',{className:'sys-badge crumb-seg',title:'Group by system: '+selNode.system,
+              onClick:function(){changeGroupBy('system');setExpGroups(function(p){var c=Object.assign({},p);c[selNode.system]=1;return c;});}},
+              selected.kind==='dataset'?(E.systemIcon(selNode.system)+' '+selNode.system):'⚙ Job'),
             h('span',{className:'sep'},'▸'),
-            h('span',null,trunc(selNode.namespace,20)),
+            h('span',{className:'crumb-seg',title:'Group by namespace: '+selNode.namespace,
+              onClick:function(){changeGroupBy('namespace');setExpGroups(function(p){var c=Object.assign({},p);c[selNode.namespace]=1;return c;});}},selNode.namespace),
             h('span',{className:'sep'},'▸'),
-            h('span',{className:'cur'},trunc(selNode.name,24))),
+            h('span',{className:'cur crumb-seg',title:'Center on '+selNode.name,
+              onClick:function(){if(svgRef.current&&svgRef.current.__focusOn)svgRef.current.__focusOn((selected.kind==='dataset'?'d:':'j:')+selected.key,true);}},selNode.name)),
           // grouped drill-down: compact multi-select dropdown of groups
           groupBy!=='none'&&(function(){
             var gl=groupList();var openCount=Object.keys(expGroups).length;
@@ -2434,7 +2510,7 @@ function App(){
               h('button',{onClick:function(){setMiniOpen(!miniOpen);},title:miniOpen?'Hide minimap':'Show minimap'},miniOpen?'▾':'▸')),
             h('svg',{ref:miniRef,style:{display:miniOpen?'block':'none'}})),
           // §Extension: focus (search-first / hop-wise) status banner
-          focusMode&&focusSeed&&layout&&h('div',{className:'focus-banner'},
+          focusMode&&focusSeed&&layout&&h('div',{className:'focus-banner',style:{bottom:(impact&&impactResult)?60:14}},
             h('span',null,'🎯 Focus: ',h('b',null,layout.nodes.length),' node'+(layout.nodes.length===1?'':'s')+' shown of ',h('b',null,model.stats.datasets+model.stats.jobs)),
             h('span',{className:'muted'},'click nodes to expand hops'),
             h('button',{className:'fb-close',title:'Exit focus mode',onClick:toggleFocusMode},'×')),
