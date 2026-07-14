@@ -6,26 +6,49 @@
 <title>LineageFlow — OpenLineage Visualizer</title>
 <meta name="description" content="Visualize OpenLineage event files as an interactive dataset and job lineage graph with column-level lineage. Single-file, no install.">
 <style>
-:root{--bg0:#0a0a0c;--bg1:#0f0f12;--bg2:#161619;--bg3:#1c1c21;--bg4:#252529;--hover:#2a2a30;--border:#2d2d35;--border2:#222228;--t0:#f0f0f2;--t1:#c8c8cd;--t2:#8b8b95;--t3:#5c5c66;--acc:#9575cd;--acc2:#7e57c2;--accbg:rgba(149,117,205,0.14);--blue:#4d9fff;--purple:#a78bfa;--orange:#ff9f43;--red:#ff5f5f;--cyan:#22d3ee;--pink:#ec4899;--green:#22c55e;--node-bg:#161619;--modal-overlay:rgba(0,0,0,0.7);--edge-color:#3a3a44;--canvas-dot:var(--bg2)}
-[data-theme="light"]{--bg0:#f5f6f8;--bg1:#ffffff;--bg2:#e8eaef;--bg3:#dfe1e6;--bg4:#d3d5db;--hover:#cfd1d7;--border:#c4c7cf;--border2:#d0d3da;--t0:#1a1c22;--t1:#3a3d45;--t2:#6b6e78;--t3:#9b9ea8;--acc:#2e1a47;--acc2:#241338;--accbg:rgba(46,26,71,0.1);--blue:#2b7de9;--purple:#7c5ccc;--orange:#d97b1a;--red:#d94444;--cyan:#0ea5c0;--pink:#c73e80;--green:#1a9d4a;--node-bg:#ffffff;--modal-overlay:rgba(0,0,0,0.35);--edge-color:#b0b3bc;--canvas-dot:var(--bg2)}
+/* Brand palette — Purple #2E1A47, White #FFF, Dusk #7C6992, Sky Blue #B0E0E2,
+   Dark Grey #787878, Charcoal #34363B, Dawn #AFABC9, Light Gray #C9C9C9,
+   Mild Gray #A8A8A8. `:root` = dark theme; [data-theme="light"] = light theme.
+   Semantic red/green kept (not in the brand set) but tuned to the palette. */
+:root{--bg0:#1b1922;--bg1:#232029;--bg2:#2a2732;--bg3:#33303c;--bg4:#3d3a47;--hover:#464250;--border:#3a3743;--border2:#2b2833;--t0:#f4f2f8;--t1:#c9c9c9;--t2:#a8a8a8;--t3:#787878;--acc:#afabc9;--acc2:#928cb2;--accbg:rgba(175,171,201,0.16);--blue:#8fced2;--purple:#b9a9dc;--orange:#e0a85a;--red:#e86a6a;--cyan:#b0e0e2;--pink:#d08ab4;--green:#6fd3a0;--node-bg:#232029;--modal-overlay:rgba(10,8,16,0.66);--edge-color:#4a4653;--canvas-dot:var(--bg2)}
+[data-theme="light"]{--bg0:#f6f5f9;--bg1:#ffffff;--bg2:#edebf3;--bg3:#e3e0ec;--bg4:#d6d2e3;--hover:#cec9de;--border:#c9c9c9;--border2:#e4e2ea;--t0:#34363b;--t1:#4e4b57;--t2:#787878;--t3:#a8a8a8;--acc:#2e1a47;--acc2:#241338;--accbg:rgba(46,26,71,0.1);--blue:#4a8e96;--purple:#7c6992;--orange:#c77b2a;--red:#c0392b;--cyan:#5aa6ad;--pink:#a85286;--green:#2e8b5b;--node-bg:#ffffff;--modal-overlay:rgba(46,26,71,0.28);--edge-color:#b9b6c6;--canvas-dot:var(--bg2)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg0);color:var(--t0);height:100vh;height:100dvh;overflow:hidden;transition:background 0.25s,color 0.25s}
 #root{height:100%}
 .app{display:flex;flex-direction:column;height:100%}
-.topbar{min-height:48px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:14px;flex-shrink:0;z-index:20;transition:background 0.25s}
+.topbar{min-height:52px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;z-index:20;transition:background 0.25s}
+/* Topbar buttons — ghost style (transparent, bordered) so the single accent
+   primary stands out and the bar reads as one cohesive, branded surface. */
+.topbar .btn{background:transparent;border-color:var(--border);color:var(--t1)}
+.topbar .btn:hover{background:var(--bg2);border-color:var(--t3);color:var(--t0)}
+.topbar .btn.primary{background:var(--acc);border-color:var(--acc);color:var(--bg0)}
+.topbar .btn.primary:hover{background:var(--acc2);border-color:var(--acc2);color:var(--bg0)}
+.tb-group{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.tb-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;margin:0 2px}
 .logo{width:28px;height:28px;background:var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--bg0);font-weight:800;font-size:15px}
 .logo-text{font-size:14px;font-weight:700;color:var(--acc);white-space:nowrap}
-.btn{padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-family:inherit;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-height:32px;transition:background 0.2s,border-color 0.2s,color 0.2s}
-.btn:hover{background:var(--bg4);border-color:var(--acc);color:var(--acc)}
-.btn.primary{background:var(--acc);color:var(--bg0);border-color:var(--acc);font-weight:600}
-.btn.primary:hover{background:var(--acc2);color:var(--bg0)}
-.btn:disabled{opacity:0.4;cursor:not-allowed}
-.theme-toggle{width:32px;height:32px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s,border-color 0.2s,color 0.2s;flex-shrink:0}
-.theme-toggle:hover{background:var(--bg4);border-color:var(--acc);color:var(--acc)}
-.search{flex:1;min-width:80px;display:flex;align-items:center;gap:8px;background:var(--bg0);border:1px solid var(--border);border-radius:6px;padding:0 10px;transition:background 0.25s,border-color 0.25s}
+/* Button system — consistent 3-tier hierarchy across the app:
+   .btn (secondary, neutral surface), .btn.primary (solid accent),
+   .theme-toggle (icon), and .toggle (segmented). Hovers stay neutral;
+   the accent is reserved for primary and selected states. */
+.btn{padding:6px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-family:inherit;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;min-height:32px;transition:background 0.15s,border-color 0.15s,color 0.15s,box-shadow 0.15s}
+.btn:hover{background:var(--bg3);border-color:var(--t3);color:var(--t0)}
+.btn:active{transform:translateY(0.5px)}
+.btn.primary{background:var(--acc);color:var(--bg0);border-color:var(--acc);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.14)}
+.btn.primary:hover{background:var(--acc2);border-color:var(--acc2);color:var(--bg0)}
+.btn.primary:active{transform:translateY(0.5px)}
+.btn:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none;transform:none}
+.btn:disabled:hover{background:var(--bg2);border-color:var(--border);color:var(--t1)}
+.btn.primary:disabled:hover{background:var(--acc);border-color:var(--acc)}
+.btn:focus-visible,.theme-toggle:focus-visible,.tab:focus-visible,.toggle span:focus-visible,.zoom-ctl button:focus-visible,.grpmenu-btn:focus-visible,.sheet-chip:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.theme-toggle{width:32px;height:32px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--t2);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s,border-color 0.15s,color 0.15s;flex-shrink:0}
+.theme-toggle:hover{background:var(--bg3);border-color:var(--t3);color:var(--t0)}
+.theme-toggle:active{transform:translateY(0.5px)}
+.search{flex:1 1 auto;min-width:110px;display:flex;align-items:center;gap:8px;background:var(--bg0);border:1px solid var(--border);border-radius:6px;padding:0 10px;transition:background 0.25s,border-color 0.25s}
+.search input{min-width:0}
 .search input{flex:1;background:transparent;border:0;outline:0;color:var(--t0);font-family:inherit;font-size:11px;padding:7px 0}
 .search input::placeholder{color:var(--t3)}
-.chips{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--t2);white-space:nowrap}
+.chips{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--t2);white-space:nowrap;flex-shrink:0}
 .chip b{color:var(--t0);font-weight:600}
 .dot{color:var(--border)}
 .body{flex:1;display:flex;min-height:0}
@@ -47,9 +70,10 @@ body{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;ba
 .ns-sub{color:var(--t3);font-size:9px;line-height:1.3}
 .sw{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 .ns-count{margin-left:auto;color:var(--t3);font-size:10px}
-.toggle{display:flex;gap:5px}
-.toggle span{flex:1;text-align:center;padding:5px 0;border:1px solid var(--border);border-radius:5px;font-size:11px;color:var(--t2);cursor:pointer;transition:background 0.2s,border-color 0.2s,color 0.2s}
-.toggle span.on{background:var(--accbg);color:var(--acc);border-color:var(--acc)}
+.toggle{display:flex;gap:2px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px}
+.toggle span{flex:1;text-align:center;padding:5px 6px;border-radius:4px;font-size:11px;font-weight:500;color:var(--t2);cursor:pointer;white-space:nowrap;transition:background 0.15s,color 0.15s}
+.toggle span:hover{color:var(--t0)}
+.toggle span.on{background:var(--acc);color:var(--bg0)}
 input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
 .legend-row{display:flex;align-items:center;gap:8px;color:var(--t2);font-size:11px;margin-bottom:6px}
 .hex-glyph{width:16px;height:14px;background:var(--purple);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);flex-shrink:0}
@@ -57,7 +81,7 @@ input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
 .stat-card{background:var(--node-bg,var(--bg2));border:1px solid var(--border);border-radius:6px;padding:8px 6px;text-align:center;transition:border-color 0.15s}
 .flabel{display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);margin-bottom:5px}
 .finput{width:100%;padding:8px 10px;background:var(--bg0);border:1px solid var(--border);border-radius:6px;color:var(--t0);font-family:inherit;font-size:12px;outline:none}
-.finput:focus{border-color:var(--acc)}
+.finput:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--accbg)}
 select.finput{cursor:pointer}
 .stat-card.link{cursor:pointer}
 .stat-card.link:hover{border-color:var(--acc)}
@@ -77,12 +101,14 @@ select.finput{cursor:pointer}
 .col-modal-head button:hover{background:var(--bg3);color:var(--t0)}
 .col-modal-body{padding:18px;overflow-y:auto;font-size:11px}
 .zoom-ctl{position:absolute;left:12px;bottom:12px;display:flex;gap:6px}
-.zoom-ctl button{width:28px;height:28px;background:var(--bg1);border:1px solid var(--border);border-radius:6px;color:var(--t2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background 0.2s,border-color 0.2s,color 0.2s}
-.zoom-ctl button:hover{border-color:var(--acc);color:var(--acc)}
+.zoom-ctl button{width:30px;height:30px;background:var(--bg1);border:1px solid var(--border);border-radius:6px;color:var(--t2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background 0.15s,border-color 0.15s,color 0.15s}
+.zoom-ctl button:hover{background:var(--bg3);border-color:var(--t3);color:var(--t0)}
+.zoom-ctl button:active{transform:translateY(0.5px)}
 .panel{width:290px;background:var(--bg1);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width 0.2s ease,background 0.25s}
 .tabs{display:flex;border-bottom:1px solid var(--border);overflow-x:auto}
-.tab{padding:9px 10px;font-size:9px;letter-spacing:0.5px;color:var(--t2);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.2s}
-.tab.on{color:var(--acc);border-bottom-color:var(--acc)}
+.tab{padding:9px 10px;font-size:9px;letter-spacing:0.5px;color:var(--t2);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s}
+.tab:hover{color:var(--t0)}
+.tab.on{color:var(--acc);border-bottom-color:var(--acc);font-weight:600}
 .tab .badge{margin-left:4px;background:var(--red);color:#fff;border-radius:8px;padding:1px 5px;font-size:9px}
 .panel-body{flex:1;overflow-y:auto;padding:12px;font-size:11px}
 .sec-label{font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);margin:14px 0 6px}
@@ -136,14 +162,14 @@ select.finput{cursor:pointer}
 .impact-banner .close:hover{color:var(--t0)}
 .ctxmenu{position:fixed;background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:4px;z-index:60;box-shadow:0 8px 30px rgba(0,0,0,0.4);min-width:180px}
 .ctxmenu .ctx-head{font-size:10px;color:var(--t3);padding:5px 10px 6px;border-bottom:1px solid var(--border);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ctxmenu button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--t1);font-family:inherit;font-size:11px;padding:7px 10px;border-radius:5px;cursor:pointer}
-.ctxmenu button:hover{background:var(--bg3);color:var(--acc)}
+.ctxmenu button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--t1);font-family:inherit;font-size:11px;font-weight:500;padding:7px 10px;border-radius:5px;cursor:pointer;transition:background 0.12s,color 0.12s}
+.ctxmenu button:hover{background:var(--accbg);color:var(--acc)}
 .tag-chip{display:inline-block;background:var(--bg2);border:1px solid var(--border);color:var(--t1);font-size:10px;padding:1px 7px;border-radius:10px;margin:2px 4px 2px 0}
 .owner-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--t1);padding:3px 0}
 .owner-chip .otype{color:var(--t3);font-size:9px;text-transform:uppercase;letter-spacing:0.4px}
 .sys-pill{display:inline-flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--t0)}
-.grpmenu-btn{background:var(--bg1);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-family:inherit;font-size:11px;padding:6px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.grpmenu-btn:hover{border-color:var(--acc);color:var(--acc)}
+.grpmenu-btn{background:var(--bg1);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-family:inherit;font-size:11px;font-weight:500;padding:6px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.15s,border-color 0.15s,color 0.15s}
+.grpmenu-btn:hover{background:var(--bg2);border-color:var(--t3);color:var(--t0)}
 .grpmenu-btn .gb-badge{background:var(--accbg);color:var(--acc);border-radius:10px;padding:0 6px;font-size:10px}
 .grpmenu{margin-top:4px;background:var(--bg1);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.45);width:250px;overflow:hidden}
 .grpmenu-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3)}
@@ -166,7 +192,8 @@ select.finput{cursor:pointer}
 .gsev{display:inline-block;font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px}
 .gsev.ERROR{background:rgba(255,95,95,0.16);color:var(--red)}
 .gsev.WARNING{background:rgba(255,159,67,0.16);color:var(--orange)}
-.sheet-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:11px;color:var(--t1);user-select:none}
+.sheet-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;color:var(--t1);user-select:none;transition:background 0.15s,border-color 0.15s,color 0.15s}
+.sheet-chip:hover{border-color:var(--t3)}
 .sheet-chip.on{border-color:var(--acc);color:var(--acc);background:var(--accbg)}
 .dropzone{border:1.5px dashed var(--border);border-radius:10px;padding:30px;text-align:center;color:var(--t2);cursor:pointer;transition:border-color 0.2s,color 0.2s}
 .dropzone:hover{border-color:var(--acc);color:var(--acc)}
@@ -176,7 +203,7 @@ select.finput{cursor:pointer}
 .lib-head button{background:transparent;border:0;color:var(--t2);font-size:18px;cursor:pointer}
 .lib-body{flex:1;overflow-y:auto;padding:12px}
 .lib-item{display:flex;align-items:center;gap:8px;background:var(--bg0);border:1px solid var(--border);border-radius:7px;padding:8px 10px;margin-bottom:7px;cursor:pointer;transition:border-color 0.15s}
-.lib-item:hover{border-color:var(--acc)}
+.lib-item:hover{border-color:var(--t3);background:var(--bg2)}
 .lib-item .li-main{flex:1;min-width:0}
 .lib-item .li-name{color:var(--t0);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lib-item .li-sub{color:var(--t3);font-size:10px;margin-top:2px}
@@ -1258,6 +1285,17 @@ function App(){
   var svgRef=useRef(null),zoomRef=useRef(null),gRef=useRef(null),miniRef=useRef(null);
   var s_mini=useState(true),miniOpen=s_mini[0],setMiniOpen=s_mini[1];
   var s_help=useState(false),helpOpen=s_help[0],setHelpOpen=s_help[1];
+  var s_events=useState([]),events=s_events[0],setEvents=s_events[1];// raw loaded OpenLineage events (for export)
+  var s_vlMenu=useState(false),vlMenu=s_vlMenu[0],setVlMenu=s_vlMenu[1];// ViewLineage dropdown
+  var s_exOpen=useState(false),exOpen=s_exOpen[0],setExOpen=s_exOpen[1];// Export OL Events modal
+  var s_exDest=useState('zip'),exDest=s_exDest[0],setExDest=s_exDest[1];// 'zip' | 'folder' | 'gitlab'
+  var s_exBusy=useState(false),exBusy=s_exBusy[0],setExBusy=s_exBusy[1];
+  var s_exMsg=useState(''),exMsg=s_exMsg[0],setExMsg=s_exMsg[1];// status/result message
+  var s_exUrl=useState(''),exUrl=s_exUrl[0],setExUrl=s_exUrl[1];
+  var s_exToken=useState(''),exToken=s_exToken[0],setExToken=s_exToken[1];
+  var s_exBranch=useState(''),exBranch=s_exBranch[0],setExBranch=s_exBranch[1];
+  var s_exPath=useState('openlineage'),exPath=s_exPath[0],setExPath=s_exPath[1];
+  var s_exCommit=useState('Add OpenLineage events'),exCommit=s_exCommit[0],setExCommit=s_exCommit[1];
   var folderInputRef=useRef(null);
   var manualRef=useRef({});// nodeId -> {x,y} manual drag overrides
 
@@ -1389,6 +1427,13 @@ function App(){
     window.addEventListener('mousedown',close);
     return function(){window.removeEventListener('mousedown',close);};
   },[grpMenu]);
+  // close the ViewLineage dropdown on any outside interaction
+  useEffect(function(){
+    if(!vlMenu)return;
+    var close=function(){setVlMenu(false);};
+    window.addEventListener('mousedown',close);
+    return function(){window.removeEventListener('mousedown',close);};
+  },[vlMenu]);
 
   function toggleFull(id){setFullCols(function(p){var c=Object.assign({},p);if(c[id])delete c[id];else c[id]=1;return c;});}
   function setDsFilter(k,v){setColFilter(function(p){var c=Object.assign({},p);if(v)c[k]=v;else delete c[k];return c;});}
@@ -1440,6 +1485,7 @@ function App(){
   function loadEvents(events,parseIssues,name,fromCache){
     try{
       var m=E.buildModel(events,parseIssues||[]);
+      setEvents(events||[]);
       setModel(m);setSelected(null);setErr(null);setImpact(null);setCtxMenu(null);setColFilter({});setFullCols({});setSelCols({});setSelectedCol(null);setExpGroups({});
       manualRef.current={};
       if(name)setSrcName(name);
@@ -2143,6 +2189,74 @@ function App(){
     img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(xml)));
   }
   function dl(text,name,type){var b=new Blob([text],{type:type});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+  function dlBlob(blob,name){var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+
+  // ---- Export OpenLineage events (validated) to ZIP / local folder / GitLab ----
+  // An event is exportable when it is a well-formed OpenLineage event: a job
+  // object plus an eventType and at least one input/output.
+  function validEvents(){return (events||[]).filter(function(ev){return ev&&ev.job&&typeof ev.job==='object'&&(ev.eventType||ev.inputs||ev.outputs);});}
+  function safeName(s){return String(s||'event').replace(/[^A-Za-z0-9._-]+/g,'_').slice(0,60)||'event';}
+  // Build the file set: a combined array plus one file per event under events/.
+  function eventFiles(evs){
+    var files=[{name:'openlineage-events.json',content:JSON.stringify(evs,null,2)}];
+    evs.forEach(function(ev,i){
+      var jn=safeName(ev.job&&ev.job.name);
+      files.push({name:'events/'+('000'+(i+1)).slice(-3)+'-'+jn+'.json',content:JSON.stringify(ev,null,2)});
+    });
+    return files;
+  }
+  function openExport(){setExMsg('');setExOpen(true);}
+  function doExportZip(){
+    var evs=validEvents();if(!evs.length){setExMsg('No valid events to export.');return;}
+    dlBlob(makeZip(eventFiles(evs)),(srcName?safeName(srcName):'lineage')+'-openlineage-events.zip');
+    setExMsg('Downloaded '+evs.length+' event file(s) as ZIP.');
+  }
+  async function doExportFolder(){
+    var evs=validEvents();if(!evs.length){setExMsg('No valid events to export.');return;}
+    if(!window.showDirectoryPicker){setExMsg('This browser lacks the File System Access API — use Download ZIP instead.');return;}
+    setExBusy(true);setExMsg('Choose a destination folder…');
+    try{
+      var dh=await window.showDirectoryPicker({mode:'readwrite'});
+      var files=eventFiles(evs);
+      for(var i=0;i<files.length;i++){
+        var parts=files[i].name.split('/'),dir=dh;
+        for(var p=0;p<parts.length-1;p++)dir=await dir.getDirectoryHandle(parts[p],{create:true});
+        var fh=await dir.getFileHandle(parts[parts.length-1],{create:true});
+        var w=await fh.createWritable();await w.write(files[i].content);await w.close();
+      }
+      setExMsg('Wrote '+files.length+' file(s) to “'+dh.name+'”.');
+    }catch(e){if(e&&e.name==='AbortError')setExMsg('Cancelled.');else setExMsg('Folder write failed: '+(e.message||e));}
+    setExBusy(false);
+  }
+  async function doExportGitLab(){
+    var evs=validEvents();if(!evs.length){setExMsg('No valid events to export.');return;}
+    var info=E.parseRepoUrl(exUrl);
+    if(!info||info.provider!=='gitlab'){setExMsg('Enter a GitLab repository URL (e.g. https://gitlab.com/group/project).');return;}
+    if(!exToken){setExMsg('A GitLab access token with write_repository scope is required.');return;}
+    setExBusy(true);setExMsg('Connecting to '+info.host+'…');
+    try{
+      var authH={'PRIVATE-TOKEN':exToken};
+      var branch=exBranch.trim()||info.branch||await glDefaultBranch(info,authH);
+      var base=exPath.trim().replace(/^\/+|\/+$/g,'');
+      var files=eventFiles(evs);
+      var actions=files.map(function(f){return {action:'create',file_path:(base?base+'/':'')+f.name,content:f.content};});
+      var url='https://'+info.host+'/api/v4/projects/'+encodeURIComponent(info.path)+'/repository/commits';
+      var body={branch:branch,commit_message:exCommit||'Add OpenLineage events',actions:actions};
+      setExMsg('Committing '+files.length+' file(s) to '+info.path+' ('+branch+')…');
+      var r=await fetch(url,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH),body:JSON.stringify(body)});
+      if(!r.ok){
+        var t=await r.text();
+        if(r.status===400&&/already exists/i.test(t)){// files present -> update instead
+          actions.forEach(function(a){a.action='update';});
+          r=await fetch(url,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},authH),body:JSON.stringify(body)});
+          if(!r.ok)throw new Error('GitLab '+r.status+': '+(await r.text()).slice(0,200));
+        }else throw new Error('GitLab '+r.status+': '+t.slice(0,200));
+      }
+      var cd=await r.json();
+      setExMsg('✓ Committed '+files.length+' file(s) — '+(cd.short_id||cd.id||'')+' on '+branch+'.');
+    }catch(e){setExMsg('GitLab export failed: '+(e.message||e));}
+    setExBusy(false);
+  }
 
   // auto demo via ?demo
   useEffect(function(){if(/[?&]demo/.test(location.search))loadDemo();},[]);
@@ -2154,22 +2268,35 @@ function App(){
     h('input',{type:'file',ref:mapInputRef,accept:'.xlsx,.xls,.xlsm',style:{display:'none'},onChange:onMapFile}),
     // topbar
     h('div',{className:'topbar'},
-      h('div',{className:'logo'},'L'),
-      h('div',{className:'logo-text'},'LineageFlow'),
-      h('button',{className:'btn primary',onClick:openMapping},'📊 Mapping XLSX'),
-      h('button',{className:'btn',onClick:openFolder},'📁 Open folder'),
-      h('button',{className:'btn',onClick:function(){setRepoModal(true);}},'⎇ Git repo'),
+      h('div',{className:'tb-group'},
+        h('div',{className:'logo'},'L'),
+        h('div',{className:'logo-text'},'LineageFlow')),
+      h('div',{className:'tb-sep'}),
+      // Load zone — import spec (primary) + ViewLineage sources dropdown
+      h('div',{className:'tb-group'},
+        h('button',{className:'btn',onClick:openMapping,title:'Import ETL Mapping Specifications (v2 template)'},'📥 Import Mapping Specification'),
+        h('div',{style:{position:'relative'},onMouseDown:function(e){e.stopPropagation();}},
+          h('button',{className:'btn',onClick:function(){setVlMenu(!vlMenu);}},'🧬 ViewLineage ',vlMenu?'▴':'▾'),
+          vlMenu&&h('div',{className:'ctxmenu',style:{position:'absolute',top:'calc(100% + 4px)',left:0,right:'auto'}},
+            h('div',{className:'ctx-head'},'Load OpenLineage'),
+            h('button',{onClick:function(){setVlMenu(false);openFolder();}},'📁 Open folder'),
+            h('button',{onClick:function(){setVlMenu(false);setRepoModal(true);}},'⎇ Git repo')))),
       h('div',{className:'search'},h('span',{style:{color:'var(--t3)'}},'⌕'),h('input',{placeholder:'Search datasets, jobs, columns',value:query,onChange:function(e){setQuery(e.target.value);}})),
-      model&&h('div',{className:'chips'},
-        h('span',{className:'chip'},h('b',null,model.stats.datasets),' datasets'),h('span',{className:'dot'},'·'),
-        h('span',{className:'chip'},h('b',null,model.stats.jobs),' jobs'),h('span',{className:'dot'},'·'),
-        h('span',{className:'chip'},h('b',null,model.stats.namespaces),' ns')),
-      model&&h('button',{className:'btn',onClick:exportPNG},'PNG'),
-      model&&h('button',{className:'btn',onClick:exportJSON},'JSON'),
-      model&&window.LFStore&&window.LFStore.available&&h('button',{className:'btn',onClick:saveView,title:'Save current view to this browser'},'💾 Save view'),
-      window.LFStore&&window.LFStore.available&&h('button',{className:'btn',onClick:function(){refreshLibrary();setLibOpen(true);},title:'Recent models & saved views'},'🕘 Library'),
-      h('button',{className:'theme-toggle',onClick:toggleTheme,title:theme==='dark'?'Switch to light theme':'Switch to dark theme'},theme==='dark'?'☀️':'🌙'),
-      h('button',{className:'theme-toggle',onClick:function(){setHelpOpen(true);},title:'Help — how to use LineageFlow'},'?')
+      // Export zone (stats live in the left-rail Overview — no duplicate chips here)
+      model&&h('div',{className:'tb-sep'}),
+      model&&h('div',{className:'tb-group'},
+        h('button',{className:'btn',onClick:exportPNG,title:'Export canvas as PNG image'},'🖼 PNG'),
+        h('button',{className:'btn',onClick:openExport,title:'Export validated OpenLineage events (ZIP / folder / GitLab)'},'📤 Export OL Events')),
+      // Workspace zone
+      window.LFStore&&window.LFStore.available&&h('div',{className:'tb-sep'}),
+      window.LFStore&&window.LFStore.available&&h('div',{className:'tb-group'},
+        model&&h('button',{className:'btn',onClick:saveView,title:'Save current view to this browser'},'💾 Save view'),
+        h('button',{className:'btn',onClick:function(){refreshLibrary();setLibOpen(true);},title:'Recent models & saved views'},'🕘 Library')),
+      // Utility zone
+      h('div',{className:'tb-sep'}),
+      h('div',{className:'tb-group'},
+        h('button',{className:'theme-toggle',onClick:toggleTheme,title:theme==='dark'?'Switch to light theme':'Switch to dark theme'},theme==='dark'?'☀️':'🌙'),
+        h('button',{className:'theme-toggle',onClick:function(){setHelpOpen(true);},title:'Help — how to use LineageFlow'},'?'))
     ),
     err&&h('div',{style:{background:'rgba(255,95,95,0.12)',color:'var(--red)',padding:'8px 16px',fontSize:11,borderBottom:'1px solid var(--border)'}},err),
     loading&&progress&&h('div',{style:{background:'var(--accbg)',color:'var(--acc)',padding:'8px 16px',fontSize:11,borderBottom:'1px solid var(--border)'}},'⏳ '+progress),
@@ -2180,7 +2307,7 @@ function App(){
         h('h2',null,'Visualize OpenLineage'),
         h('p',null,'Upload an ETL Mapping Specification (.xlsx) to validate and generate OpenLineage design-time events, or open a folder of openlineage.json event files. Files may be single events, JSON arrays, or NDJSON.'),
         h('div',{className:'row'},
-          h('button',{className:'btn primary',onClick:openMapping},'📊 Upload Mapping XLSX'),
+          h('button',{className:'btn',onClick:openMapping},'📥 Import MappingSpecifications-V2'),
           h('button',{className:'btn',onClick:openFolder},'📁 Open folder'),
           h('button',{className:'btn',onClick:function(){setRepoModal(true);}},'⎇ Git repo'),
           h('button',{className:'btn',onClick:loadDemo},'▶ Load demo')),
@@ -2208,12 +2335,6 @@ function App(){
                 h('div',{className:'stat-num',style:{color:s[2]}},s[1]),
                 h('div',{className:'stat-label'},s[0]));}))),
           h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Lineage view'),
-            h('div',{className:'toggle'},
-              h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
-              h('span',{className:viewMode==='column'?'on':'',onClick:function(){setViewMode('column');}},'Column')),
-            h('div',{className:'muted',style:{marginTop:6}},viewMode==='column'?'Select a dataset to expand columns':'Dataset & job level only')),
-          h('div',{className:'rail-sec'},
             h('div',{className:'rail-title'},'Group by'),
             h('div',{className:'toggle'},
               h('span',{className:groupBy==='none'?'on':'',onClick:function(){changeGroupBy('none');}},'None'),
@@ -2229,6 +2350,12 @@ function App(){
               h('button',{className:'btn',style:{width:'100%',justifyContent:'center'},onClick:function(){if(model)Object.keys(layout?layout.nodeMap:{}).forEach(function(id){expandFocus(id);});}},'Expand all visible +1 hop'),
               h('button',{className:'btn',style:{width:'100%',justifyContent:'center',marginTop:6},onClick:resetFocus},'↺ Reset to seed')):null,
             h('div',{className:'muted',style:{marginTop:6}},focusMode?(focusSeed?'Click a node (or its +N badge) to reveal the next hop — 10 neighbors at a time':'Search or click a node to seed exploration'):'Render only an explored subgraph — auto-on for large models')),
+            h('div',{className:'rail-sec'},
+            h('div',{className:'rail-title'},'Lineage view'),
+            h('div',{className:'toggle'},
+              h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
+              h('span',{className:viewMode==='column'?'on':'',onClick:function(){setViewMode('column');}},'Column')),
+            h('div',{className:'muted',style:{marginTop:6}},viewMode==='column'?'Select a dataset to expand columns':'Dataset & job level only')),
           h('div',{className:'rail-sec'},
             h('div',{className:'rail-title'},'Node spacing'),
             h('div',{style:{display:'flex',alignItems:'center',gap:8}},
@@ -2386,6 +2513,7 @@ function App(){
             h('button',{className:'btn',onClick:function(){setRepoModal(false);}},'Cancel'),
             h('button',{className:'btn primary',onClick:loadRepo,disabled:!info},'Load repository')))));})(),
     mapOpen&&renderMapModal(),
+    exOpen&&renderExportModal(),
     helpOpen&&renderHelpModal(),
     // §5 node context menu (right-click)
     ctxMenu&&h('div',{className:'ctxmenu',style:{left:Math.min(ctxMenu.x,window.innerWidth-190),top:Math.min(ctxMenu.y,window.innerHeight-160)},onMouseDown:function(e){e.stopPropagation();}},
@@ -2395,6 +2523,44 @@ function App(){
       h('button',{onClick:function(){startImpact('up',ctxMenu.id);}},'⬆ Trace upstream (root cause)'),
       impact&&h('button',{onClick:function(){clearImpact();setCtxMenu(null);}},'✕ Clear analysis'))
   );
+
+  // Export OpenLineage events modal — validated events to ZIP / local folder /
+  // GitLab. Local folder needs the File System Access API; GitLab commits via the
+  // repository/commits API using a write-scoped token the user supplies.
+  function renderExportModal(){
+    var total=(events||[]).length,valid=validEvents().length;
+    var glInfo=E.parseRepoUrl(exUrl);
+    function destTab(id,label){return h('span',{className:exDest===id?'on':'',onClick:function(){setExMsg('');setExDest(id);}},label);}
+    return h('div',{className:'modal-bg',onClick:function(){if(!exBusy)setExOpen(false);}},
+      h('div',{className:'modal',onClick:function(e){e.stopPropagation();}},
+        h('div',{className:'modal-head'},h('span',null,'📤 Export OpenLineage Events'),h('button',{onClick:function(){if(!exBusy)setExOpen(false);}},'×')),
+        h('div',{style:{padding:16,display:'flex',flexDirection:'column',gap:12,overflow:'auto'}},
+          h('div',{className:'box'},
+            h('div',{className:'kv'},h('span',{className:'k'},'Source'),h('span',{className:'v'},srcName||'—')),
+            h('div',{className:'kv'},h('span',{className:'k'},'Events loaded'),h('span',{className:'v'},total)),
+            h('div',{className:'kv'},h('span',{className:'k'},'Valid to export'),h('span',{className:'v',style:{color:valid?'var(--green)':'var(--red)'}},valid+(valid<total?(' (of '+total+')'):'')))),
+          h('div',{className:'muted',style:{fontSize:10}},'Each event is written as events/NNN-<job>.json plus a combined openlineage-events.json.'),
+          h('div',null,
+            h('label',{className:'flabel'},'Destination'),
+            h('div',{className:'toggle'},destTab('zip','⬇ Download ZIP'),destTab('folder','📁 Local folder'),destTab('gitlab','⎇ GitLab'))),
+          exDest==='folder'?h('div',{className:'muted',style:{fontSize:10}},'Writes files directly into a folder you choose (Chromium browsers). You will be asked to grant write access.'):null,
+          exDest==='gitlab'?h(React.Fragment,null,
+            h('div',null,h('label',{className:'flabel'},'GitLab repository URL'),
+              h('input',{className:'finput',value:exUrl,placeholder:'https://gitlab.com/group/project',onChange:function(e){setExUrl(e.target.value);}}),
+              h('div',{className:'muted',style:{marginTop:4}},glInfo&&glInfo.provider==='gitlab'?('Detected: '+glInfo.host+' · '+glInfo.path):(exUrl?'Enter a GitLab URL (github push not supported)':'gitlab.com or self-hosted GitLab'))),
+            h('div',{style:{display:'flex',gap:10}},
+              h('div',{style:{flex:1}},h('label',{className:'flabel'},'Branch'),h('input',{className:'finput',value:exBranch,placeholder:'default',onChange:function(e){setExBranch(e.target.value);}})),
+              h('div',{style:{flex:1}},h('label',{className:'flabel'},'Target path'),h('input',{className:'finput',value:exPath,placeholder:'openlineage',onChange:function(e){setExPath(e.target.value);}}))),
+            h('div',null,h('label',{className:'flabel'},'Access token (write_repository)'),h('input',{className:'finput',type:'password',value:exToken,placeholder:'glpat-…',onChange:function(e){setExToken(e.target.value);}}),
+              h('div',{className:'muted',style:{marginTop:4}},'Token stays in your browser; sent only to '+(glInfo?glInfo.host:'the GitLab host')+'. It creates a commit on the branch above.')),
+            h('div',null,h('label',{className:'flabel'},'Commit message'),h('input',{className:'finput',value:exCommit,onChange:function(e){setExCommit(e.target.value);}}))
+          ):null,
+          exMsg?h('div',{style:{fontSize:11,padding:'8px 10px',borderRadius:6,background:/failed|No valid|required|not supported/i.test(exMsg)?'rgba(255,95,95,0.12)':'var(--accbg)',color:/failed|No valid|required|not supported/i.test(exMsg)?'var(--red)':'var(--acc)'}},exMsg):null,
+          h('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+            h('button',{className:'btn',onClick:function(){if(!exBusy)setExOpen(false);}},'Close'),
+            h('button',{className:'btn primary',disabled:exBusy||!valid,onClick:function(){exDest==='zip'?doExportZip():exDest==='folder'?doExportFolder():doExportGitLab();}},
+              exBusy?'⏳ Working…':(exDest==='zip'?'Download ZIP':exDest==='folder'?'Save to folder':'Push to GitLab'))))));
+  }
 
   // Help modal — overview of every tab and how to use the app.
   function renderHelpModal(){
@@ -2415,9 +2581,8 @@ function App(){
           h('div',{style:{fontSize:12,color:'var(--t1)',lineHeight:1.6,marginBottom:16}},
             'LineageFlow visualizes ',h('b',null,'OpenLineage'),' as an interactive dataset ⇄ job graph with column-level lineage. Load existing OpenLineage JSON, or generate design-time events from an ETL Mapping Specification spreadsheet.'),
           sec('1 · Load data',[
-            ['📊 Mapping XLSX','Upload an ETL mapping spreadsheet (.xlsx). Validates it, reports gaps, and generates OpenLineage design-time events.'],
-            ['📁 Open folder','Load a local folder of openlineage.json files (single event, JSON array, or NDJSON).'],
-            ['⎇ Git repo','Read every .json in a GitHub/GitLab repo (optional access token for private repos).'],
+            ['📥 Import MappingSpecifications-V2','Upload an ETL mapping spreadsheet (.xlsx). Validates it, reports gaps, and generates OpenLineage design-time events.'],
+            ['🧬 ViewLineage','Load existing OpenLineage events — dropdown with Open folder (local .json) and Git repo (GitHub/GitLab).'],
             ['▶ Load demo','Sample graph to explore the features immediately.'],
             ['🕘 Library','Reopen recently loaded models and saved views cached in this browser (IndexedDB).']]),
           sec('2 · Right-panel tabs',[
@@ -2447,7 +2612,8 @@ function App(){
             ['Export','OpenLineage JSON, column-lineage CSV, gap report (JSON/CSV/XLSX), application log, or a ZIP of everything.']]),
           sec('6 · Persistence & sharing',[
             ['💾 Save view','Store the current grouping, layout, focus, theme, and positions; reopen later from the Library.'],
-            ['PNG / JSON','Export the canvas as an image, or the model summary as JSON.'],
+            ['📤 Export OL Events','Bundle the validated OpenLineage events and download as ZIP, write to a local folder, or commit to a GitLab repository.'],
+            ['PNG','Export the current canvas as an image.'],
             ['Theme','🌙 / ☀️ toggles light and dark.']])
         )));
   }
