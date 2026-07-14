@@ -2828,7 +2828,12 @@ function App(){
   }
 
   function renderNamespaces(){
+    var shown=model.namespaces.filter(function(n){return !hiddenNs[n];}).length;
     return h(React.Fragment,null,
+      h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
+        h('span',{className:'muted',style:{flex:1}},shown+' / '+model.namespaces.length+' shown'),
+        h('button',{className:'btn',style:{padding:'3px 10px',minHeight:0,fontSize:10},onClick:function(){setHiddenNs({});}},'All'),
+        h('button',{className:'btn',style:{padding:'3px 10px',minHeight:0,fontSize:10},onClick:function(){var c={};model.namespaces.forEach(function(n){c[n]=1;});setHiddenNs(c);}},'None')),
       h('div',{className:'muted',style:{marginBottom:8}},'Toggle a namespace to show or hide it on the canvas'),
       model.namespaces.map(nsRow));
   }
