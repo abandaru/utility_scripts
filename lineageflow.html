@@ -10,22 +10,36 @@
    Dark Grey #787878, Charcoal #34363B, Dawn #AFABC9, Light Gray #C9C9C9,
    Mild Gray #A8A8A8. `:root` = dark theme; [data-theme="light"] = light theme.
    Semantic red/green kept (not in the brand set) but tuned to the palette. */
-:root{--bg0:#1b1922;--bg1:#232029;--bg2:#2a2732;--bg3:#33303c;--bg4:#3d3a47;--hover:#464250;--border:#3a3743;--border2:#2b2833;--t0:#f4f2f8;--t1:#c9c9c9;--t2:#a8a8a8;--t3:#787878;--acc:#afabc9;--acc2:#928cb2;--accbg:rgba(175,171,201,0.16);--blue:#8fced2;--purple:#b9a9dc;--orange:#e0a85a;--red:#e86a6a;--cyan:#b0e0e2;--pink:#d08ab4;--green:#6fd3a0;--node-bg:#232029;--modal-overlay:rgba(10,8,16,0.66);--edge-color:#4a4653;--canvas-dot:var(--bg2)}
-[data-theme="light"]{--bg0:#f6f5f9;--bg1:#ffffff;--bg2:#edebf3;--bg3:#e3e0ec;--bg4:#d6d2e3;--hover:#cec9de;--border:#c9c9c9;--border2:#e4e2ea;--t0:#34363b;--t1:#4e4b57;--t2:#787878;--t3:#a8a8a8;--acc:#2e1a47;--acc2:#241338;--accbg:rgba(46,26,71,0.1);--blue:#4a8e96;--purple:#7c6992;--orange:#c77b2a;--red:#c0392b;--cyan:#5aa6ad;--pink:#a85286;--green:#2e8b5b;--node-bg:#ffffff;--modal-overlay:rgba(46,26,71,0.28);--edge-color:#b9b6c6;--canvas-dot:var(--bg2)}
+/* Indigo SaaS palette. :root = dark theme; [data-theme="light"] = light (default).
+   Topbar + status bar keep a fixed dark-navy chrome in both themes (per design). */
+:root{--bg0:#0e1220;--bg1:#161b2b;--bg2:#1e2434;--bg3:#272e42;--bg4:#313a52;--hover:#3a4460;--border:#2b3246;--border2:#222839;--t0:#eef1f8;--t1:#c2c8d8;--t2:#9299ad;--t3:#6b7286;--acc:#818cf8;--acc2:#a5b4fc;--accbg:rgba(129,140,248,0.16);--blue:#60a5fa;--purple:#a78bfa;--orange:#fbbf24;--red:#f87171;--cyan:#22d3ee;--pink:#f472b6;--green:#34d399;--node-bg:#171d2e;--modal-overlay:rgba(6,9,18,0.66);--edge-color:#3b425a;--canvas-dot:#232a3d;--topbar-bg:#2e1a47;--topbar-fg:#f1eef8;--topbar-border:#43305f;--topbar-hl:#b0e0e2;--shadow-sm:0 1px 2px rgba(0,0,0,0.3);--shadow-md:0 10px 30px rgba(0,0,0,0.4)}
+[data-theme="light"]{--bg0:#f6f8fb;--bg1:#ffffff;--bg2:#f1f3f8;--bg3:#e6e9f1;--bg4:#dbe0ea;--hover:#e2e6ef;--border:#e4e7ee;--border2:#eef1f6;--t0:#1f2430;--t1:#4b5162;--t2:#6b7280;--t3:#9aa1ae;--acc:#2E1A47;--acc2:#4338ca;--accbg:rgba(79,70,229,0.1);--blue:#3b82f6;--purple:#8b5cf6;--orange:#f59e0b;--red:#ef4444;--cyan:#06b6d4;--pink:#ec4899;--green:#10b981;--node-bg:#ffffff;--modal-overlay:rgba(17,24,39,0.28);--edge-color:#c7cdd8;--canvas-dot:#e7eaf0;--topbar-bg:#2e1a47;--topbar-fg:#f1eef8;--topbar-border:#43305f;--topbar-hl:#b0e0e2;--shadow-sm:0 1px 2px rgba(16,24,40,0.06);--shadow-md:0 10px 30px rgba(16,24,40,0.10)}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg0);color:var(--t0);height:100vh;height:100dvh;overflow:hidden;transition:background 0.25s,color 0.25s}
+body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol','Noto Color Emoji';background:var(--bg0);color:var(--t0);height:100vh;height:100dvh;overflow:hidden;transition:background 0.25s,color 0.25s}
+/* Keep the monospace identity on canvas data + code, per design. */
+.node-label,.node-sub,.field-txt,.field-type,.mono{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+.modal pre,.box pre,pre,code{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
 #root{height:100%}
 .app{display:flex;flex-direction:column;height:100%}
-.topbar{min-height:52px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;z-index:20;transition:background 0.25s}
-/* Topbar buttons — ghost style (transparent, bordered) so the single accent
-   primary stands out and the bar reads as one cohesive, branded surface. */
-.topbar .btn{background:transparent;border-color:var(--border);color:var(--t1)}
-.topbar .btn:hover{background:var(--bg2);border-color:var(--t3);color:var(--t0)}
+.topbar{min-height:56px;background:var(--topbar-bg);border-bottom:1px solid var(--topbar-border);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;z-index:20;transition:background 0.25s}
+.topbar .logo-text{color:#fff}
+/* Topbar buttons — ghost on the dark navy chrome; the indigo primary pops. */
+.topbar .btn{background:transparent;border-color:rgba(255,255,255,0.14);color:var(--topbar-fg)}
+.topbar .btn:hover{background:rgba(176,224,226,0.14);border-color:var(--topbar-hl);color:var(--topbar-hl)}
+.topbar .theme-toggle{background:transparent;border-color:rgba(255,255,255,0.14);color:var(--topbar-fg)}
+.topbar .theme-toggle:hover{background:rgba(176,224,226,0.14);border-color:var(--topbar-hl);color:var(--topbar-hl)}
+.topbar .btn.primary{background:var(--topbar-hl);border-color:var(--topbar-hl);color:#1a2340}
+.topbar .btn.primary:hover{background:#c4ebed;border-color:#c4ebed;color:#1a2340}
+.topbar .tb-sep{background:rgba(255,255,255,0.12)}
+.topbar .search{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.14)}
+.topbar .search input{color:#fff}
+.topbar .search input::placeholder{color:rgba(232,235,245,0.5)}
 .topbar .btn.primary{background:var(--acc);border-color:var(--acc);color:var(--bg0)}
 .topbar .btn.primary:hover{background:var(--acc2);border-color:var(--acc2);color:var(--bg0)}
 .tb-group{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .tb-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;margin:0 2px}
-.logo{width:28px;height:28px;background:var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--bg0);font-weight:800;font-size:15px}
+.logo{width:30px;height:30px;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo svg{width:30px;height:30px;display:block}
 .logo-text{font-size:14px;font-weight:700;color:var(--acc);white-space:nowrap}
 /* Button system — consistent 3-tier hierarchy across the app:
    .btn (secondary, neutral surface), .btn.primary (solid accent),
@@ -61,6 +75,20 @@ body{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;ba
 .rail{width:210px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;transition:width 0.2s ease,background 0.25s}
 .rail.collapsed{width:0;min-width:0;border-right:0;overflow:hidden}
 .panel.collapsed{width:0;min-width:0;border-left:0;overflow:hidden}
+/* Collapsed left rail becomes a slim icon strip (not width:0) so controls stay
+   discoverable while the canvas keeps the reclaimed width. Click any glyph to
+   re-open the full rail. */
+.rail-icons{width:48px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;flex-shrink:0;transition:background 0.25s}
+.rail-icons button{position:relative;width:34px;height:34px;background:transparent;border:1px solid transparent;border-radius:8px;color:var(--t2);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;transition:background 0.15s,color 0.15s,border-color 0.15s}
+.rail-icons button:hover{background:var(--bg2);color:var(--acc);border-color:var(--border)}
+.rail-icons button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.rail-icons .ri-sep{width:22px;height:1px;background:var(--border);margin:4px 0;flex-shrink:0}
+.rail-icons .ri-issues{color:var(--red)}
+.rail-icons .ri-issues .ri-dot{position:absolute;transform:translate(9px,-9px);background:var(--red);color:#fff;font-size:8px;font-weight:700;border-radius:8px;padding:0 3px;line-height:1.4}
+/* Persistent Issues indicator in the topbar — visible even when the rail is
+   collapsed, so validation problems are never hidden. */
+.tb-issues{background:rgba(232,106,106,0.12)!important;border-color:var(--red)!important;color:var(--red)!important;font-weight:600}
+.tb-issues:hover{background:rgba(232,106,106,0.2)!important;border-color:var(--red)!important;color:var(--red)!important}
 .edge-toggle{position:absolute;top:14px;width:22px;height:44px;background:var(--bg1);border:1px solid var(--border);color:var(--t2);cursor:pointer;z-index:16;display:flex;align-items:center;justify-content:center;font-size:15px;padding:0}
 .edge-toggle:hover{color:var(--acc);border-color:var(--acc)}
 .edge-toggle.left{left:0;border-left:0;border-radius:0 8px 8px 0}
@@ -79,8 +107,8 @@ body{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;ba
 .toggle{display:flex;gap:2px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px}
 .toggle span{flex:1;text-align:center;padding:5px 6px;border-radius:4px;font-size:11px;font-weight:500;color:var(--t2);cursor:pointer;white-space:nowrap;transition:background 0.15s,color 0.15s}
 .toggle span:hover{color:var(--t0)}
-.toggle span.on{background:var(--acc);color:var(--bg0)}
-input[type=range]{accent-color:var(--acc);height:4px;cursor:pointer}
+.toggle span.on{background:#2e1a47;color:#fff}
+input[type=range]{accent-color:#2e1a47;height:4px;cursor:pointer}
 .legend-row{display:flex;align-items:center;gap:8px;color:var(--t2);font-size:11px;margin-bottom:6px}
 .hex-glyph{width:16px;height:14px;background:var(--purple);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);flex-shrink:0}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -96,6 +124,29 @@ select.finput{cursor:pointer}
 .stat-card.alert{border-color:var(--red)}
 .stat-num{font-size:18px;font-weight:700;line-height:1.1}
 .stat-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px}
+/* Overview rendered as a metrics list (icon chip + label + count) — SaaS style. */
+.ov-list{display:flex;flex-direction:column;gap:2px}
+.ov-row{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:9px;border:1px solid transparent;transition:background 0.15s,border-color 0.15s}
+.ov-row.link{cursor:pointer}
+.ov-row.link:hover{background:var(--bg2);border-color:var(--border)}
+.ov-ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ov-label{flex:1;font-size:12px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-count{font-size:15px;font-weight:700;color:var(--t0);font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
+.ov-row.alert{background:rgba(239,68,68,0.06)}
+/* Softer, lifted surfaces to match the mockup. */
+.rail{box-shadow:2px 0 12px rgba(16,24,40,0.03)}
+.panel{box-shadow:-2px 0 12px rgba(16,24,40,0.03)}
+.btn{border-radius:8px}
+.box,.list-item,.stat-card,.finput,.sys-pill{border-radius:9px}
+.crumb{border-radius:10px;box-shadow:var(--shadow-sm)}
+.zoom-ctl button,.theme-toggle{border-radius:8px}
+/* Bottom status bar — dark chrome, key counts + scan status. */
+.statusbar{height:34px;flex-shrink:0;background:var(--topbar-bg);border-top:1px solid var(--topbar-border);color:var(--topbar-fg);display:flex;align-items:center;gap:14px;padding:0 16px;font-size:11px;z-index:20}
+.statusbar .sb-item{display:flex;align-items:center;gap:6px;color:rgba(232,235,245,0.72);font-variant-numeric:tabular-nums;white-space:nowrap}
+.statusbar .sb-item b{color:#fff;font-weight:600}
+.statusbar .sb-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+.statusbar .sb-sep{width:1px;height:16px;background:rgba(255,255,255,0.12);flex-shrink:0}
+.statusbar .sb-right{margin-left:auto;display:flex;align-items:center;gap:14px}
 .canvas-wrap{flex:1;position:relative;min-width:0;background:var(--bg0);background-image:radial-gradient(var(--canvas-dot) 1px,transparent 1px);background-size:20px 20px;transition:background-color 0.25s}
 .canvas-wrap svg{width:100%;height:100%;display:block}
 .col-modal-bg{position:fixed;inset:0;background:var(--modal-overlay);display:flex;align-items:center;justify-content:center;z-index:50;animation:colModalFadeIn 0.18s ease}
@@ -1957,6 +2008,7 @@ function App(){
 
     // ----- nodes (draggable; column rows open transformation popout) -----
     var ng=g.append('g');
+    var useShadow=layout.nodes.length<=120;// soft card shadow only on smaller graphs
     layout.nodes.forEach(function(n){
       var grp=ng.append('g').attr('transform','translate('+n.x+','+n.y+')').style('cursor','grab');
       var isSel=selId===n.id;
@@ -1977,8 +2029,8 @@ function App(){
       }
       if(n.kind==='group'){
         // High-level group node (namespace or system) — click to drill down.
-        grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',9)
-          .attr('fill',nodeBg).attr('stroke',isSel?accColor:n.color).attr('stroke-width',isSel?2.5:1.8);
+        grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',11)
+          .attr('fill',nodeBg).attr('stroke',isSel?accColor:n.color).attr('stroke-width',isSel?2.5:1.8).attr('filter',useShadow?'url(#nodeShadow)':null);
         grp.append('rect').attr('width',5).attr('height',n.h).attr('rx',2).attr('fill',n.color);
         grp.append('title').text(n.name);
         var gPrefix=n.groupBy==='system'?E.systemIcon(n.system)+' ':'';
@@ -1990,15 +2042,15 @@ function App(){
         // Distinct hexagon glyph for jobs/transforms (points at left/right for LR flow anchors)
         var hi=Math.min(16,n.h/2);
         var hex='M'+hi+',0 L'+(n.w-hi)+',0 L'+n.w+','+(n.h/2)+' L'+(n.w-hi)+','+n.h+' L'+hi+','+n.h+' L0,'+(n.h/2)+' Z';
-        grp.append('path').attr('d',hex).attr('fill',nodeBg).attr('stroke',isSel?accColor:(impStroke||n.color)).attr('stroke-width',(isSel||impStroke)?2:1.4);
+        grp.append('path').attr('d',hex).attr('fill',nodeBg).attr('stroke',isSel?accColor:(impStroke||n.color)).attr('stroke-width',(isSel||impStroke)?2:1.4).attr('filter',useShadow?'url(#nodeShadow)':null);
         if(isSel)grp.append('path').attr('d',hex).attr('fill','none').attr('stroke',accColor).attr('stroke-width',5).attr('opacity',0.12);
         grp.append('title').text(n.name+'\n'+n.namespace);
         grp.append('text').attr('x',n.w/2).attr('y',21).attr('text-anchor','middle').attr('font-size','14px').attr('fill',n.color).text('⚙');
         var jCap=Math.max(8,Math.floor((n.w-26)/6));
         grp.append('text').attr('x',n.w/2).attr('y',35).attr('text-anchor','middle').attr('class','node-label').attr('font-size','10px').text(trunc(n.name,jCap));
       }else{
-        grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',5)
-          .attr('fill',nodeBg).attr('stroke',isSel?accColor:(impStroke||n.color)).attr('stroke-width',(isSel||impStroke)?2:1);
+        grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',9)
+          .attr('fill',nodeBg).attr('stroke',isSel?accColor:(impStroke||n.color)).attr('stroke-width',(isSel||impStroke)?2:1).attr('filter',useShadow?'url(#nodeShadow)':null);
         if(isSel)grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',5).attr('fill','none').attr('stroke',accColor).attr('stroke-width',5).attr('opacity',0.12);
         // Full name/namespace/system on hover (for anything still truncated)
         grp.append('title').text(n.name+'\n'+n.namespace+'  ·  '+n.system);
@@ -2067,12 +2119,15 @@ function App(){
       var drag=d3.drag()
         .on('start',function(ev){ev.sourceEvent.stopPropagation();grp.raise().style('cursor','grabbing');grp.node().__moved=false;})
         .on('drag',function(ev){n.x+=ev.dx;n.y+=ev.dy;grp.attr('transform','translate('+n.x+','+n.y+')');manualRef.current[n.id]={x:n.x,y:n.y};grp.node().__moved=true;drawEdges();})
-        .on('end',function(ev){grp.style('cursor','grab');if(!grp.node().__moved){if(n.kind==='group')toggleGroup(n.key);else{setSelected({kind:n.kind,key:n.key});if(focusMode)expandFocus(n.id);}}});
+        .on('end',function(ev){grp.style('cursor','grab');if(!grp.node().__moved){if(n.kind==='group')toggleGroup(n.key);else{setSelected({kind:n.kind,key:n.key});setPanelOpen(true);setTab('DETAILS');if(focusMode)expandFocus(n.id);}}});
       grp.call(drag);
     });
 
     // markers
     var defs=svg.append('defs');
+    // soft card shadow for nodes (used only on modestly-sized graphs for perf)
+    defs.append('filter').attr('id','nodeShadow').attr('x','-20%').attr('y','-20%').attr('width','140%').attr('height','140%')
+      .html('<feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(16,24,40,0.18)"/>');
     var edgeClrMk=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
     var accColorMk=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
     var greenMk=getComputedStyle(document.documentElement).getPropertyValue('--green').trim()||'#22c55e';
@@ -2409,7 +2464,14 @@ function App(){
     // topbar
     h('div',{className:'topbar'},
       h('div',{className:'tb-group'},
-        h('div',{className:'logo'},'L'),
+        h('div',{className:'logo',title:'LineageFlow'},
+          h('svg',{viewBox:'0 0 100 100',fill:'none','aria-label':'LineageFlow'},
+            h('defs',null,
+              h('linearGradient',{id:'lfLogoGrad',x1:'50',y1:'2',x2:'50',y2:'98',gradientUnits:'userSpaceOnUse'},
+                h('stop',{offset:'0',stopColor:'#93ecf1'}),
+                h('stop',{offset:'0.5',stopColor:'#49a6e2'}),
+                h('stop',{offset:'1',stopColor:'#6d28d9'}))),
+            h('path',{d:'M50 3 C55 33 66 44 97 50 C66 56 55 67 50 97 C45 67 34 56 3 50 C34 44 45 33 50 3 Z',fill:'url(#lfLogoGrad)'}))),
         h('div',{className:'logo-text'},'LineageFlow')),
       h('div',{className:'tb-sep'}),
       // Load zone — import spec (primary) + ViewLineage sources dropdown
@@ -2443,6 +2505,7 @@ function App(){
       // Utility zone
       h('div',{className:'tb-sep'}),
       h('div',{className:'tb-group'},
+        model&&model.issues.length?h('button',{className:'btn tb-issues',onClick:function(){setPanelOpen(true);setTab('ISSUES');},title:model.issues.length+' validation issue'+(model.issues.length===1?'':'s')+' — click to view'},'⚠ '+model.issues.length):null,
         h('button',{className:'theme-toggle',onClick:toggleTheme,title:theme==='dark'?'Switch to light theme':'Switch to dark theme'},theme==='dark'?'☀️':'🌙'),
         h('button',{className:'theme-toggle',onClick:function(){setHelpOpen(true);},title:'Help — how to use LineageFlow'},'?'))
     ),
@@ -2467,21 +2530,36 @@ function App(){
         loading&&h('div',{className:'muted'},progress||'Loading…'))
     :
       h('div',{className:'body'},
+        // rail — slim icon strip when collapsed, full panel when open
+        !railOpen&&h('div',{className:'rail-icons'},
+          h('button',{title:'Expand controls',onClick:function(){setRailOpen(true);}},'»'),
+          h('div',{className:'ri-sep'}),
+          h('button',{title:'Overview',onClick:function(){setRailOpen(true);}},'▤'),
+          h('button',{title:'Group by',onClick:function(){setRailOpen(true);}},groupBy==='system'?'▧':'▦'),
+          h('button',{title:'Explore / focus',onClick:function(){setRailOpen(true);}},'🎯'),
+          h('button',{title:'Lineage view',onClick:function(){setRailOpen(true);}},'≣'),
+          h('button',{title:'Layout & spacing',onClick:function(){setRailOpen(true);}},'⬗'),
+          h('button',{title:'Legend',onClick:function(){setRailOpen(true);}},'◈'),
+          model.issues.length?h(React.Fragment,null,
+            h('div',{className:'ri-sep'}),
+            h('button',{className:'ri-issues',title:model.issues.length+' issue'+(model.issues.length===1?'':'s'),onClick:function(){setRailOpen(true);setTab('ISSUES');}},'⚠',h('span',{className:'ri-dot'},model.issues.length))):null),
         // rail
         railOpen&&h('div',{className:'rail'},
           h('div',{className:'rail-sec'},
             h('div',{className:'rail-title'},'Overview'),
-            h('div',{className:'stat-grid'},
-              [['Datasets',model.stats.datasets,'var(--blue)',null],
-               ['Jobs',model.stats.jobs,'var(--purple)','JOBS'],
-               ['Namespaces',model.stats.namespaces,'var(--cyan)','NS'],
-               ['Systems',model.stats.systems,'var(--green)',null],
-               ['Edges',model.stats.edges,'var(--t0)',null],
-               ['Column links',model.stats.columnEdges,'var(--orange)','COLUMNS'],
-               ['Issues',model.issues.length,model.issues.length?'var(--red)':'var(--green)','ISSUES']
-              ].map(function(s,i){var dest=s[3];return h('div',{key:i,className:'stat-card'+(dest?' link':'')+(s[0]==='Issues'&&model.issues.length?' alert':''),onClick:dest?function(){setTab(dest);}:null},
-                h('div',{className:'stat-num',style:{color:s[2]}},s[1]),
-                h('div',{className:'stat-label'},s[0]));}))),
+            h('div',{className:'ov-list'},
+              [['Datasets',model.stats.datasets,'var(--blue)',null,'🗄'],
+               ['Jobs',model.stats.jobs,'var(--purple)','JOBS','⚙'],
+               ['Namespaces',model.stats.namespaces,'var(--cyan)','NS','▤'],
+               ['Systems',model.stats.systems,'var(--green)',null,'◈'],
+               ['Edges',model.stats.edges,'var(--t2)',null,'⇄'],
+               ['Column links',model.stats.columnEdges,'var(--orange)','COLUMNS','‖'],
+               ['Issues',model.issues.length,'var(--red)','ISSUES','⚠']
+              ].map(function(s,i){var dest=s[3];var alert=s[0]==='Issues'&&model.issues.length;
+                return h('div',{key:i,className:'ov-row'+(dest?' link':'')+(alert?' alert':''),onClick:dest?function(){setTab(dest);}:null},
+                  h('div',{className:'ov-ico',style:{background:'color-mix(in srgb, '+s[2]+' 15%, transparent)',color:s[2]}},s[4]),
+                  h('div',{className:'ov-label'},s[0]),
+                  h('div',{className:'ov-count',style:alert?{color:'var(--red)'}:null},s[1]));}))),
           h('div',{className:'rail-sec'},
             h('div',{className:'rail-title'},'Group by'),
             h('div',{className:'toggle'},
@@ -2641,6 +2719,19 @@ function App(){
           h('div',{className:'panel-body'},renderPanel())
         )
       ),
+    // bottom status bar — counts + scan/layout status
+    model&&h('div',{className:'statusbar'},
+      h('div',{className:'sb-item'},h('span',{className:'sb-dot'}),'Ready'),
+      h('div',{className:'sb-sep'}),
+      h('div',{className:'sb-item'},h('b',null,model.stats.datasets),' Datasets'),
+      h('div',{className:'sb-item'},h('b',null,model.stats.jobs),' Jobs'),
+      h('div',{className:'sb-item'},h('b',null,layout?layout.nodes.length:(model.stats.datasets+model.stats.jobs)),' Visible nodes'),
+      h('div',{className:'sb-item'},h('b',null,layout?layout.edges.length:model.stats.edges),' Edges'),
+      model.issues.length?h('div',{className:'sb-item',style:{color:'var(--red)'}},'⚠ ',h('b',{style:{color:'var(--red)'}},model.issues.length),' Issues'):null,
+      h('div',{className:'sb-right'},
+        h('div',{className:'sb-item'},groupBy==='none'?'Flat graph':('Grouped · '+groupBy)),
+        h('div',{className:'sb-sep'}),
+        h('div',{className:'sb-item'},(typeof ELK!=='undefined'&&elkOn)?'Layered layout':'Compact layout'))),
     modal&&h('div',{className:'modal-bg',onClick:function(){setModal(null);}},
       h('div',{className:'modal',onClick:function(e){e.stopPropagation();}},
         h('div',{className:'modal-head'},h('span',null,modal.title),h('button',{onClick:function(){setModal(null);}},'×')),
