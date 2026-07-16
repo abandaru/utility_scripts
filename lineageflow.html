@@ -1327,6 +1327,10 @@ function App(){
   var s_tab=useState('DETAILS'),tab=s_tab[0],setTab=s_tab[1];
   var s_dir=useState('LR'),dir=s_dir[0],setDir=s_dir[1];
   var s_q=useState(''),query=s_q[0],setQuery=s_q[1];
+  // Debounced query drives matching + canvas highlight so typing doesn't rebuild
+  // the whole graph on every keystroke (the input itself stays instant).
+  var s_qd=useState(''),queryDeb=s_qd[0],setQueryDeb=s_qd[1];
+  useEffect(function(){var t=setTimeout(function(){setQueryDeb(query);},220);return function(){clearTimeout(t);};},[query]);
   var s_mi=useState(0),matchIdx=s_mi[0],setMatchIdx=s_mi[1];// current search-match index
   var s_hidden=useState({}),hiddenNs=s_hidden[0],setHiddenNs=s_hidden[1];
   var s_rail=useState(true),railOpen=s_rail[0],setRailOpen=s_rail[1];
@@ -1406,30 +1410,40 @@ function App(){
 
   // Compute the union of transitive column lineage chains for every selected
   // column (multi-select) plus the primary selectedCol (single-click/modal).
+  // Column-edge indices (built once per model): field-key -> incident edges.
+  // Lets colChain traverse in O(chain·degree) instead of scanning every column
+  // edge for every field visited — critical for large, column-heavy models.
+  var colEdgeIndex=useMemo(function(){
+    var byTo={},byFrom={};
+    if(model)model.colEdges.forEach(function(ce,idx){
+      var tk=ce.toDs+'::'+ce.toField,fk=ce.fromDs+'::'+ce.fromField;
+      (byTo[tk]||(byTo[tk]=[])).push({ce:ce,idx:idx});
+      (byFrom[fk]||(byFrom[fk]=[])).push({ce:ce,idx:idx});
+    });
+    return {byTo:byTo,byFrom:byFrom};
+  },[model]);
+
   var colChain=useMemo(function(){
     if(!model)return null;
     var seeds=Object.keys(selCols).map(function(k){return selCols[k];});
     if(selectedCol)seeds.push(selectedCol);
     if(!seeds.length)return null;
     var fields={},edgeIndices={},edgeKeys={},datasets={};
+    var byTo=colEdgeIndex.byTo,byFrom=colEdgeIndex.byFrom;
     function fKey(ds,f){return ds+'::'+f;}
     function eKey(ce){return ce.fromDs+'::'+ce.fromField+'>'+ce.toDs+'::'+ce.toField;}
     function walkUp(dsKey,field){
-      model.colEdges.forEach(function(ce,idx){
-        if(ce.toDs===dsKey&&ce.toField===field){
-          edgeIndices[idx]=true;edgeKeys[eKey(ce)]=true;
-          var sk=fKey(ce.fromDs,ce.fromField);datasets[ce.fromDs]=true;
-          if(!fields[sk]){fields[sk]=true;walkUp(ce.fromDs,ce.fromField);}
-        }
+      (byTo[fKey(dsKey,field)]||[]).forEach(function(e){
+        edgeIndices[e.idx]=true;edgeKeys[eKey(e.ce)]=true;
+        var sk=fKey(e.ce.fromDs,e.ce.fromField);datasets[e.ce.fromDs]=true;
+        if(!fields[sk]){fields[sk]=true;walkUp(e.ce.fromDs,e.ce.fromField);}
       });
     }
     function walkDown(dsKey,field){
-      model.colEdges.forEach(function(ce,idx){
-        if(ce.fromDs===dsKey&&ce.fromField===field){
-          edgeIndices[idx]=true;edgeKeys[eKey(ce)]=true;
-          var tk=fKey(ce.toDs,ce.toField);datasets[ce.toDs]=true;
-          if(!fields[tk]){fields[tk]=true;walkDown(ce.toDs,ce.toField);}
-        }
+      (byFrom[fKey(dsKey,field)]||[]).forEach(function(e){
+        edgeIndices[e.idx]=true;edgeKeys[eKey(e.ce)]=true;
+        var tk=fKey(e.ce.toDs,e.ce.toField);datasets[e.ce.toDs]=true;
+        if(!fields[tk]){fields[tk]=true;walkDown(e.ce.toDs,e.ce.toField);}
       });
     }
     seeds.forEach(function(s){
@@ -1437,7 +1451,7 @@ function App(){
       walkUp(s.dsKey,s.field);walkDown(s.dsKey,s.field);
     });
     return{fields:fields,edgeIndices:edgeIndices,edgeKeys:edgeKeys,datasets:datasets};
-  },[selCols,selectedCol,model]);
+  },[selCols,selectedCol,model,colEdgeIndex]);
 
   var expanded=useMemo(function(){
     var e={};
@@ -1605,7 +1619,9 @@ function App(){
   // Apply theme attribute on mount
   useEffect(function(){document.documentElement.setAttribute('data-theme',theme);},[theme]);
 
-  function hasColLineage(dsKey,field){return !!model&&model.colEdges.some(function(c){return c.toDs===dsKey&&c.toField===field;});}
+  // O(1) via the prebuilt index — previously a full colEdges scan per field per
+  // render, i.e. O(fields·colEdges) while drawing column-view nodes.
+  function hasColLineage(dsKey,field){return !!colEdgeIndex.byTo[dsKey+'::'+field];}
   function openColDetail(dsKey,field){
     if(!model)return;
     var srcs=model.colEdges.filter(function(c){return c.toDs===dsKey&&c.toField===field;});
@@ -1932,6 +1948,9 @@ function App(){
     var impMode=impact?impact.mode:null;
     var cvar=function(n,f){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||f;};
     var greenC=cvar('--green','#22c55e'),blueC=cvar('--blue','#4d9fff'),cyanC=cvar('--cyan','#22d3ee');
+    // Hoisted theme colours — read once per render, not once per node. On large
+    // graphs the per-node reads forced thousands of style recalcs each render.
+    var nodeBg=cvar('--node-bg','#161619'),accColor=cvar('--acc','#9575cd'),edgeClr=cvar('--edge-color','#3a3a44');
 
     function box(id){return nodeMap[id];}
     function anchorOut(n){return dir==='LR'?[n.x+n.w,n.y+n.h/2]:[n.x+n.w/2,n.y+n.h];}
@@ -2022,9 +2041,6 @@ function App(){
       var dimNode=impSet&&(impInfo==null);
       var impStroke=(inImp&&!isSel)?(impMode==='up'?blueC:greenC):null;
       if(dimNode)grp.attr('opacity',0.22);
-      var nodeBg=getComputedStyle(document.documentElement).getPropertyValue('--node-bg').trim()||'#161619';
-      var accColor=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
-      var edgeClr=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
       // Highlight every search match on the canvas (the current one also gets the
       // stronger selection styling below).
       if(searchIds&&searchIds[n.id]&&!isSel){
@@ -2248,7 +2264,7 @@ function App(){
   // the first. Order: dataset name, then its matching columns, then jobs.
   var searchMatches=useMemo(function(){
     if(!model)return [];
-    var q=(query||'').trim().toLowerCase();if(!q)return [];
+    var q=(queryDeb||'').trim().toLowerCase();if(!q)return [];
     var out=[];
     Object.keys(model.datasets).forEach(function(k){
       var d=model.datasets[k];
@@ -2257,7 +2273,7 @@ function App(){
     });
     Object.keys(model.jobs).forEach(function(k){var j=model.jobs[k];if((j.name||'').toLowerCase().indexOf(q)>=0)out.push({kind:'job',key:k,col:null,label:j.name});});
     return out;
-  },[query,model]);
+  },[queryDeb,model]);
   // Node ids of all matches — highlighted on the canvas so every hit is visible.
   var searchIds=useMemo(function(){var s={};searchMatches.forEach(function(m){s[(m.kind==='dataset'?'d:':'j:')+m.key]=1;});return s;},[searchMatches]);
 
@@ -2482,13 +2498,13 @@ function App(){
       h('div',{className:'tb-sep'}),
       // Load zone — import spec (primary) + ViewLineage sources dropdown
       h('div',{className:'tb-group'},
-        h('button',{className:'btn',onClick:openMapping,title:'Import ETL Mapping Specifications (v2 template)'},'📥 Import Mapping Specification'),
+        h('button',{className:'btn',onClick:openMapping,title:'Import ETL Mapping Specifications (v2 template)'},'Import Mapping Specification'),
         h('div',{style:{position:'relative'},onMouseDown:function(e){e.stopPropagation();}},
-          h('button',{className:'btn',onClick:function(){setVlMenu(!vlMenu);}},'🧬 ViewLineage ',vlMenu?'▴':'▾'),
+          h('button',{className:'btn',onClick:function(){setVlMenu(!vlMenu);}},'View Lineage ',vlMenu?'▴':'▾'),
           vlMenu&&h('div',{className:'ctxmenu',style:{position:'absolute',top:'calc(100% + 4px)',left:0,right:'auto'}},
             h('div',{className:'ctx-head'},'Load OpenLineage'),
-            h('button',{onClick:function(){setVlMenu(false);openFolder();}},'📁 Open folder'),
-            h('button',{onClick:function(){setVlMenu(false);setRepoModal(true);}},'⎇ Git repo')))),
+            h('button',{onClick:function(){setVlMenu(false);openFolder();}},'Open Folder'),
+            h('button',{onClick:function(){setVlMenu(false);setRepoModal(true);}},'Git Repo')))),
       h('div',{className:'search'},h('span',{style:{color:'var(--t3)'}},'⌕'),
         h('input',{placeholder:'Search datasets, jobs, columns',value:query,
           onChange:function(e){setQuery(e.target.value);},
@@ -2501,13 +2517,13 @@ function App(){
       // Export zone (stats live in the left-rail Overview — no duplicate chips here)
       model&&h('div',{className:'tb-sep'}),
       model&&h('div',{className:'tb-group'},
-        h('button',{className:'btn',onClick:exportPNG,title:'Export canvas as PNG image'},'🖼 PNG'),
-        h('button',{className:'btn',onClick:openExport,title:'Export validated OpenLineage events (ZIP / folder / GitLab)'},'📤 Export OL Events')),
+        h('button',{className:'btn',onClick:exportPNG,title:'Export canvas as PNG image'},'Save Image'),
+        h('button',{className:'btn',onClick:openExport,title:'Export validated OpenLineage events (ZIP / folder / GitLab)'},'Export OL Events')),
       // Workspace zone
       window.LFStore&&window.LFStore.available&&h('div',{className:'tb-sep'}),
       window.LFStore&&window.LFStore.available&&h('div',{className:'tb-group'},
-        model&&h('button',{className:'btn',onClick:saveView,title:'Save current view to this browser'},'💾 Save view'),
-        h('button',{className:'btn',onClick:function(){refreshLibrary();setLibOpen(true);},title:'Recent models & saved views'},'🕘 Library')),
+        model&&h('button',{className:'btn',onClick:saveView,title:'Save current view to this browser'},'Save View'),
+        h('button',{className:'btn',onClick:function(){refreshLibrary();setLibOpen(true);},title:'Recent models & saved views'},'Library')),
       // Utility zone
       h('div',{className:'tb-sep'}),
       h('div',{className:'tb-group'},
@@ -2524,10 +2540,10 @@ function App(){
         h('h2',null,'Visualize OpenLineage'),
         h('p',null,'Upload an ETL Mapping Specification (.xlsx) lineage template-V2 to validate and generate OpenLineage design-time events, or open a folder of openlineage.json event files. Files may be single events'),
         h('div',{className:'row'},
-          h('button',{className:'btn',onClick:openMapping},'📥 Import MappingSpecifications'),
-          h('button',{className:'btn',onClick:openFolder},'📁 Open folder'),
-          h('button',{className:'btn',onClick:function(){setRepoModal(true);}},'⎇ Git repo'),
-          h('button',{className:'btn',onClick:loadDemo},'▶ Load demo')),
+          h('button',{className:'btn',onClick:openMapping},'Import Mapping Specifications'),
+          h('button',{className:'btn',onClick:openFolder},'Open Folder'),
+          h('button',{className:'btn',onClick:function(){setRepoModal(true);}},'Git Repo'),
+          h('button',{className:'btn',onClick:loadDemo},'Load Demo')),
         recentModels.length?h('div',{style:{marginTop:8,width:'min(460px,90vw)'}},
           h('div',{className:'rail-title',style:{textAlign:'left',marginBottom:6}},'Recent (cached in this browser)'),
           recentModels.slice(0,5).map(function(m){return h('div',{key:m.id,className:'lib-item',onClick:function(){loadCachedModel(m);}},
@@ -2583,7 +2599,7 @@ function App(){
               h('button',{className:'btn',style:{width:'100%',justifyContent:'center',marginTop:6},onClick:resetFocus},'↺ Reset to seed')):null,
             h('div',{className:'muted',style:{marginTop:6}},focusMode?(focusSeed?'Click a node (or its +N badge) to reveal the next hop — 10 neighbors at a time':'Search or click a node to seed exploration'):'Render only an explored subgraph — auto-on for large models')),
             h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Lineage view'),
+            h('div',{className:'rail-title'},'Lineage View'),
             h('div',{className:'toggle'},
               h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
               h('span',{className:viewMode==='column'?'on':'',onClick:function(){setViewMode('column');}},'Column')),
@@ -2797,7 +2813,7 @@ function App(){
           h('div',{className:'muted',style:{fontSize:10}},'Each job gets its own folder — jobs/<job>/event.json + summary.json (inputs & outputs) — plus jobs/index.json and a combined openlineage-events.json.'),
           h('div',null,
             h('label',{className:'flabel'},'Destination'),
-            h('div',{className:'toggle'},destTab('zip','⬇ Download ZIP'),destTab('folder','📁 Local folder'),destTab('gitlab','⎇ GitLab'))),
+            h('div',{className:'toggle'},destTab('zip','Download ZIP'),destTab('folder','Local Folder'),destTab('gitlab','GitLab'))),
           exDest==='folder'?h('div',{className:'muted',style:{fontSize:10}},'Writes files directly into a folder you choose (Chromium browsers). You will be asked to grant write access.'):null,
           exDest==='gitlab'?h(React.Fragment,null,
             h('div',null,h('label',{className:'flabel'},'GitLab repository URL'),
