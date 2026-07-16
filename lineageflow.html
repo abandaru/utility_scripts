@@ -40,6 +40,10 @@ body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',R
 .tb-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;margin:0 2px}
 .logo{width:30px;height:30px;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .logo svg{width:30px;height:30px;display:block}
+.brand-home{cursor:pointer;border-radius:8px;padding:2px 6px;margin:-2px -2px -2px -6px;transition:background 0.15s,opacity 0.15s}
+.brand-home:hover{background:rgba(176,224,226,0.12)}
+.brand-home:active{opacity:0.8}
+.brand-home:focus-visible{outline:2px solid var(--topbar-hl);outline-offset:2px}
 .logo-text{font-size:14px;font-weight:700;color:var(--acc);white-space:nowrap}
 /* Button system — consistent 3-tier hierarchy across the app:
    .btn (secondary, neutral surface), .btn.primary (solid accent),
@@ -2463,8 +2467,10 @@ function App(){
     h('input',{type:'file',ref:mapInputRef,accept:'.xlsx,.xls,.xlsm',style:{display:'none'},onChange:onMapFile}),
     // topbar
     h('div',{className:'topbar'},
-      h('div',{className:'tb-group'},
-        h('div',{className:'logo',title:'LineageFlow'},
+      h('div',{className:'tb-group brand-home',title:'Reload LineageFlow',role:'button',tabIndex:0,
+        onClick:function(){location.reload();},
+        onKeyDown:function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();location.reload();}}},
+        h('div',{className:'logo'},
           h('svg',{viewBox:'0 0 100 100',fill:'none','aria-label':'LineageFlow'},
             h('defs',null,
               h('linearGradient',{id:'lfLogoGrad',x1:'50',y1:'2',x2:'50',y2:'98',gradientUnits:'userSpaceOnUse'},
