@@ -2503,8 +2503,8 @@ function App(){
           h('button',{className:'btn',onClick:function(){setVlMenu(!vlMenu);}},'View Lineage ',vlMenu?'▴':'▾'),
           vlMenu&&h('div',{className:'ctxmenu',style:{position:'absolute',top:'calc(100% + 4px)',left:0,right:'auto'}},
             h('div',{className:'ctx-head'},'Load OpenLineage'),
-            h('button',{onClick:function(){setVlMenu(false);openFolder();}},'Open Folder'),
-            h('button',{onClick:function(){setVlMenu(false);setRepoModal(true);}},'Git Repo')))),
+            h('button',{title:'Pick a local folder of OpenLineage .json event files (Chromium browsers)',onClick:function(){setVlMenu(false);openFolder();}},'Open Folder'),
+            h('button',{title:'Load OpenLineage .json events straight from a GitHub or GitLab repository',onClick:function(){setVlMenu(false);setRepoModal(true);}},'Git Repo')))),
       h('div',{className:'search'},h('span',{style:{color:'var(--t3)'}},'⌕'),
         h('input',{placeholder:'Search datasets, jobs, columns',value:query,
           onChange:function(e){setQuery(e.target.value);},
@@ -2540,10 +2540,10 @@ function App(){
         h('h2',null,'Visualize OpenLineage'),
         h('p',null,'Upload an ETL Mapping Specification (.xlsx) lineage template-V2 to validate and generate OpenLineage design-time events, or open a folder of openlineage.json event files. Files may be single events'),
         h('div',{className:'row'},
-          h('button',{className:'btn',onClick:openMapping},'Import Mapping Specifications'),
-          h('button',{className:'btn',onClick:openFolder},'Open Folder'),
-          h('button',{className:'btn',onClick:function(){setRepoModal(true);}},'Git Repo'),
-          h('button',{className:'btn',onClick:loadDemo},'Load Demo')),
+          h('button',{className:'btn',title:'Upload an ETL mapping spreadsheet (.xlsx, template-V2) — validates it and generates OpenLineage design-time events',onClick:openMapping},'Import Mapping Specifications'),
+          h('button',{className:'btn',title:'Pick a local folder of OpenLineage .json event files (Chromium browsers)',onClick:openFolder},'Open Folder'),
+          h('button',{className:'btn',title:'Load OpenLineage .json events straight from a GitHub or GitLab repository',onClick:function(){setRepoModal(true);}},'Git Repo'),
+          h('button',{className:'btn',title:'Load a sample lineage graph to explore the features immediately',onClick:loadDemo},'Load Demo')),
         recentModels.length?h('div',{style:{marginTop:8,width:'min(460px,90vw)'}},
           h('div',{className:'rail-title',style:{textAlign:'left',marginBottom:6}},'Recent (cached in this browser)'),
           recentModels.slice(0,5).map(function(m){return h('div',{key:m.id,className:'lib-item',onClick:function(){loadCachedModel(m);}},
@@ -2736,7 +2736,14 @@ function App(){
             ['DETAILS','COLUMNS','JOBS','ISSUES','NS'].map(function(t){
               var label=t==='NS'?'NAMESPACES':t;
               var badge=t==='ISSUES'&&model.issues.length?model.issues.length:null;
-              return h('div',{key:t,className:'tab'+(tab===t?' on':''),onClick:function(){setTab(t);}},label,badge&&h('span',{className:'badge'},badge));
+              var tips={
+                DETAILS:'Attributes of the selected node — system, owner, tags, schema, and its producing/consuming jobs',
+                COLUMNS:'Column-level lineage for the selected dataset — click a column to trace its full source chain',
+                JOBS:'All transformation jobs in the model with their input/output counts',
+                ISSUES:(model.issues.length?(model.issues.length+' validation issue'+(model.issues.length===1?'':'s')+' found — click to review'):'Validation issues — none found'),
+                NS:'Show or hide namespaces on the canvas'
+              };
+              return h('div',{key:t,className:'tab'+(tab===t?' on':''),title:tips[t],onClick:function(){setTab(t);}},label,badge&&h('span',{className:'badge'},badge));
             })),
           h('div',{className:'panel-body'},renderPanel())
         )
