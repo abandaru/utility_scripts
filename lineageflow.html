@@ -48,6 +48,12 @@ body{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;ba
 .search input{min-width:0}
 .search input{flex:1;background:transparent;border:0;outline:0;color:var(--t0);font-family:inherit;font-size:11px;padding:7px 0}
 .search input::placeholder{color:var(--t3)}
+.search-nav{display:flex;align-items:center;gap:2px;flex-shrink:0;padding-left:4px;border-left:1px solid var(--border)}
+.sn-count{font-size:10px;color:var(--t2);min-width:26px;text-align:center;font-variant-numeric:tabular-nums}
+.sn-count.none{color:var(--red)}
+.sn-btn{width:20px;height:20px;background:transparent;border:0;border-radius:4px;color:var(--t2);cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background 0.12s,color 0.12s}
+.sn-btn:hover{background:var(--bg2);color:var(--acc)}
+.sn-btn:disabled{opacity:0.35;cursor:not-allowed}
 .chips{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--t2);white-space:nowrap;flex-shrink:0}
 .chip b{color:var(--t0);font-weight:600}
 .dot{color:var(--border)}
@@ -740,6 +746,7 @@ select.finput{cursor:pointer}
 (function(){
   var PRODUCER='https://github.com/lineageflow/mapping-spec';
   var RUNEVENT_SCHEMA='https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent';
+  var JOBEVENT_SCHEMA='https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/JobEvent';
   var DOC_SCHEMA='https://openlineage.io/spec/facets/1-0-1/DocumentationDatasetFacet.json';
   var SQL_SCHEMA='https://openlineage.io/spec/facets/1-0-0/SQLJobFacet.json';
 
@@ -1085,8 +1092,16 @@ select.finput{cursor:pointer}
       var jobFacets={documentation:{_producer:producer,_schemaURL:DOC_SCHEMA,description:(isRun?'Runtime':'Design-time')+' lineage: '+outputs.map(function(o){return o.name;}).join(', ')+' <= '+inputs.map(function(i){return i.name;}).join(', ')}};
       var sqlQuery=(job.tableTx&&job.tableTx.logic)?String(job.tableTx.logic).trim():(job.sqlLike?buildSql(job):null);
       if(sqlQuery)jobFacets.sql={_producer:producer,_schemaURL:SQL_SCHEMA,query:sqlQuery};
-      return{eventType:'COMPLETE',eventTime:eventTime,producer:producer,schemaURL:RUNEVENT_SCHEMA,
-        run:{runId:isRun?(job.runId||uuidFrom('run/'+jk)):uuidFrom(jk),facets:{}},
+      // Runtime rows -> OpenLineage RunEvent (eventType + run). Design-time rows
+      // -> static JobEvent (no run, no eventType) so consumers correctly treat it
+      // as design-time lineage rather than a completed run.
+      if(isRun){
+        return{eventType:'COMPLETE',eventTime:eventTime,producer:producer,schemaURL:RUNEVENT_SCHEMA,
+          run:{runId:job.runId||uuidFrom('run/'+jk),facets:{}},
+          job:{namespace:job.namespace,name:job.name,facets:jobFacets},
+          inputs:inputs,outputs:outputs};
+      }
+      return{eventTime:eventTime,producer:producer,schemaURL:JOBEVENT_SCHEMA,
         job:{namespace:job.namespace,name:job.name,facets:jobFacets},
         inputs:inputs,outputs:outputs};
     });
@@ -1116,7 +1131,11 @@ select.finput{cursor:pointer}
     if(!Array.isArray(events)||!events.length){issues.push({severity:'high',reason:'No OpenLineage events were generated.'});return issues;}
     events.forEach(function(ev,i){
       var w=' (event '+(i+1)+')';
-      ['eventType','eventTime','producer','run','job'].forEach(function(k){if(ev[k]==null)issues.push({severity:'high',reason:'Missing required attribute "'+k+'"'+w});});
+      // Static JobEvent (design-time) has no run/eventType; RunEvent (runtime) has both.
+      var isRunEvent=(ev.eventType!=null||ev.run!=null);
+      var req=isRunEvent?['eventType','eventTime','producer','run','job']:['eventTime','producer','job'];
+      req.forEach(function(k){if(ev[k]==null)issues.push({severity:'high',reason:'Missing required attribute "'+k+'"'+w});});
+      if(isRunEvent&&ev.run&&!ev.run.runId)issues.push({severity:'high',reason:'Run event missing run.runId'+w});
       if(ev.job&&(!ev.job.namespace||!ev.job.name))issues.push({severity:'high',reason:'Job missing namespace/name'+w});
       if(!Array.isArray(ev.inputs)||!ev.inputs.length)issues.push({severity:'med',reason:'Event has no inputs'+w});
       if(!Array.isArray(ev.outputs)||!ev.outputs.length){issues.push({severity:'high',reason:'Event has no outputs'+w});return;}
@@ -1253,6 +1272,7 @@ function App(){
   var s_tab=useState('DETAILS'),tab=s_tab[0],setTab=s_tab[1];
   var s_dir=useState('LR'),dir=s_dir[0],setDir=s_dir[1];
   var s_q=useState(''),query=s_q[0],setQuery=s_q[1];
+  var s_mi=useState(0),matchIdx=s_mi[0],setMatchIdx=s_mi[1];// current search-match index
   var s_hidden=useState({}),hiddenNs=s_hidden[0],setHiddenNs=s_hidden[1];
   var s_rail=useState(true),railOpen=s_rail[0],setRailOpen=s_rail[1];
   var s_panel=useState(true),panelOpen=s_panel[0],setPanelOpen=s_panel[1];
@@ -1949,6 +1969,12 @@ function App(){
       var nodeBg=getComputedStyle(document.documentElement).getPropertyValue('--node-bg').trim()||'#161619';
       var accColor=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()||'#9575cd';
       var edgeClr=getComputedStyle(document.documentElement).getPropertyValue('--edge-color').trim()||'#3a3a44';
+      // Highlight every search match on the canvas (the current one also gets the
+      // stronger selection styling below).
+      if(searchIds&&searchIds[n.id]&&!isSel){
+        grp.insert('rect',':first-child').attr('x',-4).attr('y',-4).attr('width',n.w+8).attr('height',n.h+8).attr('rx',8)
+          .attr('fill','none').attr('stroke',accColor).attr('stroke-width',2).attr('stroke-dasharray','4,3').attr('opacity',0.75);
+      }
       if(n.kind==='group'){
         // High-level group node (namespace or system) — click to drill down.
         grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',9)
@@ -2150,7 +2176,7 @@ function App(){
     else if(modelChanged||svgRef.current.__major!==major||!svgRef.current.__lastT){fit();}
     else{svg.call(zoom.transform,svgRef.current.__lastT);}// reapply prior transform to rebuilt <g>
     svgRef.current.__major=major;
-  },[layout,selected,dir,theme,selectedCol,impactResult,focusMode,miniOpen]);
+  },[layout,selected,dir,theme,selectedCol,impactResult,focusMode,miniOpen,searchIds]);
 
   function trunc(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
   function zoomBy(k){if(zoomRef.current&&svgRef.current)d3.select(svgRef.current).transition().duration(150).call(zoomRef.current.scaleBy,k);}
@@ -2158,33 +2184,46 @@ function App(){
   // Re-fit after a panel collapses/expands (canvas width changed)
   useEffect(function(){var t=setTimeout(doFit,240);return function(){clearTimeout(t);};},[railOpen,panelOpen]);
 
-  // search -> select first match (dataset, then job, then column) and focus it
-  useEffect(function(){
-    if(!query||!model)return;
-    var q=query.trim().toLowerCase();if(!q)return;
-    var pick=null,col=null;
-    var d=Object.keys(model.datasets).find(function(k){return model.datasets[k].name.toLowerCase().indexOf(q)>=0;});
-    if(d)pick={kind:'dataset',key:d};
-    if(!pick){
-      var j=Object.keys(model.jobs).find(function(k){return model.jobs[k].name.toLowerCase().indexOf(q)>=0;});
-      if(j)pick={kind:'job',key:j};
-    }
-    if(!pick){// column-name match -> select the owning dataset and highlight the field
-      var ck=Object.keys(model.datasets).find(function(k){return model.datasets[k].schemaFields.some(function(f){return f.name.toLowerCase().indexOf(q)>=0;});});
-      if(ck){var f=model.datasets[ck].schemaFields.find(function(f){return f.name.toLowerCase().indexOf(q)>=0;});pick={kind:'dataset',key:ck};col={dsKey:ck,field:f.name};}
-    }
-    if(!pick)return;
-    // In grouped mode, drill into the match's group so its node is visible.
+  // Search: collect ALL matches across the canvas — datasets & jobs by name, and
+  // datasets by column name — so the user can step through every hit, not just
+  // the first. Order: dataset name, then its matching columns, then jobs.
+  var searchMatches=useMemo(function(){
+    if(!model)return [];
+    var q=(query||'').trim().toLowerCase();if(!q)return [];
+    var out=[];
+    Object.keys(model.datasets).forEach(function(k){
+      var d=model.datasets[k];
+      if((d.name||'').toLowerCase().indexOf(q)>=0)out.push({kind:'dataset',key:k,col:null,label:d.name});
+      d.schemaFields.forEach(function(f){if((f.name||'').toLowerCase().indexOf(q)>=0)out.push({kind:'dataset',key:k,col:f.name,label:d.name+'.'+f.name});});
+    });
+    Object.keys(model.jobs).forEach(function(k){var j=model.jobs[k];if((j.name||'').toLowerCase().indexOf(q)>=0)out.push({kind:'job',key:k,col:null,label:j.name});});
+    return out;
+  },[query,model]);
+  // Node ids of all matches — highlighted on the canvas so every hit is visible.
+  var searchIds=useMemo(function(){var s={};searchMatches.forEach(function(m){s[(m.kind==='dataset'?'d:':'j:')+m.key]=1;});return s;},[searchMatches]);
+
+  // Select + focus a given match (drilling its group when grouped).
+  function gotoMatch(i){
+    var m=searchMatches[i];if(!m||!model)return;
     if(groupBy!=='none'){
-      var gk=pick.kind==='dataset'
-        ?(groupBy==='system'?(model.datasets[pick.key].system||E.systemOf(model.datasets[pick.key].namespace)):model.datasets[pick.key].namespace)
-        :(groupBy==='system'?E.systemOf(model.jobs[pick.key].namespace):model.jobs[pick.key].namespace);
+      var gk=m.kind==='dataset'
+        ?(groupBy==='system'?(model.datasets[m.key].system||E.systemOf(model.datasets[m.key].namespace)):model.datasets[m.key].namespace)
+        :(groupBy==='system'?E.systemOf(model.jobs[m.key].namespace):model.jobs[m.key].namespace);
       if(gk)setExpGroups(function(p){if(p[gk])return p;var c=Object.assign({},p);c[gk]=1;return c;});
     }
-    if(svgRef.current)svgRef.current.__focusReq=(pick.kind==='dataset'?'d:':'j:')+pick.key;
-    setSelected(pick);
-    if(col)setSelectedCol(col);
-  },[query,model,groupBy]);
+    if(svgRef.current)svgRef.current.__focusReq=(m.kind==='dataset'?'d:':'j:')+m.key;
+    setSelected({kind:m.kind,key:m.key});
+    setSelectedCol(m.col?{dsKey:m.key,field:m.col}:null);
+  }
+  function stepMatch(dir){
+    if(!searchMatches.length)return;
+    setMatchIdx(function(i){var n=((i+dir)%searchMatches.length+searchMatches.length)%searchMatches.length;gotoMatch(n);return n;});
+  }
+  // On a new query (match set change), jump to the first match.
+  useEffect(function(){
+    if(!searchMatches.length){setMatchIdx(0);return;}
+    setMatchIdx(0);gotoMatch(0);
+  },[searchMatches]);
 
   // Keep the right-panel tab meaningful for the current selection. In column
   // view a selected dataset opens its COLUMNS tab; a selected job has no column
@@ -2262,13 +2301,48 @@ function App(){
   // object plus an eventType and at least one input/output.
   function validEvents(){return (events||[]).filter(function(ev){return ev&&ev.job&&typeof ev.job==='object'&&(ev.eventType||ev.inputs||ev.outputs);});}
   function safeName(s){return String(s||'event').replace(/[^A-Za-z0-9._-]+/g,'_').slice(0,60)||'event';}
-  // Build the file set: a combined array plus one file per event under events/.
+  function dsSchemaFields(d){var s=d&&d.facets&&d.facets.schema&&d.facets.schema.fields;return Array.isArray(s)?s.map(function(f){return f.name;}):[];}
+  // Per-job summary capturing the job's inputs and outputs (datasets + columns),
+  // lineage kind (design-time JobEvent vs runtime RunEvent), and documentation/SQL.
+  function jobSummary(g){
+    var ev0=g.events[0]||{};
+    var inMap={},outMap={},inputs=[],outputs=[];
+    g.events.forEach(function(ev){
+      (ev.inputs||[]).forEach(function(d){var k=d.namespace+'::'+d.name;if(!inMap[k]){inMap[k]=1;inputs.push(d);}});
+      (ev.outputs||[]).forEach(function(d){var k=d.namespace+'::'+d.name;if(!outMap[k]){outMap[k]=1;outputs.push(d);}});
+    });
+    function ds(arr){return arr.map(function(d){var o={namespace:d.namespace,name:d.name,fields:dsSchemaFields(d)};var cl=d.facets&&d.facets.columnLineage&&d.facets.columnLineage.fields;if(cl)o.derivedColumns=Object.keys(cl);return o;});}
+    var isRun=!!(ev0.eventType||ev0.run);
+    var jf=g.job&&g.job.facets||{};
+    return{job:{namespace:g.job.namespace,name:g.job.name},
+      lineageType:isRun?'runtime':'design-time',eventType:ev0.eventType||null,runId:(ev0.run&&ev0.run.runId)||null,
+      producer:ev0.producer||null,eventTime:ev0.eventTime||null,eventCount:g.events.length,
+      documentation:(jf.documentation&&jf.documentation.description)||null,sql:(jf.sql&&jf.sql.query)||null,
+      inputCount:inputs.length,outputCount:outputs.length,inputs:ds(inputs),outputs:ds(outputs)};
+  }
+  // Build the ZIP file set: one folder per job (jobs/<job>/) containing its
+  // event JSON(s) + a summary.json (inputs/outputs), plus a combined index.
   function eventFiles(evs){
     var files=[{name:'openlineage-events.json',content:JSON.stringify(evs,null,2)}];
-    evs.forEach(function(ev,i){
-      var jn=safeName(ev.job&&ev.job.name);
-      files.push({name:'events/'+('000'+(i+1)).slice(-3)+'-'+jn+'.json',content:JSON.stringify(ev,null,2)});
+    var groups={},order=[];
+    evs.forEach(function(ev){
+      var jn=((ev.job&&ev.job.namespace)||'')+'::'+((ev.job&&ev.job.name)||'event');
+      if(!groups[jn]){groups[jn]={job:ev.job||{},events:[]};order.push(jn);}
+      groups[jn].events.push(ev);
     });
+    var used={},index=[];
+    order.forEach(function(jn){
+      var g=groups[jn],base=safeName(g.job.name||'job'),folder=base,n=2;
+      while(used[folder])folder=base+'-'+(n++);used[folder]=1;
+      var dir='jobs/'+folder+'/';
+      g.events.forEach(function(ev,i){
+        files.push({name:dir+(g.events.length>1?('event-'+('00'+(i+1)).slice(-2)+'.json'):'event.json'),content:JSON.stringify(ev,null,2)});
+      });
+      var sum=jobSummary(g);
+      files.push({name:dir+'summary.json',content:JSON.stringify(sum,null,2)});
+      index.push({job:sum.job.name,namespace:sum.job.namespace,folder:'jobs/'+folder,lineageType:sum.lineageType,inputs:sum.inputCount,outputs:sum.outputCount});
+    });
+    files.push({name:'jobs/index.json',content:JSON.stringify({jobCount:order.length,jobs:index},null,2)});
     return files;
   }
   function openExport(){setExMsg('');setExOpen(true);}
@@ -2347,7 +2421,15 @@ function App(){
             h('div',{className:'ctx-head'},'Load OpenLineage'),
             h('button',{onClick:function(){setVlMenu(false);openFolder();}},'📁 Open folder'),
             h('button',{onClick:function(){setVlMenu(false);setRepoModal(true);}},'⎇ Git repo')))),
-      h('div',{className:'search'},h('span',{style:{color:'var(--t3)'}},'⌕'),h('input',{placeholder:'Search datasets, jobs, columns',value:query,onChange:function(e){setQuery(e.target.value);}})),
+      h('div',{className:'search'},h('span',{style:{color:'var(--t3)'}},'⌕'),
+        h('input',{placeholder:'Search datasets, jobs, columns',value:query,
+          onChange:function(e){setQuery(e.target.value);},
+          onKeyDown:function(e){if(e.key==='Enter'){e.preventDefault();stepMatch(e.shiftKey?-1:1);}else if(e.key==='Escape'){setQuery('');}}}),
+        query?h('span',{className:'search-nav'},
+          h('span',{className:'sn-count'+(searchMatches.length?'':' none')},searchMatches.length?((matchIdx+1)+'/'+searchMatches.length):'0'),
+          h('button',{className:'sn-btn',disabled:!searchMatches.length,title:'Previous match (Shift+Enter)',onClick:function(){stepMatch(-1);}},'‹'),
+          h('button',{className:'sn-btn',disabled:!searchMatches.length,title:'Next match (Enter)',onClick:function(){stepMatch(1);}},'›'),
+          h('button',{className:'sn-btn',title:'Clear (Esc)',onClick:function(){setQuery('');}},'×')):null),
       // Export zone (stats live in the left-rail Overview — no duplicate chips here)
       model&&h('div',{className:'tb-sep'}),
       model&&h('div',{className:'tb-group'},
@@ -2615,7 +2697,7 @@ function App(){
             h('div',{className:'kv'},h('span',{className:'k'},'Source'),h('span',{className:'v'},srcName||'—')),
             h('div',{className:'kv'},h('span',{className:'k'},'Events loaded'),h('span',{className:'v'},total)),
             h('div',{className:'kv'},h('span',{className:'k'},'Valid to export'),h('span',{className:'v',style:{color:valid?'var(--green)':'var(--red)'}},valid+(valid<total?(' (of '+total+')'):'')))),
-          h('div',{className:'muted',style:{fontSize:10}},'Each event is written as events/NNN-<job>.json plus a combined openlineage-events.json.'),
+          h('div',{className:'muted',style:{fontSize:10}},'Each job gets its own folder — jobs/<job>/event.json + summary.json (inputs & outputs) — plus jobs/index.json and a combined openlineage-events.json.'),
           h('div',null,
             h('label',{className:'flabel'},'Destination'),
             h('div',{className:'toggle'},destTab('zip','⬇ Download ZIP'),destTab('folder','📁 Local folder'),destTab('gitlab','⎇ GitLab'))),
@@ -2682,10 +2764,40 @@ function App(){
             ['Zoom · Fit','Bottom-left controls: +, −, and fit-to-screen.'],
             ['◰ Radar','Bottom-right minimap of the whole layout; drag or click inside it to pan the main view.']]),
           sec('5 · Mapping pipeline (📊)',[
-            ['Templates','Two column layouts auto-detected per worksheet: Source→Target mapping, and Process lineage (technology/host/port, Design vs RunTime, table + column transforms).'],
-            ['Validate','Per-row checks produce a gap report (errors block a row; warnings do not). Rows with errors are excluded from generation.'],
-            ['Generate','Builds OpenLineage events and renders them here.'],
-            ['Export','OpenLineage JSON, column-lineage CSV, gap report (JSON/CSV/XLSX), application log, or a ZIP of everything.']]),
+            ['Templates','Two column layouts auto-detected per worksheet: A) Source→Target mapping, and B) Process lineage. Row 1 = headers; headers match case/space/underscore-insensitively with aliases.'],
+            ['Validate','Per-row checks produce a gap report (ERRORs exclude a row; WARNINGs do not). The detected template is shown per sheet.'],
+            ['Generate','Valid rows → OpenLineage events, rendered here. Design rows → static JobEvent; RunTime rows → RunEvent.'],
+            ['Export','OpenLineage JSON, column-lineage CSV, gap report (JSON/CSV/XLSX), or a ZIP (per-job folders + summary).'],
+            ['Full reference','docs/import-mapping-specification.md — every column, alias, rule, and the exact OpenLineage mapping.']]),
+          sec('5a · Template A — Source→Target (columns, * = required value)',[
+            ['Source System *','Source platform (Oracle, Snowflake…) → namespace scheme  <system>://<schema>.'],
+            ['Source Schema','→ namespace + dataset name (warn if empty).'],
+            ['Source Table *','→ source dataset name  schema.table.'],
+            ['Source Column *','→ columnLineage input field.'],
+            ['Target System/Schema/Table/Column *','As source, for the output. Target Table also names the job (map.<table>).'],
+            ['Transformation Logic','Optional — empty = DIRECT/IDENTITY copy. Classified to OL {type,subtype}; drives the SQL facet.'],
+            ['Data Type','→ output schema field type (warn if empty).'],
+            ['Nullable','Y/N · true/false · 1/0.'],
+            ['Mapping Type','DIRECT / DERIVED / LOOKUP / AGGREGATION / JOIN / EXPRESSION / CONSTANT …']]),
+          sec('5b · Template B — Process Lineage (columns, * = required value)',[
+            ['ProcessName *','→ OpenLineage job name.'],
+            ['LineageType','Design (default) → static JobEvent (design-time); RunTime → RunEvent (runtime).'],
+            ['RunId','Used as run.runId for RunTime rows (deterministic id if blank).'],
+            ['LineageId','Groups rows into one job / run instance.'],
+            ['Source/Target TechnologyType *','→ namespace scheme (oracle, snowflake, s3…).'],
+            ['Source/Target Host · Port','→ namespace authority:  <tech>://<host:port>.'],
+            ['Source/Target Dataset *','→ dataset name.'],
+            ['Source/Target Field *','→ column-level lineage.'],
+            ['Source/Target ObjectType','TABLE / VIEW / FILE → datasetType facet.'],
+            ['ColumnTransformationType','Explicit type wins: IDENTITY, AGGREGATION, JOIN, FILTER, CONDITIONAL, MASKING…'],
+            ['ColumnTransformationLogic','Column expression → transformation description.'],
+            ['TableTransformationLogic','Table-level SQL → job sql facet (verbatim).']]),
+          sec('5c · Choosing the right template (impact of a wrong fit)',[
+            ['Auto-detected','You do NOT pick a template manually. Each worksheet is scored against both; the best match (fewest missing required columns) is chosen. The chosen template is shown after Validate.'],
+            ['Wrong/neither fit → whole sheet skipped','If required columns are missing (wrong headers, or neither template matches), template validation FAILS for that sheet and it generates NO events — shown as “Template validation failed”.'],
+            ['Right template, bad rows → rows dropped','If it matches but source/target key columns are empty or misaligned, those rows get mandatory-field ERRORs and are EXCLUDED; only clean rows generate events, so the lineage is partial.'],
+            ['Mixing A + B in one sheet','Putting Template A and B columns on the same worksheet confuses detection → missing required columns → the sheet fails. Keep ONE template per worksheet.'],
+            ['How to confirm & fix','Read the gap report and the detected-template chip after Validate. Match the canonical headers (aliases OK), keep one template per sheet, and fill every required (*) field before Generate.']]),
           sec('6 · Persistence & sharing',[
             ['💾 Save view','Store the current grouping, layout, focus, theme, and positions; reopen later from the Library.'],
             ['📤 Export OL Events','Bundle the validated OpenLineage events and download as ZIP, write to a local folder, or commit to a GitLab repository.'],
@@ -2834,6 +2946,7 @@ function App(){
         h('button',{className:'btn',onClick:function(){startImpact('up','j:'+j.key);}},'⬆ Root cause')),
       h('div',{style:{marginTop:8}},h('button',{className:'btn',onClick:function(){setModal({title:j.key+' · job facets',body:JSON.stringify(jf,null,2)});}},'{ } View facets'+(facetKeys.length?(' ('+facetKeys.length+')'):''))),
       h('div',{className:'box',style:{marginTop:10}},
+        h('div',{className:'kv'},h('span',{className:'k'},'Lineage'),h('span',{className:'v',style:{color:j.runs.length?'var(--blue)':'var(--green)'}},j.runs.length?'Runtime':'Design-time (static)')),
         h('div',{className:'kv'},h('span',{className:'k'},'Latest event'),h('span',{className:'v'},j.latestEventType||'—')),
         h('div',{className:'kv'},h('span',{className:'k'},'Runs'),h('span',{className:'v'},j.runs.length)),
         h('div',{className:'kv'},h('span',{className:'k'},'Inputs'),h('span',{className:'v'},Object.keys(j.inputs).length)),
