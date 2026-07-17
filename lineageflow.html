@@ -76,7 +76,7 @@ body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',R
 .chip b{color:var(--t0);font-weight:600}
 .dot{color:var(--border)}
 .body{flex:1;display:flex;min-height:0}
-.rail{width:210px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;transition:width 0.2s ease,background 0.25s}
+.rail{width:242px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;transition:width 0.2s ease,background 0.25s}
 .rail.collapsed{width:0;min-width:0;border-right:0;overflow:hidden}
 .panel.collapsed{width:0;min-width:0;border-left:0;overflow:hidden}
 /* Collapsed left rail becomes a slim icon strip (not width:0) so controls stay
@@ -84,7 +84,8 @@ body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',R
    re-open the full rail. */
 .rail-icons{width:48px;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;flex-shrink:0;transition:background 0.25s}
 .rail-icons button{position:relative;width:34px;height:34px;background:transparent;border:1px solid transparent;border-radius:8px;color:var(--t2);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;transition:background 0.15s,color 0.15s,border-color 0.15s}
-.rail-icons button:hover{background:var(--bg2);color:var(--acc);border-color:var(--border)}
+.rail-icons button:hover{background:var(--accbg);color:var(--acc);border-color:var(--acc)}
+.rail-icons .ri-issues:hover{background:rgba(248,113,113,0.14);color:var(--red);border-color:var(--red)}
 .rail-icons button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .rail-icons .ri-sep{width:22px;height:1px;background:var(--border);margin:4px 0;flex-shrink:0}
 .rail-icons .ri-issues{color:var(--red)}
@@ -99,6 +100,27 @@ body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',R
 .edge-toggle.right{right:0;border-right:0;border-radius:8px 0 0 8px}
 .rail-sec{padding:12px;border-bottom:1px solid var(--border)}
 .rail-title{font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);margin-bottom:8px}
+/* Rail accordion — collapsible control cards. Only the cards in use stay open,
+   so the rail stays short instead of stacking every section at full height. */
+.acc{background:var(--bg1);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:8px;flex-shrink:0}
+.acc-head{display:flex;align-items:center;gap:9px;width:100%;padding:10px 11px;background:transparent;border:0;cursor:pointer;font-family:inherit;color:var(--t0);text-align:left;transition:background 0.15s}
+.acc-head:hover{background:var(--bg2)}
+.acc-head:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.acc-ico{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--accbg);color:var(--acc);flex-shrink:0}
+.acc-lbl{flex:1;min-width:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc-meta{font-size:9px;color:var(--t3);white-space:nowrap;max-width:62px;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.acc-chev{color:var(--t3);font-size:10px;transition:transform 0.18s ease;flex-shrink:0}
+.acc.open .acc-chev{transform:rotate(180deg)}
+.acc-body{display:none;padding:2px 11px 12px;border-top:1px solid var(--border)}
+.acc.open .acc-body{display:block}
+.fld{margin-top:9px}
+.fld>label{display:block;font-size:9px;color:var(--t3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px}
+.chk-row{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:11px;color:var(--t0);cursor:pointer;user-select:none}
+.chk-row input{width:15px;height:15px;accent-color:var(--acc);cursor:pointer;margin:0;flex-shrink:0}
+.fsel{width:100%;padding:6px 8px;background:var(--bg0);border:1px solid var(--border);border-radius:7px;color:var(--t0);font-family:inherit;font-size:11px;cursor:pointer;outline:none}
+.fsel:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--accbg)}
+.savebtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px;padding:7px;border:1px dashed var(--acc);border-radius:8px;background:var(--accbg);color:var(--acc);font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;transition:background 0.15s}
+.savebtn:hover{background:var(--bg2)}
 .ns-row{display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;color:var(--t1);user-select:none;border:1px solid transparent;margin-bottom:3px}
 .ns-row:hover{background:var(--bg2);border-color:var(--border)}
 .ns-row.off{opacity:0.45}
@@ -112,6 +134,8 @@ body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',R
 .toggle span{flex:1;text-align:center;padding:5px 6px;border-radius:4px;font-size:11px;font-weight:500;color:var(--t2);cursor:pointer;white-space:nowrap;transition:background 0.15s,color 0.15s}
 .toggle span:hover{color:var(--t0)}
 .toggle span.on{background:#2e1a47;color:#fff}
+.toggle.four{display:grid;grid-template-columns:1fr 1fr}
+.toggle.four span{padding:5px 4px}
 input[type=range]{accent-color:#2e1a47;height:4px;cursor:pointer}
 .legend-row{display:flex;align-items:center;gap:8px;color:var(--t2);font-size:11px;margin-bottom:6px}
 .hex-glyph{width:16px;height:14px;background:var(--purple);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);flex-shrink:0}
@@ -409,6 +433,7 @@ select.finput{cursor:pointer}
       if(Array.isArray(facets.tags))facets.tags.forEach(function(t){tg.push(typeof t==='string'?t:(t.key?t.key+(t.value?'='+t.value:''):(t.name||'')));});
       else if(facets.tags&&Array.isArray(facets.tags.tags))facets.tags.tags.forEach(function(t){tg.push(t.key?t.key+(t.value?'='+t.value:''):(t.name||t.value||''));});
       if(tg.length)ds.tags=tg.filter(Boolean);
+      if(facets.domain&&facets.domain.name)ds.domain=String(facets.domain.name);// business domain -> group-by dimension
       Object.keys(facets).forEach(function(fk){if(fk[0]!=='_')ds.facets[fk]=facets[fk];});
     }
     function extractColumnEdges(ds,facets,out){
@@ -523,8 +548,8 @@ select.finput{cursor:pointer}
     var expandedGroups=opts.expandedGroups||{};
     var nodes={},order=[];
     function visible(ns){return !hidden[ns];}
-    function dsGroup(k){var d=model.datasets[k];return groupBy==='system'?(d.system||systemOf(d.namespace)):d.namespace;}
-    function jobGroup(k){var j=model.jobs[k];return groupBy==='system'?systemOf(j.namespace):j.namespace;}
+    function dsGroup(k){var d=model.datasets[k];return groupBy==='domain'?(d.domain||d.namespace):groupBy==='system'?(d.system||systemOf(d.namespace)):d.namespace;}
+    function jobGroup(k){var j=model.jobs[k];return groupBy==='domain'?(j.domain||j.namespace):groupBy==='system'?systemOf(j.namespace):j.namespace;}
 
     function buildDatasetNode(k){
       var d=model.datasets[k];var id='d:'+k;var exp=!!expanded[id];
@@ -600,7 +625,23 @@ select.finput{cursor:pointer}
         var k2=id.slice(2);var j=model.jobs[k2];if(!j||hidden[j.namespace])return null;var g2=jobGroup(k2);return expandedGroups[g2]?id:'g:'+g2;
       }
       edges=[];var eset={};
-      model.edges.forEach(function(e){var a=repr(e.from),b=repr(e.to);if(!a||!b||a===b||!nodes[a]||!nodes[b])return;var ek=a+'>'+b;if(!eset[ek]){eset[ek]=1;edges.push({from:a,to:b});}});
+      function addGroupEdge(a,b,byp){if(!a||!b||a===b||!nodes[a]||!nodes[b])return;var ek=a+'>'+b;if(eset[ek])return;eset[ek]=1;edges.push(byp?{from:a,to:b,bypass:true}:{from:a,to:b});}
+      // adjacency over the underlying dataset↔job graph, for bypassing hidden nodes.
+      var gadj={};model.edges.forEach(function(e){(gadj[e.from]||(gadj[e.from]=[])).push(e.to);});
+      // Transitive group edges: when a target maps to a hidden namespace (repr null),
+      // walk forward through the hidden nodes to the nearest visible reprs, so the
+      // higher-level lineage stays connected across an unselected namespace/group
+      // (e.g. hiding the ETL/job namespace no longer isolates its source & target groups).
+      model.edges.forEach(function(e){
+        var a=repr(e.from);if(!a)return;
+        var b=repr(e.to);
+        if(b){addGroupEdge(a,b,false);return;}
+        var seen={},stack=[e.to];
+        while(stack.length){var cur=stack.pop();(gadj[cur]||[]).forEach(function(nx){
+          if(seen[nx])return;seen[nx]=1;var rn=repr(nx);
+          if(rn)addGroupEdge(a,rn,true);else stack.push(nx);
+        });}
+      });
     }
 
     // §4 Cross-platform / cross-namespace: flag edges whose endpoints live in
@@ -831,7 +872,9 @@ select.finput{cursor:pointer}
     {key:'transformation',label:'Transformation Logic',req:false,val:'none',aliases:['transformationlogic','transformation','transform','transformationrule','mappingrule','transformationdescription','derivation','businessrule']},
     {key:'dataType',label:'Data Type',req:true,val:'warn',aliases:['datatype','type','columntype','targetdatatype']},
     {key:'nullable',label:'Nullable',req:true,val:'none',aliases:['nullable','isnullable','null','nullability']},
-    {key:'mappingType',label:'Mapping Type',req:true,val:'none',aliases:['mappingtype','maptype','mappingcategory']}
+    {key:'mappingType',label:'Mapping Type',req:true,val:'none',aliases:['mappingtype','maptype','mappingcategory']},
+    {key:'sourceDomain',label:'Source Domain',req:false,val:'none',aliases:['sourcedomain','srcdomain','sourcebusinessdomain']},
+    {key:'targetDomain',label:'Target Domain',req:false,val:'none',aliases:['targetdomain','tgtdomain','targetbusinessdomain','domain','businessdomain']}
   ];
 
   // §3 Template B — process lineage. Technology/host/port datasets, Design vs
@@ -856,7 +899,9 @@ select.finput{cursor:pointer}
     {key:'targetHost',label:'TargetHost',req:false,val:'warn',aliases:['targethost','tgthost']},
     {key:'targetPort',label:'TargetPort',req:false,val:'none',aliases:['targetport','tgtport']},
     {key:'targetDataset',label:'TargetDataset',req:true,val:'error',aliases:['targetdataset','tgtdataset','targettable','targetentity']},
-    {key:'targetField',label:'TargetField',req:true,val:'error',aliases:['targetfield','tgtfield','targetcolumn']}
+    {key:'targetField',label:'TargetField',req:true,val:'error',aliases:['targetfield','tgtfield','targetcolumn']},
+    {key:'sourceDomain',label:'SourceDomain',req:false,val:'none',aliases:['sourcedomain','srcdomain','sourcebusinessdomain']},
+    {key:'targetDomain',label:'TargetDomain',req:false,val:'none',aliases:['targetdomain','tgtdomain','domain','businessdomain']}
   ];
 
   var DATA_TYPES={};['varchar','varchar2','nvarchar','char','nchar','text','string','clob','int','integer','smallint','tinyint','bigint','decimal','numeric','number','float','double','real','money','bit','boolean','bool','date','datetime','timestamp','time','binary','blob','uuid','json','jsonb','array','struct'].forEach(function(t){DATA_TYPES[t]=1;});
@@ -1049,7 +1094,7 @@ select.finput{cursor:pointer}
         var tNs=nsFor(rec.targetSystem,rec.targetSchema),tName=nameFor(rec.targetSchema,rec.targetTable);
         return{row:er,sourceNs:sNs,sourceName:sName,sourceField:rec.sourceColumn,sourceObjectType:'TABLE',
           targetNs:tNs,targetName:tName,targetField:rec.targetColumn,targetObjectType:'TABLE',
-          dataType:rec.dataType,nullable:parseBool(rec.nullable)!==false,tx:tx,tableTx:null,
+          sourceDomain:rec.sourceDomain||'',targetDomain:rec.targetDomain||'',dataType:rec.dataType,nullable:parseBool(rec.nullable)!==false,tx:tx,tableTx:null,
           jobName:'map.'+tName,jobKey:tNs+'::'+tName,jobNamespace:opts.jobNamespace||'etl.mapping',lineageType:'DESIGN',runId:null};
       }},
     process:{id:'process',label:'Process Lineage',fields:PROCESS_FIELDS,alias:mkAlias(PROCESS_FIELDS),
@@ -1072,7 +1117,7 @@ select.finput{cursor:pointer}
         var jk=(rec.processName||'process')+(rec.lineageId?('#'+rec.lineageId):'')+'::'+(isRun?'RUNTIME':'DESIGN')+(isRun&&rec.runId?('::'+rec.runId):'');
         return{row:er,sourceNs:sNs,sourceName:rec.sourceDataset,sourceField:rec.sourceField,sourceObjectType:rec.sourceObjectType||'TABLE',
           targetNs:tNs,targetName:rec.targetDataset,targetField:rec.targetField,targetObjectType:rec.targetObjectType||'TABLE',
-          dataType:'',nullable:true,tx:colTx,tableTx:{type:rec.tableTransformationType||'',logic:rec.tableTransformationLogic||''},
+          sourceDomain:rec.sourceDomain||'',targetDomain:rec.targetDomain||'',dataType:'',nullable:true,tx:colTx,tableTx:{type:rec.tableTransformationType||'',logic:rec.tableTransformationLogic||''},
           jobName:rec.processName,jobKey:jk,jobNamespace:opts.processNamespace||'etl.process',lineageType:isRun?'RUNTIME':'DESIGN',runId:isRun?(rec.runId||null):null};
       }}
   };
@@ -1121,10 +1166,10 @@ select.finput{cursor:pointer}
       var job=jobs[r.jobKey];
       if(!job){job=jobs[r.jobKey]={key:r.jobKey,name:r.jobName,namespace:r.jobNamespace,lineageType:r.lineageType,runId:r.runId,tableTx:r.tableTx,inputs:{},inputOrder:[],outputs:{},outputOrder:[],sqlLike:false};jobOrder.push(r.jobKey);}
       var ik=r.sourceNs+'::'+r.sourceName;
-      var inp=job.inputs[ik];if(!inp){inp=job.inputs[ik]={namespace:r.sourceNs,name:r.sourceName,objectType:r.sourceObjectType,fields:{},fieldOrder:[]};job.inputOrder.push(ik);}
+      var inp=job.inputs[ik];if(!inp){inp=job.inputs[ik]={namespace:r.sourceNs,name:r.sourceName,objectType:r.sourceObjectType,domain:r.sourceDomain||'',fields:{},fieldOrder:[]};job.inputOrder.push(ik);}
       if(r.sourceField&&inp.fields[r.sourceField]==null){inp.fields[r.sourceField]=1;inp.fieldOrder.push(r.sourceField);}
       var ok=r.targetNs+'::'+r.targetName;targetSet[ok]=1;
-      var out=job.outputs[ok];if(!out){out=job.outputs[ok]={namespace:r.targetNs,name:r.targetName,objectType:r.targetObjectType,fields:{},fieldOrder:[],cl:{}};job.outputOrder.push(ok);}
+      var out=job.outputs[ok];if(!out){out=job.outputs[ok]={namespace:r.targetNs,name:r.targetName,objectType:r.targetObjectType,domain:r.targetDomain||'',fields:{},fieldOrder:[],cl:{}};job.outputOrder.push(ok);}
       if(out.fields[r.targetField]==null){out.fields[r.targetField]=r.dataType||'';out.fieldOrder.push(r.targetField);}
       var cl=out.cl[r.targetField]||(out.cl[r.targetField]={inputFields:[]});
       cl.inputFields.push({namespace:r.sourceNs,name:r.sourceName,field:r.sourceField,transformations:[{type:r.tx.type,subtype:r.tx.subtype,description:r.tx.description||'',masking:!!r.tx.masking}]});
@@ -1138,6 +1183,8 @@ select.finput{cursor:pointer}
         facets.documentation={_producer:producer,_schemaURL:DOC_SCHEMA,description:'Target of a lineage mapping specification.'};
       }
       if(d.objectType)facets.datasetType={_producer:producer,_schemaURL:DSTYPE_FACET,datasetType:String(d.objectType).toUpperCase(),subType:''};
+      // Custom facet carrying the business domain, so the UI can group by it.
+      if(d.domain)facets.domain={_producer:producer,name:String(d.domain)};
       return{namespace:d.namespace,name:d.name,facets:facets};
     }
     var events=jobOrder.map(function(jk){
@@ -1182,10 +1229,11 @@ select.finput{cursor:pointer}
   // LineageEngine issues ({severity:'high'|'med',reason}) so they merge into the
   // model's Issues panel.
   function validateEvents(events,opts){
-    var issues=[],outNames={};
+    var issues=[];
     if(!Array.isArray(events)||!events.length){issues.push({severity:'high',reason:'No OpenLineage events were generated.'});return issues;}
     events.forEach(function(ev,i){
       var w=' (event '+(i+1)+')';
+      var outNames={};// per-event: a dataset produced by multiple jobs/runs is valid, not a duplicate
       // Static JobEvent (design-time) has no run/eventType; RunEvent (runtime) has both.
       var isRunEvent=(ev.eventType!=null||ev.run!=null);
       var req=isRunEvent?['eventType','eventTime','producer','run','job']:['eventTime','producer','job'];
@@ -1333,6 +1381,40 @@ function App(){
   useEffect(function(){var t=setTimeout(function(){setQueryDeb(query);},220);return function(){clearTimeout(t);};},[query]);
   var s_mi=useState(0),matchIdx=s_mi[0],setMatchIdx=s_mi[1];// current search-match index
   var s_hidden=useState({}),hiddenNs=s_hidden[0],setHiddenNs=s_hidden[1];
+  // Rail accordion: which control cards are open. Only the two most-used open by default.
+  var s_secs=useState({graph:true,filters:true,view:false,layout:false,explore:false,overview:false,legend:false}),railSecs=s_secs[0],setRailSecs=s_secs[1];
+  function toggleSec(k){setRailSecs(function(p){var c=Object.assign({},p);c[k]=!c[k];return c;});}
+  // Rail card: header (icon + label + live-state summary + chevron) over a collapsible body.
+  function accSec(key,ico,label,meta,body){
+    return h('div',{className:'acc'+(railSecs[key]?' open':'')},
+      h('button',{className:'acc-head',onClick:function(){toggleSec(key);},'aria-expanded':!!railSecs[key],title:(railSecs[key]?'Collapse ':'Expand ')+label},
+        h('span',{className:'acc-ico'},ico),
+        h('span',{className:'acc-lbl'},label),
+        meta?h('span',{className:'acc-meta'},meta):null,
+        h('span',{className:'acc-chev'},'▾')),
+      h('div',{className:'acc-body'},body));
+  }
+  // Collapsed-rail shortcut: expands the rail and opens the matching section.
+  function miniBtn(key,ico,title){
+    return h('button',{key:key,title:title,onClick:function(){
+      setRailOpen(true);
+      setRailSecs(function(p){var c=Object.assign({},p);c[key]=true;return c;});
+    }},ico);
+  }
+  function chkRow(label,val,key){
+    return h('label',{className:'chk-row'},
+      h('input',{type:'checkbox',checked:!!val,onChange:function(){setShowCtl(function(p){var c=Object.assign({},p);c[key]=!c[key];return c;});}}),
+      label);
+  }
+  function fSel(label,key,opts){
+    return h('div',{className:'fld'},h('label',null,label),
+      h('select',{className:'fsel',value:filters[key]||'',onChange:function(e){var v=e.target.value;setFilters(function(p){var c=Object.assign({},p);c[key]=v;return c;});}},
+        h('option',{value:''},'All'),
+        (opts||[]).map(function(o){return h('option',{key:o,value:o},o);})));
+  }
+  // Attribute filters (all backed by model data) + entity-type / edge visibility.
+  var s_filters=useState({system:'',namespace:'',domain:'',owner:''}),filters=s_filters[0],setFilters=s_filters[1];
+  var s_show=useState({datasets:true,jobs:true,xsys:true,collinks:true}),showCtl=s_show[0],setShowCtl=s_show[1];
   var s_rail=useState(true),railOpen=s_rail[0],setRailOpen=s_rail[1];
   var s_panel=useState(true),panelOpen=s_panel[0],setPanelOpen=s_panel[1];
   var s_modal=useState(null),modal=s_modal[0],setModal=s_modal[1];
@@ -1340,7 +1422,9 @@ function App(){
   var s_err=useState(null),err=s_err[0],setErr=s_err[1];
   var s_view=useState('column'),viewMode=s_view[0],setViewMode=s_view[1];// 'column' | 'table'
   var s_gap=useState(90),gap=s_gap[0],setGap=s_gap[1];// horizontal min distance px
-  var s_manualV=useState(0),manualV=s_manualV[0],setManualV=s_manualV[1];// bump to re-layout after drag
+  var s_manual=useState({}),manualPos=s_manual[0],setManualPos=s_manual[1];// nodeId -> {x,y} manual drag overrides (persisted per model)
+  var s_relayout=useState(0),relayoutNonce=s_relayout[0],setRelayoutNonce=s_relayout[1];// bump to force one fresh auto-layout pass
+  var s_layoutMode=useState('auto'),layoutMode=s_layoutMode[0],setLayoutMode=s_layoutMode[1];// 'auto' = re-layers on change; 'manual' = frozen, re-run on demand
   var s_col=useState(null),colDetail=s_col[0],setColDetail=s_col[1];// column transformation popup modal
   var s_theme=useState('light'),theme=s_theme[0],setTheme=s_theme[1];// 'light' (default) | 'dark'
   var s_selCol=useState(null),selectedCol=s_selCol[0],setSelectedCol=s_selCol[1];// {dsKey,field} primary (drives modal)
@@ -1399,7 +1483,11 @@ function App(){
   var s_exPath=useState('openlineage'),exPath=s_exPath[0],setExPath=s_exPath[1];
   var s_exCommit=useState('Add OpenLineage events'),exCommit=s_exCommit[0],setExCommit=s_exCommit[1];
   var folderInputRef=useRef(null);
-  var manualRef=useRef({});// nodeId -> {x,y} manual drag overrides
+  var manualRef=useRef({});// synchronous working copy of manualPos for the D3 drag handler
+  var modelKeyRef=useRef(null);// localStorage key for this model's manual positions
+  useEffect(function(){manualRef.current=Object.assign({},manualPos);},[manualPos]);
+  // Persist manual positions per-model (debounced), private-mode safe.
+  useEffect(function(){var t=setTimeout(function(){persistManual(manualPos);},300);return function(){clearTimeout(t);};},[manualPos]);
 
   // Multi-column selection helpers. Key uses  (unambiguous vs the '::' in dsKey).
   function colKey(ds,f){return ds+''+f;}
@@ -1500,6 +1588,42 @@ function App(){
     });
     return vis;
   },[focusMode,focusSeed,focusExpanded,adjacency,model]);
+
+  // Filter option lists, derived from the model.
+  var domainOpts=useMemo(function(){if(!model)return [];var s={};Object.keys(model.datasets).forEach(function(k){var d=model.datasets[k].domain;if(d)s[d]=1;});return Object.keys(s).sort();},[model]);
+  var ownerOpts=useMemo(function(){if(!model)return [];var s={};Object.keys(model.datasets).forEach(function(k){(model.datasets[k].owners||[]).forEach(function(o){if(o.name)s[o.name]=1;});});return Object.keys(s).sort();},[model]);
+  var activeFilters=['system','namespace','domain','owner'].filter(function(k){return filters[k];}).length;
+
+  // Attribute filters + entity-type visibility -> an allowlist of node ids. Jobs are
+  // kept when they touch an allowed dataset, so filtered lineage stays connected.
+  var filterOnly=useMemo(function(){
+    if(!model)return null;
+    var anyAttr=!!(filters.system||filters.namespace||filters.domain||filters.owner);
+    if(!anyAttr&&showCtl.datasets&&showCtl.jobs)return null;
+    var allow={};
+    if(showCtl.datasets)Object.keys(model.datasets).forEach(function(k){
+      var d=model.datasets[k];
+      if(filters.system&&d.system!==filters.system)return;
+      if(filters.namespace&&d.namespace!==filters.namespace)return;
+      if(filters.domain&&(d.domain||'')!==filters.domain)return;
+      if(filters.owner&&!(d.owners||[]).some(function(o){return o.name===filters.owner;}))return;
+      allow['d:'+k]=1;
+    });
+    if(showCtl.jobs)Object.keys(model.jobs).forEach(function(k){
+      var j=model.jobs[k];
+      if(!anyAttr){allow['j:'+k]=1;return;}
+      var touches=Object.keys(j.inputs).some(function(ik){return allow['d:'+ik];})||Object.keys(j.outputs).some(function(ok){return allow['d:'+ok];});
+      if(touches)allow['j:'+k]=1;
+    });
+    return allow;
+  },[model,filters,showCtl]);
+
+  // Focus mode and filters both narrow the graph — intersect when both are active.
+  var onlySet=useMemo(function(){
+    if(focusOnly&&filterOnly){var o={};Object.keys(focusOnly).forEach(function(id){if(filterOnly[id])o[id]=1;});return o;}
+    return focusOnly||filterOnly||null;
+  },[focusOnly,filterOnly]);
+
   // Not-yet-revealed neighbors of a node (drives the "+N" frontier badge). N is
   // capped in the label at the batch size to signal a partial reveal.
   function frontierCount(id){return Math.max(0,(adjacency[id]||[]).length-revealedFor(id));}
@@ -1516,51 +1640,65 @@ function App(){
 
   // Base layout (internal barycenter placement) — always available; also supplies
   // node sizes + edges that ELK positions.
-  var layoutOpts=function(pos){return{direction:dir,expanded:expanded,hiddenNs:hiddenNs,colGap:gap,rowGap:Math.max(12,Math.round(gap*0.29)),manual:manualRef.current,colFilter:colFilter,fullCols:fullCols,groupBy:(focusOnly||groupBy==='none')?null:groupBy,expandedGroups:expGroups,only:focusOnly,positions:pos||null};};
+  // `manual` overlay is applied only in the final layout (below), so the base + ELK
+  // inputs stay purely structural and don't re-run on drag/selection.
+  var layoutOpts=function(pos,manual){return{direction:dir,expanded:expanded,hiddenNs:hiddenNs,colGap:gap,rowGap:Math.max(12,Math.round(gap*0.29)),manual:manual||null,colFilter:colFilter,fullCols:fullCols,groupBy:(focusOnly||groupBy==='none')?null:groupBy,expandedGroups:expGroups,only:onlySet,positions:pos||null};};
   var layoutBase=useMemo(function(){
     if(!model)return null;
-    return E.computeLayout(model,layoutOpts(null));
-  },[model,dir,expanded,hiddenNs,gap,manualV,colFilter,fullCols,groupBy,expGroups,focusOnly]);
+    return E.computeLayout(model,layoutOpts(null,null));
+  },[model,dir,expanded,hiddenNs,gap,colFilter,fullCols,groupBy,expGroups,focusOnly,onlySet]);
 
-  // Signature of the node set (ids + sizes + direction) — ELK re-runs only when
-  // this changes (drilling, expanding columns, focus hops, spacing, direction).
+  // Stable structural signature — sorted ids + rounded dims + dir + gap. Selection,
+  // drag and search never change it, so ELK isn't re-triggered by non-structural state.
   var elkSig=useMemo(function(){
     if(!layoutBase)return null;
-    return dir+'|'+gap+'|'+layoutBase.nodes.map(function(n){return n.id+':'+n.w+'x'+n.h;}).join(',');
+    var parts=layoutBase.nodes.map(function(n){return n.id+':'+Math.round(n.w)+'x'+Math.round(n.h);});
+    parts.sort();
+    return dir+'|'+gap+'|'+parts.length+'|'+parts.join(',');
   },[layoutBase,dir,gap]);
 
-  // Run ELK layered layout off the base graph whenever the node set changes.
+  // Run ELK layered layout off the base graph. Debounced so a burst of structural
+  // changes collapses into one run. In Manual mode it runs only when an explicit
+  // re-layout is requested (relayoutNonce bumped), otherwise the layout stays frozen.
+  var lastNonceRef=useRef(0);
   useEffect(function(){
     if(!elkOn||!layoutBase||typeof ELK==='undefined'||!layoutBase.nodes.length){return;}
+    if(layoutMode==='manual'&&relayoutNonce===lastNonceRef.current){return;}
+    lastNonceRef.current=relayoutNonce;
     var sig=elkSig,cancelled=false;
-    setElkBusy(true);
-    var elk=new ELK();
-    var spNode=Math.max(18,Math.round(gap*0.35)),spLayer=Math.max(50,Math.round(gap*1.1));
-    elk.layout({id:'root',
-      layoutOptions:{'elk.algorithm':'layered','elk.direction':dir==='TB'?'DOWN':'RIGHT',
+    var timer=setTimeout(function(){
+      setElkBusy(true);
+      var elk=new ELK();
+      var spNode=Math.max(18,Math.round(gap*0.35)),spLayer=Math.max(50,Math.round(gap*1.1));
+      var big=layoutBase.nodes.length>1000;// scale ELK for very large graphs
+      var opts={'elk.algorithm':'layered','elk.direction':dir==='TB'?'DOWN':'RIGHT',
         'elk.spacing.nodeNode':String(spNode),'elk.layered.spacing.nodeNodeBetweenLayers':String(spLayer),
-        'elk.layered.crossingMinimization.strategy':'LAYER_SWEEP','elk.layered.nodePlacement.strategy':'BRANDES_KOEPF',
-        'elk.layered.nodePlacement.bk.fixedAlignment':'BALANCED','elk.edgeRouting':'POLYLINE','elk.layered.mergeEdges':'true'},
-      children:layoutBase.nodes.map(function(n){return{id:n.id,width:n.w,height:n.h};}),
-      edges:layoutBase.edges.map(function(e,i){return{id:'e'+i,sources:[e.from],targets:[e.to]};})
-    }).then(function(res){
-      if(cancelled)return;
-      var pos={};(res.children||[]).forEach(function(c){pos[c.id]={x:c.x,y:c.y};});
-      setElkPos({sig:sig,pos:pos});setElkBusy(false);
-    }).catch(function(){if(!cancelled){setElkBusy(false);}});
-    return function(){cancelled=true;};
-  },[elkSig,elkOn]);
+        'elk.layered.crossingMinimization.strategy':'LAYER_SWEEP','elk.edgeRouting':'POLYLINE','elk.layered.mergeEdges':'true'};
+      if(big){opts['elk.layered.nodePlacement.strategy']='SIMPLE';opts['elk.layered.thoroughness']='1';}
+      else{opts['elk.layered.nodePlacement.strategy']='BRANDES_KOEPF';opts['elk.layered.nodePlacement.bk.fixedAlignment']='BALANCED';}
+      elk.layout({id:'root',layoutOptions:opts,
+        children:layoutBase.nodes.map(function(n){return{id:n.id,width:n.w,height:n.h};}),
+        edges:layoutBase.edges.map(function(e,i){return{id:'e'+i,sources:[e.from],targets:[e.to]};})
+      }).then(function(res){
+        if(cancelled)return;
+        var pos={};(res.children||[]).forEach(function(c){pos[c.id]={x:c.x,y:c.y};});
+        setElkPos({sig:sig,pos:pos});setElkBusy(false);
+      }).catch(function(){if(!cancelled){setElkBusy(false);}});// on failure keep the internal placement
+    },200);
+    return function(){cancelled=true;clearTimeout(timer);};
+  },[elkSig,elkOn,layoutMode,relayoutNonce]);
 
-  // Final layout: apply ELK positions when they match the current node set;
-  // otherwise fall back to the internal placement (also used while ELK computes).
+  // Final layout: ELK positions when they match the current node set (else internal
+  // placement), with manual drag positions overlaid so dragged nodes stay put.
   var layout=useMemo(function(){
     if(!model||!layoutBase)return layoutBase;
-    if(elkOn&&elkPos&&elkPos.sig===elkSig)return E.computeLayout(model,layoutOpts(elkPos.pos));
-    return layoutBase;
-  },[layoutBase,elkPos,elkOn,elkSig,model,manualV]);
+    var useElk=elkOn&&elkPos&&elkPos.sig===elkSig;
+    if(!useElk&&!Object.keys(manualPos).length)return layoutBase;
+    return E.computeLayout(model,layoutOpts(useElk?elkPos.pos:null,manualPos));
+  },[layoutBase,elkPos,elkOn,elkSig,model,manualPos]);
 
   function toggleGroup(g){setExpGroups(function(p){var c=Object.assign({},p);if(c[g])delete c[g];else c[g]=1;return c;});}
-  function changeGroupBy(mode){setGroupBy(mode);setExpGroups({});setGrpMenu(false);manualRef.current={};}
+  function changeGroupBy(mode){setGroupBy(mode);setExpGroups({});setGrpMenu(false);}// keep manual drags across grouping changes
   // list of group keys + member counts for the current grouping mode
   function groupList(){
     if(!model||groupBy==='none')return [];
@@ -1590,7 +1728,7 @@ function App(){
   function toggleFull(id){setFullCols(function(p){var c=Object.assign({},p);if(c[id])delete c[id];else c[id]=1;return c;});}
   function setDsFilter(k,v){setColFilter(function(p){var c=Object.assign({},p);if(v)c[k]=v;else delete c[k];return c;});}
 
-  function resetLayout(){manualRef.current={};setManualV(function(v){return v+1;});}
+  function resetLayout(){setManualPos({});persistManual({});setRelayoutNonce(function(v){return v+1;});}// clear drags + force one fresh layered pass
 
   // §5 Impact / root-cause traversal result over the structural graph.
   var impactResult=useMemo(function(){
@@ -1631,28 +1769,21 @@ function App(){
     setColDetail({dataset:dsKey,field:field,type:tf?tf.type:'',sources:srcs});
   }
 
-  // §Extension scalability threshold: above this many nodes, don't render the
-  // whole graph — auto-enter progressive focus mode seeded on the highest-degree
-  // node. The full model stays cached in IndexedDB; only the explored subgraph
-  // (revealed 10 neighbors at a time) is ever in the DOM.
-  var LARGE_GRAPH=40;
+  // Per-model localStorage for manual drag positions (private-mode safe).
+  function manualKey(events){try{return (window.LFStore&&window.LFStore.hashEvents)?('lf.manual.'+window.LFStore.hashEvents(events)):null;}catch(e){return null;}}
+  function loadManual(key){if(!key)return {};try{var s=localStorage.getItem(key);return s?JSON.parse(s):{};}catch(e){return {};}}
+  function persistManual(pos){var key=modelKeyRef.current;if(!key)return;try{if(pos&&Object.keys(pos).length)localStorage.setItem(key,JSON.stringify(pos));else localStorage.removeItem(key);}catch(e){}}
   function loadEvents(events,parseIssues,name,fromCache){
     try{
       var m=E.buildModel(events,parseIssues||[]);
       setEvents(events||[]);
       setModel(m);setSelected(null);setErr(null);setImpact(null);setCtxMenu(null);setColFilter({});setFullCols({});setSelCols({});setSelectedCol(null);setExpGroups({});
-      manualRef.current={};
+      // Restore this model's saved drag positions (keeps large graphs stable across reloads).
+      var mkey=manualKey(events);modelKeyRef.current=mkey;manualRef.current=loadManual(mkey);setManualPos(manualRef.current);
       if(name)setSrcName(name);
-      // Auto-focus large graphs: seed on the busiest node so exploration starts
-      // somewhere meaningful and the DOM never holds the full graph at once.
-      var big=(m.stats.datasets+m.stats.jobs)>LARGE_GRAPH;
-      if(big){
-        var deg={};m.edges.forEach(function(e){deg[e.from]=(deg[e.from]||0)+1;deg[e.to]=(deg[e.to]||0)+1;});
-        var seed=null,best=-1;Object.keys(deg).forEach(function(id){if(deg[id]>best){best=deg[id];seed=id;}});
-        setGroupBy('none');setFocusMode(true);setFocusSeed(seed);setFocusExpanded({});
-      }else{
-        setFocusMode(false);setFocusSeed(null);setFocusExpanded({});
-      }
+      // Large graphs render into the full layered view (no forced focus). Focus mode
+      // stays available as an opt-in control.
+      setFocusMode(false);setFocusSeed(null);setFocusExpanded({});
       if(m.issues.length&&m.stats.datasets===0)setTab('ISSUES');else setTab('DETAILS');
       // §Extension: cache the raw events in IndexedDB (rebuilt on reload). Skip
       // when we just restored from the cache.
@@ -1682,7 +1813,7 @@ function App(){
     var name=(typeof prompt==='function'&&prompt('Name this view:','View '+(savedViews.length+1)))||('View '+(savedViews.length+1));
     var state={srcName:srcName,dir:dir,groupBy:groupBy,gap:gap,viewMode:viewMode,theme:theme,
       hiddenNs:hiddenNs,expGroups:expGroups,focusMode:focusMode,focusSeed:focusSeed,focusExpanded:focusExpanded,
-      selected:selected,manual:manualRef.current};
+      selected:selected,manual:manualRef.current,filters:filters,showCtl:showCtl};
     window.LFStore.putView({name:name,modelName:srcName,state:state}).then(refreshLibrary).catch(function(e){setErr('Save view failed: '+(e.message||e));});
   }
   function applyView(rec){
@@ -1692,8 +1823,10 @@ function App(){
     if(st.viewMode)setViewMode(st.viewMode);
     if(st.theme){setTheme(st.theme);document.documentElement.setAttribute('data-theme',st.theme);}
     setHiddenNs(st.hiddenNs||{});setExpGroups(st.expGroups||{});
+    setFilters(st.filters||{system:'',namespace:'',domain:'',owner:''});
+    setShowCtl(st.showCtl||{datasets:true,jobs:true,xsys:true,collinks:true});
     setFocusMode(!!st.focusMode);setFocusSeed(st.focusSeed||null);setFocusExpanded(st.focusExpanded||{});
-    manualRef.current=st.manual||{};setManualV(function(v){return v+1;});
+    setManualPos(st.manual||{});
     if(st.selected)setSelected(st.selected);
   }
   function deleteView(id){window.LFStore.deleteView(id).then(refreshLibrary);}
@@ -1977,6 +2110,7 @@ function App(){
       var activeColEdges=colChain?colChain.edgeKeys:{};
       var hasActiveCol=Object.keys(activeColEdges).length>0;
       layout.edges.forEach(function(e){
+        if(!showCtl.xsys&&e.crossSystem)return;// Graph controls: cross-system edges off
         var a=anchorOut(box(e.from)),b=anchorIn(box(e.to));
         var inImpact=impEdges&&impEdges[e.from+'>'+e.to];
         var dim=impSet&&!inImpact;
@@ -1999,7 +2133,7 @@ function App(){
         FILTER:{color:'#ff9f43',width:1,dash:'2,3',op:0.7},
         MASKING:{color:cv('--red','#ff5f5f'),width:1.5,dash:'4,3',op:0.9}
       };
-      if(dir==='LR'){
+      if(dir==='LR'&&showCtl.collinks){// Graph controls: column links off -> skip entirely
         layout.colEdges.forEach(function(ce,idx){
           var a=box(ce.from),b=box(ce.to);if(!a||!b)return;
           var pa=fieldAnchor(a,ce.fromField,'out'),pb=fieldAnchor(b,ce.toField,'in');
@@ -2139,7 +2273,7 @@ function App(){
       var drag=d3.drag()
         .on('start',function(ev){ev.sourceEvent.stopPropagation();grp.raise().style('cursor','grabbing');grp.node().__moved=false;})
         .on('drag',function(ev){n.x+=ev.dx;n.y+=ev.dy;grp.attr('transform','translate('+n.x+','+n.y+')');manualRef.current[n.id]={x:n.x,y:n.y};grp.node().__moved=true;drawEdges();})
-        .on('end',function(ev){grp.style('cursor','grab');if(!grp.node().__moved){if(n.kind==='group')toggleGroup(n.key);else{setSelected({kind:n.kind,key:n.key});setPanelOpen(true);setTab('DETAILS');if(focusMode)expandFocus(n.id);}}});
+        .on('end',function(ev){grp.style('cursor','grab');if(!grp.node().__moved){if(n.kind==='group')toggleGroup(n.key);else{setSelected({kind:n.kind,key:n.key});setPanelOpen(true);setTab('DETAILS');if(focusMode)expandFocus(n.id);}}else{var nx=n.x,ny=n.y,nid=n.id;setManualPos(function(p){var c=Object.assign({},p);c[nid]={x:nx,y:ny};return c;});}});
       grp.call(drag);
     });
 
@@ -2251,7 +2385,7 @@ function App(){
     else if(modelChanged||svgRef.current.__major!==major||!svgRef.current.__lastT){fit();}
     else{svg.call(zoom.transform,svgRef.current.__lastT);}// reapply prior transform to rebuilt <g>
     svgRef.current.__major=major;
-  },[layout,selected,dir,theme,selectedCol,impactResult,focusMode,miniOpen,searchIds]);
+  },[layout,selected,dir,theme,selectedCol,impactResult,focusMode,miniOpen,searchIds,showCtl]);
 
   function trunc(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
   function zoomBy(k){if(zoomRef.current&&svgRef.current)d3.select(svgRef.current).transition().duration(150).call(zoomRef.current.scaleBy,k);}
@@ -2306,7 +2440,7 @@ function App(){
   // a job selection looks empty — "Select a dataset…").
   useEffect(function(){
     if(selected&&selected.kind==='dataset'){
-      if(viewMode==='column')setTab('COLUMNS');
+      if(viewMode==='column'&&(tab==='DETAILS'||tab==='COLUMNS'))setTab('COLUMNS');// don't yank the user off ISSUES/JOBS/NAMESPACES
     }else if(selected&&selected.kind==='job'){
       if(tab==='COLUMNS')setTab('DETAILS');
     }
@@ -2314,6 +2448,9 @@ function App(){
     if(selectedCol&&(!selected||selected.kind!=='dataset'||selected.key!==selectedCol.dsKey)){
       setSelectedCol(null);
     }
+    // `tab` is read but deliberately not a dep: this must fire on selection/view
+    // change only. With `tab` in the deps, clicking DETAILS in column view
+    // re-ran the effect and snapped the tab back to COLUMNS.
   },[selected,viewMode]);
 
   // §Extension: search-first seeding. In focus mode, selecting a node (by search
@@ -2538,7 +2675,7 @@ function App(){
       h('div',{className:'empty'},
         h('div',{style:{fontSize:40}},'🔗'),
         h('h2',null,'Visualize OpenLineage'),
-        h('p',null,'Upload an ETL Mapping Specification (.xlsx) lineage template-V2 to validate and generate OpenLineage design-time events, or open a folder of openlineage.json event files. Files may be single events'),
+        h('p',null,''),
         h('div',{className:'row'},
           h('button',{className:'btn',title:'Upload an ETL mapping spreadsheet (.xlsx, template-V2) — validates it and generates OpenLineage design-time events',onClick:openMapping},'Import Mapping Specifications'),
           h('button',{className:'btn',title:'Pick a local folder of OpenLineage .json event files (Chromium browsers)',onClick:openFolder},'Open Folder'),
@@ -2556,19 +2693,81 @@ function App(){
         !railOpen&&h('div',{className:'rail-icons'},
           h('button',{title:'Expand controls',onClick:function(){setRailOpen(true);}},'»'),
           h('div',{className:'ri-sep'}),
-          h('button',{title:'Overview',onClick:function(){setRailOpen(true);}},'▤'),
-          h('button',{title:'Group by',onClick:function(){setRailOpen(true);}},groupBy==='system'?'▧':'▦'),
-          h('button',{title:'Explore / focus',onClick:function(){setRailOpen(true);}},'🎯'),
-          h('button',{title:'Lineage view',onClick:function(){setRailOpen(true);}},'≣'),
-          h('button',{title:'Layout & spacing',onClick:function(){setRailOpen(true);}},'⬗'),
-          h('button',{title:'Legend',onClick:function(){setRailOpen(true);}},'◈'),
+          miniBtn('graph','⚙','Graph controls'),
+          miniBtn('filters','⚑','Filters'+(activeFilters?' ('+activeFilters+' active)':'')),
+          miniBtn('view','⊞','Grouping & lineage view'),
+          miniBtn('layout','⤢','Layout & spacing'),
+          miniBtn('explore','🎯','Explore / focus'),
+          miniBtn('overview','Σ','Overview'),
+          miniBtn('legend','◈','Legend'),
           model.issues.length?h(React.Fragment,null,
             h('div',{className:'ri-sep'}),
             h('button',{className:'ri-issues',title:model.issues.length+' issue'+(model.issues.length===1?'':'s'),onClick:function(){setRailOpen(true);setTab('ISSUES');}},'⚠',h('span',{className:'ri-dot'},model.issues.length))):null),
         // rail
         railOpen&&h('div',{className:'rail'},
-          h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Overview'),
+          // ---- Graph controls: entity + edge visibility ----
+          accSec('graph','⚙','Graph controls',[showCtl.datasets,showCtl.jobs,showCtl.xsys,showCtl.collinks].filter(Boolean).length+'/4',
+            h(React.Fragment,null,
+              chkRow('Datasets',showCtl.datasets,'datasets'),
+              chkRow('Jobs',showCtl.jobs,'jobs'),
+              chkRow('Cross-system edges',showCtl.xsys,'xsys'),
+              chkRow('Column links',showCtl.collinks,'collinks'))),
+          // ---- Filters: attribute narrowing (all model-backed) ----
+          accSec('filters','⚑','Filters',activeFilters?(activeFilters+' active'):null,
+            h(React.Fragment,null,
+              fSel('System','system',model.systems||[]),
+              fSel('Namespace','namespace',model.namespaces||[]),
+              fSel('Business domain','domain',domainOpts),
+              fSel('Owner','owner',ownerOpts),
+              activeFilters?h('button',{className:'btn',style:{marginTop:9,width:'100%',justifyContent:'center'},onClick:function(){setFilters({system:'',namespace:'',domain:'',owner:''});}},'✕ Clear filters'):null,
+              (window.LFStore&&window.LFStore.available)?h('button',{className:'savebtn',onClick:saveView,title:'Save the current filters, grouping and layout as a named view'},'+ Save filter view'):null)),
+          // ---- View & grouping ----
+          accSec('view','⊞','Grouping',(groupBy==='none'?'Flat':groupBy)+' · '+(viewMode==='column'?'Col':'Table'),
+            h(React.Fragment,null,
+              h('div',{className:'fld'},h('label',null,'Group by'),
+                h('div',{className:'toggle four'},
+                  h('span',{className:groupBy==='none'?'on':'',onClick:function(){changeGroupBy('none');}},'None'),
+                  h('span',{className:groupBy==='namespace'?'on':'',onClick:function(){changeGroupBy('namespace');}},'Namespace'),
+                  h('span',{className:groupBy==='system'?'on':'',onClick:function(){changeGroupBy('system');}},'System'),
+                  h('span',{className:groupBy==='domain'?'on':'',onClick:function(){changeGroupBy('domain');}},'Domain'))),
+              h('div',{className:'fld'},h('label',null,'Lineage view'),
+                h('div',{className:'toggle'},
+                  h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
+                  h('span',{className:viewMode==='column'?'on':'',onClick:function(){setViewMode('column');}},'Column'))),
+              h('div',{className:'muted',style:{marginTop:8}},groupBy==='none'?'Flat table-level graph':'Click a group to drill down to tables'))),
+          // ---- Layout & spacing ----
+          accSec('layout','⤢','Layout',((typeof ELK!=='undefined'&&elkOn)?'Layered':'Compact')+' · '+(layoutMode==='manual'?'Manual':'Auto'),
+            h(React.Fragment,null,
+              typeof ELK!=='undefined'?h(React.Fragment,null,
+                h('div',{className:'fld'},h('label',null,'Algorithm'),
+                  h('div',{className:'toggle'},
+                    h('span',{className:elkOn?'on':'',onClick:function(){setElkOn(true);}},'Layered'),
+                    h('span',{className:!elkOn?'on':'',onClick:function(){setElkOn(false);}},'Compact')),
+                  h('div',{className:'muted',style:{marginTop:6}},elkBusy?'⏳ Computing layout…':(elkOn?'Overlap-free, straightened layering — best for large graphs':'Fast internal placement'))),
+                h('div',{className:'fld'},h('label',null,'Mode'),
+                  h('div',{className:'toggle'},
+                    h('span',{className:layoutMode==='auto'?'on':'',onClick:function(){setLayoutMode('auto');}},'Auto'),
+                    h('span',{className:layoutMode==='manual'?'on':'',onClick:function(){setLayoutMode('manual');}},'🔒 Manual')),
+                  layoutMode==='manual'?h('button',{className:'btn',style:{marginTop:8,width:'100%',justifyContent:'center'},onClick:function(){setRelayoutNonce(function(v){return v+1;});}},'↻ Re-run layered layout'):null,
+                  h('div',{className:'muted',style:{marginTop:6}},layoutMode==='manual'?'Positions frozen — only your drags move nodes':'Auto-layers on structural changes'))):null,
+              h('div',{className:'fld'},h('label',null,'Node spacing'),
+                h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                  h('input',{type:'range',min:50,max:320,step:10,value:gap,onChange:function(e){setGap(parseInt(e.target.value,10));},style:{flex:1}}),
+                  h('span',{style:{fontSize:10,color:'var(--t1)',minWidth:32,textAlign:'right'}},gap+'px'))),
+              h('button',{className:'btn',style:{marginTop:9,width:'100%',justifyContent:'center'},onClick:resetLayout},'↺ Reset arrangement'),
+              h('div',{className:'muted',style:{marginTop:6}},'Drag any node to reposition it'))),
+          // ---- Explore (focus) ----
+          accSec('explore','🎯','Explore',focusMode?'On':'Off',
+            h(React.Fragment,null,
+              h('div',{className:'toggle'},
+                h('span',{className:!focusMode?'on':'',onClick:function(){if(focusMode)toggleFocusMode();}},'Off'),
+                h('span',{className:focusMode?'on':'',onClick:function(){if(!focusMode)toggleFocusMode();}},'Focus mode')),
+              focusMode?h('div',{style:{marginTop:8}},
+                h('button',{className:'btn',style:{width:'100%',justifyContent:'center'},onClick:function(){if(model)Object.keys(layout?layout.nodeMap:{}).forEach(function(id){expandFocus(id);});}},'Expand all visible +1 hop'),
+                h('button',{className:'btn',style:{width:'100%',justifyContent:'center',marginTop:6},onClick:resetFocus},'↺ Reset to seed')):null,
+              h('div',{className:'muted',style:{marginTop:6}},focusMode?(focusSeed?'Click a node (or its +N badge) to reveal the next hop — 10 neighbors at a time':'Search or click a node to seed exploration'):'Render only an explored subgraph — best for very large graphs'))),
+          // ---- Overview (reference) ----
+          accSec('overview','Σ','Overview',model.stats.datasets+' · '+model.stats.jobs,
             h('div',{className:'ov-list'},
               [['Datasets',model.stats.datasets,'var(--blue)',null,'🗄'],
                ['Jobs',model.stats.jobs,'var(--purple)','JOBS','⚙'],
@@ -2582,55 +2781,21 @@ function App(){
                   h('div',{className:'ov-ico',style:{background:'color-mix(in srgb, '+s[2]+' 15%, transparent)',color:s[2]}},s[4]),
                   h('div',{className:'ov-label'},s[0]),
                   h('div',{className:'ov-count',style:alert?{color:'var(--red)'}:null},s[1]));}))),
-          h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Group by'),
-            h('div',{className:'toggle'},
-              h('span',{className:groupBy==='none'?'on':'',onClick:function(){changeGroupBy('none');}},'None'),
-              h('span',{className:groupBy==='namespace'?'on':'',onClick:function(){changeGroupBy('namespace');}},'Namespace'),
-              h('span',{className:groupBy==='system'?'on':'',onClick:function(){changeGroupBy('system');}},'System')),
-            h('div',{className:'muted',style:{marginTop:6}},groupBy==='none'?'Flat table-level graph':'Click a group to drill down to tables')),
-          h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Explore (focus)'),
-            h('div',{className:'toggle'},
-              h('span',{className:!focusMode?'on':'',onClick:function(){if(focusMode)toggleFocusMode();}},'Off'),
-              h('span',{className:focusMode?'on':'',onClick:function(){if(!focusMode)toggleFocusMode();}},'Focus mode')),
-            focusMode?h('div',{style:{marginTop:8}},
-              h('button',{className:'btn',style:{width:'100%',justifyContent:'center'},onClick:function(){if(model)Object.keys(layout?layout.nodeMap:{}).forEach(function(id){expandFocus(id);});}},'Expand all visible +1 hop'),
-              h('button',{className:'btn',style:{width:'100%',justifyContent:'center',marginTop:6},onClick:resetFocus},'↺ Reset to seed')):null,
-            h('div',{className:'muted',style:{marginTop:6}},focusMode?(focusSeed?'Click a node (or its +N badge) to reveal the next hop — 10 neighbors at a time':'Search or click a node to seed exploration'):'Render only an explored subgraph — auto-on for large models')),
-            h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Lineage View'),
-            h('div',{className:'toggle'},
-              h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
-              h('span',{className:viewMode==='column'?'on':'',onClick:function(){setViewMode('column');}},'Column')),
-            h('div',{className:'muted',style:{marginTop:6}},viewMode==='column'?'Select a dataset to expand columns':'Dataset & job level only')),
-          typeof ELK!=='undefined'?h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Layout'),
-            h('div',{className:'toggle'},
-              h('span',{className:elkOn?'on':'',onClick:function(){setElkOn(true);}},'Layered'),
-              h('span',{className:!elkOn?'on':'',onClick:function(){setElkOn(false);}},'Compact')),
-            h('div',{className:'muted',style:{marginTop:6}},elkBusy?'⏳ Computing layout…':(elkOn?'Overlap-free, straightened layering — best for large graphs':'Fast internal placement'))):null,
-          h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Node spacing'),
-            h('div',{style:{display:'flex',alignItems:'center',gap:8}},
-              h('input',{type:'range',min:50,max:320,step:10,value:gap,onChange:function(e){setGap(parseInt(e.target.value,10));},style:{flex:1}}),
-              h('span',{style:{fontSize:10,color:'var(--t1)',minWidth:32,textAlign:'right'}},gap+'px')),
-            h('button',{className:'btn',style:{marginTop:8,width:'100%',justifyContent:'center'},onClick:resetLayout},'↺ Reset arrangement'),
-            h('div',{className:'muted',style:{marginTop:6}},'Drag any node to reposition it')),
-          h('div',{className:'rail-sec'},
-            h('div',{className:'rail-title'},'Legend'),
-            h('div',{className:'legend-row'},h('span',{className:'sw',style:{border:'1px solid var(--blue)',background:'transparent'}}),'Dataset'),
-            h('div',{className:'legend-row'},h('span',{className:'hex-glyph'}),'Job (transform)'),
-            h('div',{className:'legend-row'},h('span',{style:{width:18,borderTop:'2px dashed var(--cyan)'}}),'Cross-system edge'),
-            h('div',{className:'legend-row'},h('span',{style:{width:18,borderTop:'2px solid var(--green)'}}),'Impact (downstream)'),
-            h('div',{className:'legend-row'},h('span',{style:{width:18,borderTop:'2px solid var(--blue)'}}),'Root cause (upstream)'),
-            h('div',{className:'rail-title',style:{marginTop:12}},'Column transforms'),
-            h('div',{className:'txlegend'},
-              h('span',{className:'ln',style:{borderTop:'1px solid var(--t3)'}}),h('span',null,'Identity'),
-              h('span',{className:'ln',style:{borderTop:'2px solid var(--orange)'}}),h('span',null,'Transform'),
-              h('span',{className:'ln',style:{borderTop:'3px solid var(--orange)'}}),h('span',null,'Aggregation'),
-              h('span',{className:'ln',style:{borderTop:'1px dashed var(--orange)'}}),h('span',null,'Filter'),
-              h('span',{className:'ln',style:{borderTop:'2px dashed var(--red)'}}),h('span',null,'Masking')))
+          // ---- Legend (reference) ----
+          accSec('legend','◈','Legend',null,
+            h(React.Fragment,null,
+              h('div',{className:'legend-row'},h('span',{className:'sw',style:{border:'1px solid var(--blue)',background:'transparent'}}),'Dataset'),
+              h('div',{className:'legend-row'},h('span',{className:'hex-glyph'}),'Job (transform)'),
+              h('div',{className:'legend-row'},h('span',{style:{width:18,borderTop:'2px dashed var(--cyan)'}}),'Cross-system edge'),
+              h('div',{className:'legend-row'},h('span',{style:{width:18,borderTop:'2px solid var(--green)'}}),'Impact (downstream)'),
+              h('div',{className:'legend-row'},h('span',{style:{width:18,borderTop:'2px solid var(--blue)'}}),'Root cause (upstream)'),
+              h('div',{className:'rail-title',style:{marginTop:12}},'Column transforms'),
+              h('div',{className:'txlegend'},
+                h('span',{className:'ln',style:{borderTop:'1px solid var(--t3)'}}),h('span',null,'Identity'),
+                h('span',{className:'ln',style:{borderTop:'2px solid var(--orange)'}}),h('span',null,'Transform'),
+                h('span',{className:'ln',style:{borderTop:'3px solid var(--orange)'}}),h('span',null,'Aggregation'),
+                h('span',{className:'ln',style:{borderTop:'1px dashed var(--orange)'}}),h('span',null,'Filter'),
+                h('span',{className:'ln',style:{borderTop:'2px dashed var(--red)'}}),h('span',null,'Masking'))))
         ),
         // canvas
         h('div',{className:'canvas-wrap'},
@@ -2760,7 +2925,7 @@ function App(){
       h('div',{className:'sb-right'},
         h('div',{className:'sb-item'},groupBy==='none'?'Flat graph':('Grouped · '+groupBy)),
         h('div',{className:'sb-sep'}),
-        h('div',{className:'sb-item'},(typeof ELK!=='undefined'&&elkOn)?'Layered layout':'Compact layout'))),
+        h('div',{className:'sb-item'},(layoutMode==='manual'?'🔒 Manual · ':'')+((typeof ELK!=='undefined'&&elkOn)?'Layered layout':'Compact layout')))),
     modal&&h('div',{className:'modal-bg',onClick:function(){setModal(null);}},
       h('div',{className:'modal',onClick:function(e){e.stopPropagation();}},
         h('div',{className:'modal-head'},h('span',null,modal.title),h('button',{onClick:function(){setModal(null);}},'×')),
@@ -2873,7 +3038,7 @@ function App(){
             ['Overview','Live counts (datasets, jobs, namespaces, systems, edges, column links, issues). Click a stat to jump to its tab.'],
             ['Lineage view','Table = dataset/job level only. Column = expand datasets to show column lineage.'],
             ['Group by','None (flat), Namespace, or System. Grouped nodes collapse; click to drill down.'],
-            ['Explore (focus)','Progressive exploration for large graphs — render only a seed node and reveal neighbours 10 at a time (auto-on above 40 nodes).'],
+            ['Explore (focus)','Progressive exploration for large graphs — render only a seed node and reveal neighbours 10 at a time (opt-in; best for very large graphs).'],
             ['Node spacing','Slider to spread nodes; Reset arrangement clears manual drags.'],
             ['Legend','Node/edge and column-transformation styling reference.']]),
           sec('4 · Canvas & navigation',[
