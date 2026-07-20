@@ -12,7 +12,11 @@
    Semantic red/green kept (not in the brand set) but tuned to the palette. */
 /* Indigo SaaS palette. :root = dark theme; [data-theme="light"] = light (default).
    Topbar + status bar keep a fixed dark-navy chrome in both themes (per design). */
-:root{--bg0:#0e1220;--bg1:#161b2b;--bg2:#1e2434;--bg3:#272e42;--bg4:#313a52;--hover:#3a4460;--border:#2b3246;--border2:#222839;--t0:#eef1f8;--t1:#c2c8d8;--t2:#9299ad;--t3:#6b7286;--acc:#818cf8;--acc2:#a5b4fc;--accbg:rgba(129,140,248,0.16);--blue:#60a5fa;--purple:#a78bfa;--orange:#fbbf24;--red:#f87171;--cyan:#22d3ee;--pink:#f472b6;--green:#34d399;--node-bg:#171d2e;--modal-overlay:rgba(6,9,18,0.66);--edge-color:#3b425a;--canvas-dot:#232a3d;--topbar-bg:#2e1a47;--topbar-fg:#f1eef8;--topbar-border:#43305f;--topbar-hl:#b0e0e2;--shadow-sm:0 1px 2px rgba(0,0,0,0.3);--shadow-md:0 10px 30px rgba(0,0,0,0.4)}
+/* Dark theme — neutral slate rather than blue-navy, with a measured elevation
+   ramp (bg0 canvas -> bg4 highest) and restrained chroma. Every text pair
+   clears WCAG AA on the surface it actually sits on; --t3 in particular is
+   set from the darkest surface it appears on (--bg2 inputs), not the panel. */
+:root{--bg0:#0d1017;--bg1:#141821;--bg2:#1b202b;--bg3:#242a37;--bg4:#2e3542;--hover:#38404f;--border:#343c4d;--border2:#20262f;--t0:#e9edf5;--t1:#c3cad8;--t2:#99a2b3;--t3:#7e8798;--acc:#8590e8;--acc2:#a7b0f0;--accbg:rgba(133,144,232,0.15);--blue:#5f9df2;--purple:#a08cf0;--orange:#e8ab3f;--red:#ef7076;--cyan:#3cc2d8;--pink:#e87bae;--green:#3fbf94;--node-bg:#161b25;--modal-overlay:rgba(4,6,10,0.72);--edge-color:#39424f;--canvas-dot:#1c222d;--topbar-bg:#2e1a47;--topbar-fg:#f1eef8;--topbar-border:#43305f;--topbar-hl:#b0e0e2;--shadow-sm:0 1px 2px rgba(0,0,0,0.4);--shadow-md:0 16px 40px rgba(0,0,0,0.55)}
 [data-theme="light"]{--bg0:#f6f8fb;--bg1:#ffffff;--bg2:#f1f3f8;--bg3:#e6e9f1;--bg4:#dbe0ea;--hover:#e2e6ef;--border:#e4e7ee;--border2:#eef1f6;--t0:#1f2430;--t1:#4b5162;--t2:#6b7280;--t3:#9aa1ae;--acc:#2E1A47;--acc2:#4338ca;--accbg:rgba(79,70,229,0.1);--blue:#3b82f6;--purple:#8b5cf6;--orange:#f59e0b;--red:#ef4444;--cyan:#06b6d4;--pink:#ec4899;--green:#10b981;--node-bg:#ffffff;--modal-overlay:rgba(17,24,39,0.28);--edge-color:#c7cdd8;--canvas-dot:#e7eaf0;--topbar-bg:#2e1a47;--topbar-fg:#f1eef8;--topbar-border:#43305f;--topbar-hl:#b0e0e2;--shadow-sm:0 1px 2px rgba(16,24,40,0.06);--shadow-md:0 10px 30px rgba(16,24,40,0.10)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol','Noto Color Emoji';background:var(--bg0);color:var(--t0);height:100vh;height:100dvh;overflow:hidden;transition:background 0.25s,color 0.25s}
@@ -175,6 +179,9 @@ select.finput{cursor:pointer}
 .statusbar .sb-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
 .statusbar .sb-sep{width:1px;height:16px;background:rgba(255,255,255,0.12);flex-shrink:0}
 .statusbar .sb-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+.statusbar .sb-trust{color:rgba(255,255,255,0.72);cursor:help;border-bottom:1px dotted rgba(255,255,255,0.35)}
+.statusbar .sb-trust:hover,.statusbar .sb-trust:focus-visible{color:#fff}
+.statusbar .sb-trust:focus-visible{outline:2px solid var(--topbar-hl);outline-offset:2px}
 .canvas-wrap{flex:1;position:relative;min-width:0;background:var(--bg0);background-image:radial-gradient(var(--canvas-dot) 1px,transparent 1px);background-size:20px 20px;transition:background-color 0.25s}
 .canvas-wrap svg{width:100%;height:100%;display:block}
 .col-modal-bg{position:fixed;inset:0;background:var(--modal-overlay);display:flex;align-items:center;justify-content:center;z-index:50;animation:colModalFadeIn 0.18s ease}
@@ -223,6 +230,29 @@ select.finput{cursor:pointer}
 .empty h2{font-size:16px;color:var(--t0);font-weight:600}
 .empty p{font-size:12px;color:var(--t2);max-width:420px;line-height:1.6}
 .empty .row{display:flex;gap:10px}
+/* "Start here" — the two primary journeys (author new lineage vs open existing).
+   Cards on the empty state, and a permanent segmented control in the top bar so
+   the same choice stays reachable once a model is loaded. */
+.start-cards{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.start-card{width:300px;background:var(--bg1);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:left;display:flex;flex-direction:column;gap:8px;transition:border-color 0.15s,box-shadow 0.15s}
+.start-card:hover{border-color:var(--acc);box-shadow:var(--shadow-sm)}
+.start-card .sc-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--accbg);color:var(--acc)}
+.start-card h3{font-size:13px;color:var(--t0);font-weight:600}
+.start-card .sc-desc{font-size:11px;color:var(--t2);line-height:1.55;min-height:34px}
+.start-card .sc-acts{display:flex;flex-direction:column;gap:6px;margin-top:2px}
+.start-card .btn{width:100%;justify-content:center}
+/* Selector note: each trigger sits in its own positioning wrapper (its dropdown
+   anchors to it), so these must be `>div>button`. A plain descendant selector
+   would also capture the menu items inside .ctxmenu. */
+.start-seg{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:8px;padding:2px}
+.start-seg>div{position:relative;display:flex}
+.start-seg>div>button{display:flex;align-items:center;gap:5px;padding:6px 11px;border:0;border-radius:6px;background:transparent;color:var(--topbar-fg);font-family:inherit;font-size:11px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background 0.18s,color 0.18s,box-shadow 0.18s}
+/* Hover and open reuse the logo ramp (cyan #93ecf1 → blue #49a6e2 → violet
+   #6d28d9) — the app's only gradient — so the chrome stays one family. */
+.start-seg>div>button:hover{background:linear-gradient(135deg,rgba(147,236,241,0.24),rgba(73,166,226,0.22) 55%,rgba(109,40,217,0.20));color:var(--topbar-hl)}
+.start-seg>div>button.on{background:linear-gradient(135deg,#93ecf1,#49a6e2 60%,#6d28d9);color:#0f1b2e;font-weight:600;box-shadow:0 1px 8px rgba(73,166,226,0.34)}
+.start-seg>div>button.on:hover{color:#0f1b2e}
+.start-seg>div>button:focus-visible{outline:2px solid var(--topbar-hl);outline-offset:2px}
 .muted{color:var(--t3);font-size:10px}
 .node-label{fill:var(--t0);font-size:11px;font-family:inherit}
 .node-sub{fill:var(--t3);font-size:9px;font-family:inherit}
@@ -286,6 +316,7 @@ select.finput{cursor:pointer}
 .sheet-chip.on{border-color:var(--acc);color:var(--acc);background:var(--accbg)}
 .dropzone{border:1.5px dashed var(--border);border-radius:10px;padding:30px;text-align:center;color:var(--t2);cursor:pointer;transition:border-color 0.2s,color 0.2s}
 .dropzone:hover{border-color:var(--acc);color:var(--acc)}
+.dropzone.over{border-color:var(--acc);color:var(--acc);background:var(--accbg)}
 .lib-drawer{position:absolute;top:0;right:0;bottom:0;width:320px;max-width:90vw;background:var(--bg1);border-left:1px solid var(--border);z-index:45;display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(0,0,0,0.25);animation:libIn 0.18s ease}
 @keyframes libIn{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
 .lib-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--t0)}
@@ -315,7 +346,10 @@ select.finput{cursor:pointer}
 /* LINEAGE_ENGINE_START — pure logic, no DOM/React/D3. Testable in Node. */
 (
   function(){
-  var NS_COLORS=['#4d9fff','#22c55e','#ff9f43','#a78bfa','#22d3ee','#ec4899','#f0f0f2','#00ff9d','#ff5f5f'];
+  // Namespace identity colours. One palette serves both themes, so each hue is
+  // mid-tone: >=4.2 contrast on the dark canvas AND on the light one. The
+  // previous set was tuned for dark only and fell to ~1.1 on light.
+  var NS_COLORS=['#3c79be','#2e8473','#9d6f2a','#8e65c3','#34819d','#bc5287','#697a91','#378644','#c25847'];
   var JOB_COLOR='#a78bfa';
 
   // §3 Graph data model — derive the storage/compute System (platform) a dataset
@@ -403,7 +437,12 @@ select.finput{cursor:pointer}
       var t=eventTimeMs(ev);
       if(ev.run&&ev.run.runId)job.runs.push({runId:ev.run.runId,eventType:ev.eventType||'',eventTime:ev.eventTime||''});
       if(t>=job.latestTime){job.latestTime=t;job.latestEventType=ev.eventType||job.latestEventType;}
-      if(ev.job.facets){job.facets=ev.job.facets;if(ev.job.facets.sourceCode)job.sourceCode=ev.job.facets.sourceCode;}
+      if(ev.job.facets){
+        job.facets=ev.job.facets;
+        if(ev.job.facets.sourceCode)job.sourceCode=ev.job.facets.sourceCode;
+        var jAppF=ev.job.facets.application||ev.job.facets.domain;
+        if(jAppF&&jAppF.name)job.domain=String(jAppF.name);
+      }
 
       (ev.inputs||[]).forEach(function(d){
         if(!d)return;var ds=ensureDs(d);var k=ds.key;
@@ -433,7 +472,9 @@ select.finput{cursor:pointer}
       if(Array.isArray(facets.tags))facets.tags.forEach(function(t){tg.push(typeof t==='string'?t:(t.key?t.key+(t.value?'='+t.value:''):(t.name||'')));});
       else if(facets.tags&&Array.isArray(facets.tags.tags))facets.tags.tags.forEach(function(t){tg.push(t.key?t.key+(t.value?'='+t.value:''):(t.name||t.value||''));});
       if(tg.length)ds.tags=tg.filter(Boolean);
-      if(facets.domain&&facets.domain.name)ds.domain=String(facets.domain.name);// business domain -> group-by dimension
+      // Owning application -> group-by dimension. `domain` is the legacy facet name.
+      var appF=facets.application||facets.domain;
+      if(appF&&appF.name)ds.domain=String(appF.name);
       Object.keys(facets).forEach(function(fk){if(fk[0]!=='_')ds.facets[fk]=facets[fk];});
     }
     function extractColumnEdges(ds,facets,out){
@@ -853,6 +894,10 @@ select.finput{cursor:pointer}
   var SCHEMA_FACET='https://openlineage.io/spec/facets/1-1-1/SchemaDatasetFacet.json';
   var CL_FACET='https://openlineage.io/spec/facets/1-2-0/ColumnLineageDatasetFacet.json';
   var DSTYPE_FACET='https://openlineage.io/spec/facets/1-0-0/DatasetTypeDatasetFacet.json';
+  // Custom (non-spec) facet carrying the owning application. OpenLineage allows
+  // extra facets as long as they declare _producer and _schemaURL, so consumers
+  // that do not know it can ignore it safely.
+  var APP_FACET='https://github.com/lineageflow/spec/facets/1-0-0/ApplicationFacet.json';
 
   function normKey(s){return (s==null?'':String(s)).toLowerCase().replace(/[^a-z0-9]/g,'');}
   function mkAlias(fields){var a={};fields.forEach(function(f){a[normKey(f.label)]=f;f.aliases.forEach(function(al){a[al]=f;});});return a;}
@@ -873,8 +918,8 @@ select.finput{cursor:pointer}
     {key:'dataType',label:'Data Type',req:true,val:'warn',aliases:['datatype','type','columntype','targetdatatype']},
     {key:'nullable',label:'Nullable',req:true,val:'none',aliases:['nullable','isnullable','null','nullability']},
     {key:'mappingType',label:'Mapping Type',req:true,val:'none',aliases:['mappingtype','maptype','mappingcategory']},
-    {key:'sourceDomain',label:'Source Domain',req:false,val:'none',aliases:['sourcedomain','srcdomain','sourcebusinessdomain']},
-    {key:'targetDomain',label:'Target Domain',req:false,val:'none',aliases:['targetdomain','tgtdomain','targetbusinessdomain','domain','businessdomain']}
+    {key:'sourceDomain',label:'Source Application',req:false,val:'none',aliases:['sourceapplication','srcapplication','sourceapp','srcapp','sourcedomain','srcdomain','sourcebusinessdomain']},
+    {key:'targetDomain',label:'Target Application',req:false,val:'none',aliases:['targetapplication','tgtapplication','targetapp','tgtapp','application','targetdomain','tgtdomain','targetbusinessdomain','domain','businessdomain']}
   ];
 
   // §3 Template B — process lineage. Technology/host/port datasets, Design vs
@@ -900,12 +945,54 @@ select.finput{cursor:pointer}
     {key:'targetPort',label:'TargetPort',req:false,val:'none',aliases:['targetport','tgtport']},
     {key:'targetDataset',label:'TargetDataset',req:true,val:'error',aliases:['targetdataset','tgtdataset','targettable','targetentity']},
     {key:'targetField',label:'TargetField',req:true,val:'error',aliases:['targetfield','tgtfield','targetcolumn']},
-    {key:'sourceDomain',label:'SourceDomain',req:false,val:'none',aliases:['sourcedomain','srcdomain','sourcebusinessdomain']},
-    {key:'targetDomain',label:'TargetDomain',req:false,val:'none',aliases:['targetdomain','tgtdomain','domain','businessdomain']}
+    {key:'sourceDomain',label:'SourceApplication',req:false,val:'none',aliases:['sourceapplication','srcapplication','sourceapp','srcapp','sourcedomain','srcdomain','sourcebusinessdomain']},
+    {key:'targetDomain',label:'TargetApplication',req:false,val:'none',aliases:['targetapplication','tgtapplication','targetapp','tgtapp','application','targetdomain','tgtdomain','businessdomain']}
   ];
 
   var DATA_TYPES={};['varchar','varchar2','nvarchar','char','nchar','text','string','clob','int','integer','smallint','tinyint','bigint','decimal','numeric','number','float','double','real','money','bit','boolean','bool','date','datetime','timestamp','time','binary','blob','uuid','json','jsonb','array','struct'].forEach(function(t){DATA_TYPES[t]=1;});
   var MAPPING_TYPES={};['direct','derived','transformation','lookup','aggregation','aggregate','join','expression','constant','union','pivot','scd'].forEach(function(t){MAPPING_TYPES[t]=1;});
+  var LINEAGE_TYPES=['Design','RunTime'],BOOL_VALUES=['TRUE','FALSE'],OBJECT_TYPES=['TABLE','VIEW','FILE','TOPIC','STREAM'];
+
+  // §3b Authoring guide for the downloadable workbook template. `desc` becomes the
+  // Excel data-validation input message shown when the cell is selected, so keep
+  // each under ~200 chars (Excel caps prompts at 255). `list` names a dropdown
+  // defined in the Lists sheet; omit it for free text.
+  var TEMPLATE_DOC={
+    processName:{desc:'ETL job or pipeline that moves the data. Rows sharing a ProcessName become one job, and one folder per job on export.',ex:'load_orders'},
+    lineageId:{desc:'Optional stable id for this mapping, useful when you re-import a revised spec.',ex:'MAP-001'},
+    lineageType:{desc:'Design = planned/documented lineage. RunTime = an execution that really happened (then fill RunId).',ex:'Design',list:'LineageTypes'},
+    runId:{desc:'UUID of the actual run. Only meaningful when LineageType is RunTime; leave blank for Design.',ex:'a3f1c9e2-5b77-4a10-9d21-7c4e8f0b1234'},
+    sourceObjectType:{desc:'What the source object is. Emitted as an OpenLineage datasetType facet.',ex:'TABLE',list:'ObjectTypes'},
+    sourceTech:{desc:'Technology of the source system. Becomes the OpenLineage namespace scheme, e.g. postgres://host:port.',ex:'postgres'},
+    sourceHost:{desc:'Host of the source system. Combined with technology and port to form the namespace.',ex:'db.prod.internal'},
+    sourcePort:{desc:'Port of the source system. Optional — omitted from the namespace when blank.',ex:'5432'},
+    sourceDataset:{desc:'Fully qualified source table, view or file, exactly as it is named in the source system.',ex:'public.orders'},
+    sourceField:{desc:'Source column feeding the target field. One row per source-to-target column pair.',ex:'order_id'},
+    tableTransformationType:{desc:'Table-level shape change applied by this process, e.g. AGGREGATION, JOIN, FILTER.',ex:'AGGREGATION'},
+    tableTransformationLogic:{desc:'Table-level rule in plain text or SQL. Shown on the job node and in the details panel.',ex:'GROUP BY customer_id'},
+    columnTransformationType:{desc:'How this single column is derived. DIRECT copies the value; anything else is treated as derived.',ex:'DIRECT'},
+    columnTransformationLogic:{desc:'Expression that produces the target field. Leave blank for a straight copy.',ex:'CAST(order_id AS BIGINT)'},
+    targetObjectType:{desc:'What the target object is. Emitted as an OpenLineage datasetType facet.',ex:'TABLE',list:'ObjectTypes'},
+    targetTech:{desc:'Technology of the target system. Becomes the OpenLineage namespace scheme.',ex:'snowflake'},
+    targetHost:{desc:'Host or account of the target system.',ex:'acme.eu-west-1'},
+    targetPort:{desc:'Port of the target system. Optional.',ex:'443'},
+    targetDataset:{desc:'Fully qualified target table or view that this process writes.',ex:'analytics.fct_orders'},
+    targetField:{desc:'Target column populated by this row.',ex:'order_key'},
+    sourceSystem:{desc:'Platform or application that owns the source table.',ex:'Oracle ERP'},
+    sourceSchema:{desc:'Database or schema holding the source table.',ex:'SALES'},
+    sourceTable:{desc:'Source table or view name.',ex:'ORDERS'},
+    sourceColumn:{desc:'Source column feeding the target column.',ex:'ORDER_ID'},
+    targetSystem:{desc:'Platform or application that owns the target table.',ex:'Snowflake'},
+    targetSchema:{desc:'Database or schema holding the target table.',ex:'ANALYTICS'},
+    targetTable:{desc:'Target table or view name.',ex:'FCT_ORDERS'},
+    targetColumn:{desc:'Target column populated by this row.',ex:'ORDER_KEY'},
+    transformation:{desc:'How the target value is derived. Leave blank for a straight copy — blank is read as a direct mapping.',ex:'UPPER(TRIM(customer_name))'},
+    dataType:{desc:'Data type of the target column. Pick from the list; unknown types are reported as a warning.',ex:'varchar',list:'DataTypes'},
+    nullable:{desc:'Whether the target column accepts NULL. TRUE/FALSE, Yes/No and 1/0 are all accepted.',ex:'TRUE',list:'Booleans'},
+    mappingType:{desc:'Category of the mapping. Pick from the list; unknown values are reported as a warning.',ex:'direct',list:'MappingTypes'},
+    sourceDomain:{desc:'Application that owns the source, e.g. SAP or Salesforce. Enables Group by > Application in the explorer.',ex:'SAP ECC'},
+    targetDomain:{desc:'Application that owns the target. Enables Group by > Application in the explorer.',ex:'Snowflake EDW'}
+  };
 
   // §7 Transformation categories -> OpenLineage transformation {type,subtype}.
   // Order matters: earlier, more specific patterns win. type is DIRECT (value
@@ -1183,8 +1270,13 @@ select.finput{cursor:pointer}
         facets.documentation={_producer:producer,_schemaURL:DOC_SCHEMA,description:'Target of a lineage mapping specification.'};
       }
       if(d.objectType)facets.datasetType={_producer:producer,_schemaURL:DSTYPE_FACET,datasetType:String(d.objectType).toUpperCase(),subType:''};
-      // Custom facet carrying the business domain, so the UI can group by it.
-      if(d.domain)facets.domain={_producer:producer,name:String(d.domain)};
+      // Owning application — emitted so the grouping survives a round-trip through
+      // OpenLineage. `domain` is retained as a deprecated alias for consumers
+      // written against the previous name.
+      if(d.domain){
+        facets.application={_producer:producer,_schemaURL:APP_FACET,name:String(d.domain)};
+        facets.domain={_producer:producer,_schemaURL:APP_FACET,name:String(d.domain),deprecated:'Use the application facet.'};
+      }
       return{namespace:d.namespace,name:d.name,facets:facets};
     }
     var events=jobOrder.map(function(jk){
@@ -1194,6 +1286,15 @@ select.finput{cursor:pointer}
       var jobFacets={documentation:{_producer:producer,_schemaURL:DOC_SCHEMA,description:(isRun?'Runtime':'Design-time')+' lineage: '+outputs.map(function(o){return o.name;}).join(', ')+' <= '+inputs.map(function(i){return i.name;}).join(', ')}};
       var sqlQuery=(job.tableTx&&job.tableTx.logic)?String(job.tableTx.logic).trim():(job.sqlLike?buildSql(job):null);
       if(sqlQuery)jobFacets.sql={_producer:producer,_schemaURL:SQL_SCHEMA,query:sqlQuery};
+      // A job belongs to the application it writes into. Without this the job
+      // node has no application and falls back to its namespace when grouping.
+      var jobApp='';
+      job.outputOrder.forEach(function(ok){if(!jobApp&&job.outputs[ok].domain)jobApp=job.outputs[ok].domain;});
+      if(!jobApp)job.inputOrder.forEach(function(ik){if(!jobApp&&job.inputs[ik].domain)jobApp=job.inputs[ik].domain;});
+      if(jobApp){
+        jobFacets.application={_producer:producer,_schemaURL:APP_FACET,name:jobApp};
+        jobFacets.domain={_producer:producer,_schemaURL:APP_FACET,name:jobApp,deprecated:'Use the application facet.'};
+      }
       // Runtime rows -> OpenLineage RunEvent (eventType + run). Design-time rows
       // -> static JobEvent (no run, no eventType) so consumers correctly treat it
       // as design-time lineage rather than a completed run.
@@ -1281,7 +1382,9 @@ select.finput{cursor:pointer}
   G.MappingEngine={FIELDS:FIELDS,PROCESS_FIELDS:PROCESS_FIELDS,TEMPLATES:TEMPLATES,validateTemplate:validateTemplate,validateRows:validateRows,
     classifyTransformation:classifyTransformation,classifyColumn:classifyColumn,generateEvents:generateEvents,validateEvents:validateEvents,
     detectCycles:detectCycles,nsFor:nsFor,nameFor:nameFor,techNs:techNs,uuidFrom:uuidFrom,
-    gapsToCSV:gapsToCSV,columnLineageToCSV:columnLineageToCSV,normKey:normKey,PRODUCER:PRODUCER};
+    gapsToCSV:gapsToCSV,columnLineageToCSV:columnLineageToCSV,normKey:normKey,PRODUCER:PRODUCER,
+    TEMPLATE_DOC:TEMPLATE_DOC,DATA_TYPES:DATA_TYPES,MAPPING_TYPES:MAPPING_TYPES,
+    LINEAGE_TYPES:LINEAGE_TYPES,BOOL_VALUES:BOOL_VALUES,OBJECT_TYPES:OBJECT_TYPES};
 })();
 /* MAPPING_ENGINE_END */
 </script>
@@ -1369,6 +1472,113 @@ function rootPrefix(paths){
   return paths.every(function(p){return p.indexOf(pre)===0;})?pre:'';
 }
 
+/* §13 GitLab OAuth — Authorization Code flow with PKCE (RFC 7636).
+   LineageFlow has no server, so it must be a *public* client: no client secret
+   anywhere, PKCE instead. That imposes three hard requirements, all checked by
+   available() below and surfaced in the UI rather than failing at redirect time:
+     1. The page must be served over http(s) — a file:// page cannot be a
+        registered redirect URI, so PAT stays the only option when run from disk.
+     2. A secure context, because PKCE needs crypto.subtle for the S256 challenge.
+     3. An OAuth Application registered on the GitLab instance (Settings ->
+        Applications) with Confidential OFF and this page's URL as the redirect.
+   Tokens live in sessionStorage: they die with the tab, and never touch
+   localStorage where they would outlive the session. Only the (non-secret)
+   Application ID is persisted across sessions. */
+var GLOAuth=(function(){
+  var TOK='lfGitLabToken',PEND='lfGitLabPkce',APP='lfGitLabApp';
+  // GitLab's REST commit API needs `api`; `write_repository` is git-over-HTTP only.
+  var SCOPE_READ='read_api',SCOPE_WRITE='api';
+  function b64url(buf){var by=new Uint8Array(buf),s='';for(var i=0;i<by.length;i++)s+=String.fromCharCode(by[i]);
+    return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+  function rand(n){var a=new Uint8Array(n);crypto.getRandomValues(a);return b64url(a.buffer);}
+  function sha256(v){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)).then(b64url);}
+  function redirectUri(){return location.origin+location.pathname;}
+  function available(){
+    if(location.protocol!=='http:'&&location.protocol!=='https:')return {ok:false,why:'file'};
+    if(!window.isSecureContext||!(window.crypto&&crypto.subtle))return {ok:false,why:'insecure'};
+    return {ok:true};
+  }
+  function readJSON(store,key){try{return JSON.parse(store.getItem(key)||'null');}catch(e){return null;}}
+  function appCfg(){return readJSON(localStorage,APP)||{};}
+  function saveApp(c){try{localStorage.setItem(APP,JSON.stringify(c));}catch(e){}}
+  function stored(){return readJSON(sessionStorage,TOK);}
+  function save(t){try{sessionStorage.setItem(TOK,JSON.stringify(t));}catch(e){}}
+  function clear(){try{sessionStorage.removeItem(TOK);}catch(e){}}
+  // 30s skew guard so a token cannot expire mid-request.
+  function live(t){return !!(t&&t.access_token&&(!t.expires_at||t.expires_at>Date.now()+30000));}
+  function canWrite(t){return !!(t&&String(t.scope||'').split(/\s+/).indexOf(SCOPE_WRITE)>=0);}
+  function begin(host,clientId,scope){
+    var v=rand(48),st=rand(12);
+    return sha256(v).then(function(ch){
+      sessionStorage.setItem(PEND,JSON.stringify({v:v,st:st,host:host,clientId:clientId,scope:scope}));
+      location.href='https://'+host+'/oauth/authorize?client_id='+encodeURIComponent(clientId)+
+        '&redirect_uri='+encodeURIComponent(redirectUri())+'&response_type=code&state='+encodeURIComponent(st)+
+        '&scope='+encodeURIComponent(scope)+'&code_challenge='+ch+'&code_challenge_method=S256';
+    });
+  }
+  function post(host,params){
+    return fetch('https://'+host+'/oauth/token',{method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params).toString()});
+  }
+  // Called once on load. Resolves null when this is not an OAuth redirect.
+  function complete(){
+    var p=new URLSearchParams(location.search),code=p.get('code'),st=p.get('state'),err=p.get('error');
+    if(!code&&!err)return Promise.resolve(null);
+    var pend=readJSON(sessionStorage,PEND);
+    sessionStorage.removeItem(PEND);
+    history.replaceState({},'',redirectUri());// strip code/state from the address bar
+    if(err)return Promise.reject(new Error('GitLab denied the request: '+err+(p.get('error_description')?(' - '+p.get('error_description')):'')));
+    if(!pend)return Promise.reject(new Error('No authorization was pending in this tab. Start the connection again.'));
+    if(!st||st!==pend.st)return Promise.reject(new Error('State mismatch - the response did not match this tab. Nothing was authorized.'));
+    return post(pend.host,{grant_type:'authorization_code',client_id:pend.clientId,code:code,
+      redirect_uri:redirectUri(),code_verifier:pend.v}).then(function(r){
+      return r.text().then(function(txt){
+        if(!r.ok)throw new Error('Token exchange failed ('+r.status+'): '+txt.slice(0,180));
+        var t=JSON.parse(txt);
+        t.host=pend.host;t.clientId=pend.clientId;t.scope=t.scope||pend.scope;
+        if(t.expires_in)t.expires_at=Date.now()+t.expires_in*1000;
+        save(t);return t;
+      });
+    });
+  }
+  function refresh(t){
+    if(!t||!t.refresh_token)return Promise.resolve(null);
+    return post(t.host,{grant_type:'refresh_token',client_id:t.clientId,refresh_token:t.refresh_token})
+      .then(function(r){
+        if(!r.ok){clear();return null;}
+        return r.json().then(function(n){
+          n.host=t.host;n.clientId=t.clientId;n.scope=n.scope||t.scope;
+          if(n.expires_in)n.expires_at=Date.now()+n.expires_in*1000;
+          save(n);return n;
+        });
+      }).catch(function(){return null;});
+  }
+  // Live token for `host`, transparently refreshing an expired one.
+  function token(host){
+    var t=stored();
+    if(!t)return Promise.resolve(null);
+    if(host&&t.host!==host)return Promise.resolve(null);
+    return live(t)?Promise.resolve(t):refresh(t);
+  }
+  function me(t){
+    return fetch('https://'+t.host+'/api/v4/user',{headers:{Authorization:'Bearer '+t.access_token}})
+      .then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+  }
+  function revoke(){
+    var t=stored();clear();
+    if(!t)return Promise.resolve();
+    return post(t.host,{client_id:t.clientId,token:t.access_token}).catch(function(){}).then(function(){});
+  }
+  return {available:available,redirectUri:redirectUri,appCfg:appCfg,saveApp:saveApp,begin:begin,
+    complete:complete,token:token,stored:stored,clear:clear,live:live,canWrite:canWrite,me:me,revoke:revoke,
+    SCOPE_READ:SCOPE_READ,SCOPE_WRITE:SCOPE_WRITE};
+})();
+
+// Gap-report filter facets -> the gap field each one matches on. Module scope
+// deliberately: the helpers below are called from App's return, which runs
+// before any `var` declared later in App's body would be assigned.
+var GAP_KEYS={sev:'severity',sheet:'sheet',rule:'rule',field:'field'};
+
 function App(){
   var s_model=useState(null),model=s_model[0],setModel=s_model[1];
   var s_sel=useState(null),selected=s_sel[0],setSelected=s_sel[1];
@@ -1391,12 +1601,12 @@ function App(){
         h('span',{className:'acc-ico'},ico),
         h('span',{className:'acc-lbl'},label),
         meta?h('span',{className:'acc-meta'},meta):null,
-        h('span',{className:'acc-chev'},'▾')),
+        h('span',{className:'acc-chev','aria-hidden':'true'},'▾')),
       h('div',{className:'acc-body'},body));
   }
   // Collapsed-rail shortcut: expands the rail and opens the matching section.
   function miniBtn(key,ico,title){
-    return h('button',{key:key,title:title,onClick:function(){
+    return h('button',{key:key,title:title,'aria-label':'Open '+title,onClick:function(){
       setRailOpen(true);
       setRailSecs(function(p){var c=Object.assign({},p);c[key]=true;return c;});
     }},ico);
@@ -1432,8 +1642,16 @@ function App(){
   var s_prog=useState(''),progress=s_prog[0],setProgress=s_prog[1];// loading progress text
   var s_repoModal=useState(false),repoModal=s_repoModal[0],setRepoModal=s_repoModal[1];
   var s_repoUrl=useState(''),repoUrl=s_repoUrl[0],setRepoUrl=s_repoUrl[1];
-  var s_repoAuth=useState('none'),repoAuth=s_repoAuth[0],setRepoAuth=s_repoAuth[1];// 'none' | 'pat'
+  var s_repoAuth=useState('oauth'),repoAuth=s_repoAuth[0],setRepoAuth=s_repoAuth[1];// 'none' | 'oauth' | 'pat'
   var s_repoToken=useState(''),repoToken=s_repoToken[0],setRepoToken=s_repoToken[1];
+  // GitLab OAuth session (see GLOAuth). glTok mirrors sessionStorage so React
+  // re-renders on connect/disconnect; glUser is the identity behind the token, so
+  // you can see which account a commit will be authored by.
+  var s_glTok=useState(function(){return GLOAuth.stored();}),glTok=s_glTok[0],setGlTok=s_glTok[1];
+  var s_glUser=useState(null),glUser=s_glUser[0],setGlUser=s_glUser[1];
+  var s_glBusy=useState(false),glBusy=s_glBusy[0],setGlBusy=s_glBusy[1];
+  var s_glAppId=useState(function(){return GLOAuth.appCfg().clientId||'';}),glAppId=s_glAppId[0],setGlAppId=s_glAppId[1];
+  var s_glAppHost=useState(function(){return GLOAuth.appCfg().host||'gitlab.com';}),glAppHost=s_glAppHost[0],setGlAppHost=s_glAppHost[1];
   var s_repoBranch=useState(''),repoBranch=s_repoBranch[0],setRepoBranch=s_repoBranch[1];
   var s_impact=useState(null),impact=s_impact[0],setImpact=s_impact[1];// §5 {mode:'down'|'up',startId}
   var s_tdepth=useState(4),tdepth=s_tdepth[0],setTdepth=s_tdepth[1];// traversal depth cap
@@ -1449,7 +1667,10 @@ function App(){
   var s_mapSheets=useState([]),mapSheets=s_mapSheets[0],setMapSheets=s_mapSheets[1];// [{name,headers,rows,meta}]
   var s_mapSel=useState({}),mapSel=s_mapSel[0],setMapSel=s_mapSel[1];// sheetName -> 1
   var s_mapVal=useState(null),mapVal=s_mapVal[0],setMapVal=s_mapVal[1];// aggregated validation result
+  var s_mapDrag=useState(false),mapDrag=s_mapDrag[0],setMapDrag=s_mapDrag[1];// workbook dragged over the dropzone
   var s_mapGen=useState(null),mapGen=s_mapGen[0],setMapGen=s_mapGen[1];// {events,columnLineageReport,eventIssues}
+  // Gap-report filters. Empty string = no filter on that facet.
+  var s_gapF=useState({sev:'',sheet:'',rule:'',field:''}),gapF=s_gapF[0],setGapF=s_gapF[1];
   var s_mapBusy=useState(false),mapBusy=s_mapBusy[0],setMapBusy=s_mapBusy[1];
   var s_mapProg=useState(''),mapProg=s_mapProg[0],setMapProg=s_mapProg[1];
   var s_mapLogs=useState([]),mapLogs=s_mapLogs[0],setMapLogs=s_mapLogs[1];
@@ -1472,7 +1693,7 @@ function App(){
   var s_elkBusy=useState(false),elkBusy=s_elkBusy[0],setElkBusy=s_elkBusy[1];
   var s_help=useState(false),helpOpen=s_help[0],setHelpOpen=s_help[1];
   var s_events=useState([]),events=s_events[0],setEvents=s_events[1];// raw loaded OpenLineage events (for export)
-  var s_vlMenu=useState(false),vlMenu=s_vlMenu[0],setVlMenu=s_vlMenu[1];// ViewLineage dropdown
+  var s_startMenu=useState(null),startMenu=s_startMenu[0],setStartMenu=s_startMenu[1];// 'create' | 'view' | null — open Start here dropdown
   var s_exOpen=useState(false),exOpen=s_exOpen[0],setExOpen=s_exOpen[1];// Export OL Events modal
   var s_exDest=useState('zip'),exDest=s_exDest[0],setExDest=s_exDest[1];// 'zip' | 'folder' | 'gitlab'
   var s_exBusy=useState(false),exBusy=s_exBusy[0],setExBusy=s_exBusy[1];
@@ -1482,6 +1703,10 @@ function App(){
   var s_exBranch=useState(''),exBranch=s_exBranch[0],setExBranch=s_exBranch[1];
   var s_exPath=useState('openlineage'),exPath=s_exPath[0],setExPath=s_exPath[1];
   var s_exCommit=useState('Add OpenLineage events'),exCommit=s_exCommit[0],setExCommit=s_exCommit[1];
+  var s_exAuth=useState('oauth'),exAuth=s_exAuth[0],setExAuth=s_exAuth[1];// 'oauth' | 'pat' — publish credential
+  // Pre-publication checklist. Pushing to GitLab is the one export that leaves the
+  // browser and is hard to undo, so each item must be ticked before Push enables.
+  var s_exChecks=useState({}),exChecks=s_exChecks[0],setExChecks=s_exChecks[1];
   var folderInputRef=useRef(null);
   var manualRef=useRef({});// synchronous working copy of manualPos for the D3 drag handler
   var modelKeyRef=useRef(null);// localStorage key for this model's manual positions
@@ -1590,7 +1815,7 @@ function App(){
   },[focusMode,focusSeed,focusExpanded,adjacency,model]);
 
   // Filter option lists, derived from the model.
-  var domainOpts=useMemo(function(){if(!model)return [];var s={};Object.keys(model.datasets).forEach(function(k){var d=model.datasets[k].domain;if(d)s[d]=1;});return Object.keys(s).sort();},[model]);
+  var appOpts=useMemo(function(){if(!model)return [];var s={};Object.keys(model.datasets).forEach(function(k){var d=model.datasets[k].domain;if(d)s[d]=1;});return Object.keys(s).sort();},[model]);
   var ownerOpts=useMemo(function(){if(!model)return [];var s={};Object.keys(model.datasets).forEach(function(k){(model.datasets[k].owners||[]).forEach(function(o){if(o.name)s[o.name]=1;});});return Object.keys(s).sort();},[model]);
   var activeFilters=['system','namespace','domain','owner'].filter(function(k){return filters[k];}).length;
 
@@ -1717,13 +1942,17 @@ function App(){
     window.addEventListener('mousedown',close);
     return function(){window.removeEventListener('mousedown',close);};
   },[grpMenu]);
-  // close the ViewLineage dropdown on any outside interaction
+  // Any change to what would be published invalidates the checklist — otherwise a
+  // user could tick every box, then edit the repo/branch/path and push unreviewed.
+  useEffect(function(){setExChecks({});},[exUrl,exBranch,exPath,exToken,exDest,exAuth,glTok]);
+
+  // close the open "Start here" dropdown on any outside interaction
   useEffect(function(){
-    if(!vlMenu)return;
-    var close=function(){setVlMenu(false);};
+    if(!startMenu)return;
+    var close=function(){setStartMenu(null);};
     window.addEventListener('mousedown',close);
     return function(){window.removeEventListener('mousedown',close);};
-  },[vlMenu]);
+  },[startMenu]);
 
   function toggleFull(id){setFullCols(function(p){var c=Object.assign({},p);if(c[id])delete c[id];else c[id]=1;return c;});}
   function setDsFilter(k,v){setColFilter(function(p){var c=Object.assign({},p);if(v)c[k]=v;else delete c[k];return c;});}
@@ -1835,15 +2064,58 @@ function App(){
   function loadDemo(){setLoading(true);setTimeout(function(){loadEvents(E.DEMO_EVENTS.slice(),[],'demo');setLoading(false);},50);}
 
   function b64utf8(b64){var bin=atob((b64||'').replace(/\s/g,''));try{var by=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)by[i]=bin.charCodeAt(i);return new TextDecoder('utf-8').decode(by);}catch(e){return bin;}}
-  function authHeaders(info){
+  // Auth for a repo request. OAuth (GitLab only) sends a Bearer token; a PAT keeps
+  // using PRIVATE-TOKEN, which is the header GitLab documents for personal tokens.
+  // Async because an expired OAuth token is refreshed transparently here.
+  async function authHeaders(info){
     var hdr={};
-    if(info.provider==='github')hdr['Accept']='application/vnd.github.v3+json';
-    if(repoAuth==='pat'&&repoToken){
-      if(info.provider==='github')hdr['Authorization']='Bearer '+repoToken;
-      else hdr['PRIVATE-TOKEN']=repoToken;
+    if(info.provider==='github'){
+      hdr['Accept']='application/vnd.github.v3+json';
+      if(repoAuth==='pat'&&repoToken)hdr['Authorization']='Bearer '+repoToken;
+      return hdr;
     }
+    if(repoAuth==='oauth'){
+      var t=await GLOAuth.token(info.host);
+      if(t){hdr['Authorization']='Bearer '+t.access_token;if(t!==glTok)setGlTok(t);}
+    }else if(repoAuth==='pat'&&repoToken)hdr['PRIVATE-TOKEN']=repoToken;
     return hdr;
   }
+
+  // ---- GitLab OAuth actions ----
+  function glSaveApp(host,clientId){GLOAuth.saveApp({host:host,clientId:clientId});}
+  async function glConnect(scope){
+    var avail=GLOAuth.available();
+    if(!avail.ok){setErr(avail.why==='file'
+      ? 'OAuth needs this page served over http(s) — a file:// page cannot be a registered redirect URI. Serve the file, or use a personal access token.'
+      : 'OAuth needs a secure context (https, or http://localhost). Use a personal access token here.');return;}
+    var host=(glAppHost||'gitlab.com').trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
+    var id=(glAppId||'').trim();
+    if(!id){setErr('Enter the GitLab Application ID first — create one under Settings → Applications with Confidential off.');return;}
+    glSaveApp(host,id);
+    setGlBusy(true);
+    try{await GLOAuth.begin(host,id,scope||GLOAuth.SCOPE_READ);}
+    catch(e){setGlBusy(false);setErr('Could not start GitLab authorization: '+(e.message||e));}
+  }
+  async function glDisconnect(){
+    setGlBusy(true);
+    await GLOAuth.revoke();
+    setGlTok(null);setGlUser(null);setGlBusy(false);
+  }
+  // Finish the redirect leg once on load, then load the identity behind the token.
+  useEffect(function(){
+    var cancelled=false;
+    GLOAuth.complete().then(function(t){
+      if(cancelled||!t)return;
+      setGlTok(t);setRepoAuth('oauth');
+    }).catch(function(e){if(!cancelled)setErr(e.message||String(e));});
+    return function(){cancelled=true;};
+  },[]);
+  useEffect(function(){
+    if(!glTok||!GLOAuth.live(glTok)){setGlUser(null);return;}
+    var cancelled=false;
+    GLOAuth.me(glTok).then(function(u){if(!cancelled)setGlUser(u);});
+    return function(){cancelled=true;};
+  },[glTok]);
   async function ghDefaultBranch(info,hdr){var r=await fetch('https://api.github.com/repos/'+info.owner+'/'+info.repo,{headers:hdr});if(!r.ok)throw new Error('GitHub repo '+r.status+(r.status===404?' (not found / private — add a token?)':r.status===403?' (rate limited — add a token for 5000 req/hr)':''));return (await r.json()).default_branch||'main';}
   async function glDefaultBranch(info,hdr){var r=await fetch('https://'+info.host+'/api/v4/projects/'+encodeURIComponent(info.path),{headers:hdr});if(!r.ok)throw new Error('GitLab project '+r.status+(r.status===404?' (not found / private?)':''));return (await r.json()).default_branch||'main';}
 
@@ -1852,7 +2124,7 @@ function App(){
     if(!info){setErr('Invalid repo URL. Use https://github.com/owner/repo or https://gitlab.example.com/group/repo');return;}
     setRepoModal(false);setLoading(true);setErr(null);setProgress('Connecting to '+info.host+'…');
     try{
-      var hdr=authHeaders(info);
+      var hdr=await authHeaders(info);
       var branch=repoBranch.trim()||info.branch;
       var jsonPaths=[];
       if(info.provider==='github'){
@@ -1941,8 +2213,9 @@ function App(){
   // Parse the workbook with SheetJS into per-sheet header/rows/meta (plain data
   // so MappingEngine stays DOM-free). Reads structural signals (merges, hidden
   // columns) for template warnings.
-  async function onMapFile(e){
-    var file=(e.target.files||[])[0];if(!file)return;
+  function onMapFile(e){var f=((e.target&&e.target.files)||[])[0];if(f)ingestSpecFile(f);}
+  async function ingestSpecFile(file){
+    if(!file)return;
     if(typeof XLSX==='undefined'){setErr('SheetJS (xlsx) failed to load — check your network/CDN.');return;}
     setMapBusy(true);setMapProg('Reading '+file.name+'…');setMapVal(null);setMapGen(null);
     mlog('Upload: '+file.name+' ('+Math.round(file.size/1024)+' KB)');
@@ -2053,6 +2326,170 @@ function App(){
     var end=new Uint8Array([].concat(u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(cenSize),u32(cenStart),u16(0)));
     return new Blob(chunks.concat(central,[end]),{type:'application/zip'});
   }
+
+  // §11 Authoring template (.xlsx). Written as raw OOXML on top of makeZip rather
+  // than through SheetJS: the community build silently drops dataValidations on
+  // write, and the per-column input messages are the whole point of the template.
+  // Every column carries a prompt (description + example); enumerable columns also
+  // get a dropdown backed by the Lists sheet, so headers and values stay importable.
+  var TPL_ROWS=500;// rows covered by validation — generous, but keeps the file small
+  function xmlEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function colRef(i){var s='',n=i+1;while(n>0){var m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;}
+  function xlCell(ref,val,style){
+    var s=style?(' s="'+style+'"'):'';
+    if(val==null||val==='')return '<c r="'+ref+'"'+s+'/>';
+    return '<c r="'+ref+'"'+s+' t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(val)+'</t></is></c>';
+  }
+  // Excel caps promptTitle at 32 chars and prompt at 255; over-long values make the
+  // whole file unreadable, so clamp here rather than trusting the doc strings.
+  function xlValidation(sqref,title,prompt,listName){
+    var t=listName?'list':'none';
+    return '<dataValidation type="'+t+'" allowBlank="1" showInputMessage="1"'+
+      (listName?' showErrorMessage="1" errorStyle="warning" errorTitle="Unexpected value" error="That value is not in the list. Pick one from the dropdown, or keep yours if the source really uses it."':'')+
+      ' promptTitle="'+xmlEsc(String(title).slice(0,32))+'" prompt="'+xmlEsc(String(prompt).slice(0,255))+'" sqref="'+sqref+'">'+
+      (listName?('<formula1>'+listName+'</formula1>'):'')+'</dataValidation>';
+  }
+  function xlSheet(rows,widths,validations,freezeRows){
+    var body=rows.map(function(cells,r){
+      return '<row r="'+(r+1)+'">'+cells.map(function(c,i){
+        var v=(c&&typeof c==='object')?c.v:c,st=(c&&typeof c==='object')?c.s:0;
+        return xlCell(colRef(i)+(r+1),v,st);
+      }).join('')+'</row>';
+    }).join('');
+    var cols=widths&&widths.length?('<cols>'+widths.map(function(w,i){return '<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>';}).join('')+'</cols>'):'';
+    var dv=validations&&validations.length?('<dataValidations count="'+validations.length+'">'+validations.join('')+'</dataValidations>'):'';
+    var pane=freezeRows?('<pane ySplit="'+freezeRows+'" topLeftCell="A'+(freezeRows+1)+'" activePane="bottomLeft" state="frozen"/>'):'';
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+      '<sheetViews><sheetView workbookViewId="0">'+pane+'</sheetView></sheetViews>'+cols+
+      '<sheetData>'+body+'</sheetData>'+dv+'</worksheet>';
+  }
+  // Header row + example rows + one validation per column, driven by the same
+  // FIELDS/PROCESS_FIELDS arrays the importer validates against — so the template
+  // can never drift from the parser.
+  function xlTemplateSheet(fields,examples){
+    var head=fields.map(function(f){return {v:f.label,s:1};});
+    var rows=[head].concat(examples.map(function(ex){return ex.map(function(v){return {v:v,s:3};});}));
+    var dvs=fields.map(function(f,i){
+      var doc=ME.TEMPLATE_DOC[f.key]||{},c=colRef(i);
+      var prompt=(doc.desc||f.label)+(doc.ex?('\n\nExample: '+doc.ex):'')+
+        (f.req?'\n\nRequired header.':'')+(f.val==='error'?' A blank value rejects the row.':f.val==='warn'?' A blank value raises a warning.':'');
+      return xlValidation(c+'2:'+c+TPL_ROWS,f.label,prompt,doc.list);
+    });
+    return xlSheet(rows,fields.map(function(f){return Math.min(34,Math.max(14,f.label.length+6));}),dvs,1);
+  }
+  function buildTemplateWorkbook(){
+    var lists=[
+      {name:'DataTypes',values:Object.keys(ME.DATA_TYPES)},
+      {name:'MappingTypes',values:Object.keys(ME.MAPPING_TYPES)},
+      {name:'Booleans',values:ME.BOOL_VALUES},
+      {name:'LineageTypes',values:ME.LINEAGE_TYPES},
+      {name:'ObjectTypes',values:ME.OBJECT_TYPES}
+    ];
+    // Lists sheet — one column per enumeration; defined names point at each range.
+    var maxLen=0;lists.forEach(function(l){maxLen=Math.max(maxLen,l.values.length);});
+    var listRows=[lists.map(function(l){return {v:l.name,s:1};})];
+    for(var i=0;i<maxLen;i++)listRows.push(lists.map(function(l){return l.values[i]||'';}));
+
+    var startRows=[
+      [{v:'LineageFlow — mapping specification template',s:2}],
+      [],
+      [{v:'Fill in ONE of the two template sheets. Both produce the same lineage graph; they differ in how much detail you record.',s:4}],
+      [],
+      [{v:'Process lineage',s:1},{v:'Recommended. One row per source column → target column, grouped into ETL processes, with technology, host and transformation detail.',s:4}],
+      [{v:'Column mapping',s:1},{v:'Simpler. A flat source → target column list without process or technology detail.',s:4}],
+      [],
+      [{v:'How to use',s:2}],
+      [{v:'1.'},{v:'Open the sheet you want. Select any cell in a column to read what that column means and see an example.',s:4}],
+      [{v:'2.'},{v:'Delete the two example rows — they are real data and will import as lineage if you leave them.',s:4}],
+      [{v:'3.'},{v:'Enter one row per source column → target column pair. Repeat the process/table columns on every row.',s:4}],
+      [{v:'4.'},{v:'Columns with a dropdown accept other values too; anything unrecognised is reported as a warning, not a hard failure.',s:4}],
+      [{v:'5.'},{v:'Save, then load it with Create lineage → Import mapping specification. Validation runs before anything is generated.',s:4}],
+      [],
+      [{v:'Do not rename the header row',s:1},{v:'Headers are matched case- and punctuation-insensitively, and common aliases are accepted — see the Field guide sheet.',s:4}],
+      [{v:'Extra columns are ignored',s:1},{v:'You can keep your own columns alongside these; the importer only reads the ones it knows.',s:4}]
+    ];
+
+    var guideHead=['Sheet','Column','Required header','If the value is blank','What it means','Example','Other accepted headers'];
+    var guideRows=[guideHead.map(function(t){return {v:t,s:1};})];
+    [{n:'Process lineage',f:ME.PROCESS_FIELDS},{n:'Column mapping',f:ME.FIELDS}].forEach(function(t){
+      t.f.forEach(function(f){
+        var doc=ME.TEMPLATE_DOC[f.key]||{};
+        guideRows.push([t.n,f.label,f.req?'Yes':'No',
+          f.val==='error'?'Row is rejected':f.val==='warn'?'Warning raised':'Allowed',
+          {v:doc.desc||'',s:4},doc.ex||'',{v:f.aliases.join(', '),s:4}]);
+      });
+    });
+
+    var sheets=[
+      {name:'Start here',xml:xlSheet(startRows,[26,96],null,0)},
+      {name:'Field guide',xml:xlSheet(guideRows,[17,26,15,20,64,26,44],null,1)},
+      {name:'Process lineage',xml:xlTemplateSheet(ME.PROCESS_FIELDS,[
+        ['load_orders','MAP-001','Design','','TABLE','postgres','db.prod.internal','5432','public.orders','order_id','','','DIRECT','','TABLE','snowflake','acme.eu-west-1','','analytics.fct_orders','order_key','SAP ECC','Snowflake EDW'],
+        ['load_orders','MAP-002','Design','','TABLE','postgres','db.prod.internal','5432','public.orders','amount','AGGREGATION','GROUP BY customer_id','DERIVED','SUM(amount)','TABLE','snowflake','acme.eu-west-1','','analytics.fct_orders','total_amount','SAP ECC','Snowflake EDW']
+      ])},
+      {name:'Column mapping',xml:xlTemplateSheet(ME.FIELDS,[
+        ['Oracle ERP','SALES','ORDERS','ORDER_ID','Snowflake','ANALYTICS','FCT_ORDERS','ORDER_KEY','','bigint','FALSE','direct','Oracle ERP','Snowflake EDW'],
+        ['Oracle ERP','SALES','CUSTOMERS','CUSTOMER_NAME','Snowflake','ANALYTICS','DIM_CUSTOMER','CUSTOMER_NAME','UPPER(TRIM(customer_name))','varchar','TRUE','derived','Oracle ERP','Snowflake EDW']
+      ])},
+      {name:'Lists',xml:xlSheet(listRows,lists.map(function(){return 18;}),null,1)}
+    ];
+
+    var defined=lists.map(function(l,i){
+      var c=colRef(i);return '<definedName name="'+l.name+'">Lists!$'+c+'$2:$'+c+'$'+(l.values.length+1)+'</definedName>';
+    }).join('');
+    var wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+
+      sheets.map(function(s,i){return '<sheet name="'+xmlEsc(s.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>';}).join('')+
+      '</sheets><definedNames>'+defined+'</definedNames></workbook>';
+    var wbRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      sheets.map(function(s,i){return '<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>';}).join('')+
+      '<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+    var ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+      '<Default Extension="xml" ContentType="application/xml"/>'+
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+      sheets.map(function(s,i){return '<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';}).join('')+
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
+    var rootRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+    // s=0 body, 1 header, 2 title, 3 example row, 4 wrapped prose
+    var styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+      '<fonts count="5"><font><sz val="11"/><name val="Calibri"/></font>'+
+      '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>'+
+      '<font><b/><sz val="15"/><color rgb="FF2E1A47"/><name val="Calibri"/></font>'+
+      '<font><i/><sz val="11"/><color rgb="FF6B7280"/><name val="Calibri"/></font>'+
+      '<font><sz val="11"/><name val="Calibri"/></font></fonts>'+
+      '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'+
+      '<fill><patternFill patternType="solid"><fgColor rgb="FF2E1A47"/><bgColor indexed="64"/></patternFill></fill>'+
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFF3F0FA"/><bgColor indexed="64"/></patternFill></fill></fills>'+
+      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'+
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+      '<cellXfs count="5">'+
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
+      '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>'+
+      '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+
+      '<xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'+
+      '<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'+
+      '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+    return makeZip([
+      {name:'[Content_Types].xml',content:ct},
+      {name:'_rels/.rels',content:rootRels},
+      {name:'xl/workbook.xml',content:wb},
+      {name:'xl/_rels/workbook.xml.rels',content:wbRels},
+      {name:'xl/styles.xml',content:styles}
+    ].concat(sheets.map(function(s,i){return {name:'xl/worksheets/sheet'+(i+1)+'.xml',content:s.xml};})));
+  }
+  function downloadTemplate(){
+    try{dlBlob(buildTemplateWorkbook(),'lineageflow-mapping-template.xlsx');}
+    catch(e){setErr('Could not build the template workbook: '+(e.message||e));}
+  }
+
   function exportZip(){
     var files=[];
     if(mapGen)files.push({name:'openlineage-events.json',content:JSON.stringify(mapGen.events,null,2)});
@@ -2390,6 +2827,53 @@ function App(){
   function trunc(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
   function zoomBy(k){if(zoomRef.current&&svgRef.current)d3.select(svgRef.current).transition().duration(150).call(zoomRef.current.scaleBy,k);}
   function doFit(){if(svgRef.current&&svgRef.current.__fit)svgRef.current.__fit();}
+
+  // ---- Global keyboard shortcuts ----
+  // Documented in Help → Keyboard shortcuts. Deliberately ignored while typing in
+  // a field or with a modifier held, so they never eat real input or browser keys.
+  var KEY_HELP=[
+    ['/  or  Ctrl/Cmd+K','Focus the search box'],
+    ['Enter  /  Shift+Enter','Next / previous search match (in the search box)'],
+    ['?','Open this help'],
+    ['Esc','Close the open dialog, or clear the search'],
+    ['F','Fit the graph to the window'],
+    ['+  /  −','Zoom in / out'],
+    ['[  /  ]','Collapse or expand the left rail / right panel']
+  ];
+  useEffect(function(){
+    function onKey(e){
+      var t=e.target,tag=t&&t.tagName;
+      var typing=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(t&&t.isContentEditable);
+      if(e.key==='Escape'){// Esc always works, including from a field
+        if(mapOpen&&!mapBusy)setMapOpen(false);
+        else if(exOpen&&!exBusy)setExOpen(false);
+        else if(repoModal)setRepoModal(false);
+        else if(helpOpen)setHelpOpen(false);
+        else if(libOpen)setLibOpen(false);
+        else if(colDetail)setColDetail(null);
+        else if(ctxMenu)setCtxMenu(null);
+        else if(startMenu)setStartMenu(null);
+        else if(query)setQuery('');
+        return;
+      }
+      if(typing||e.metaKey&&e.key!=='k'||e.ctrlKey&&e.key!=='k'||e.altKey)return;
+      if((e.key==='k'||e.key==='K')&&(e.metaKey||e.ctrlKey)){
+        e.preventDefault();var el=document.querySelector('.search input');if(el)el.focus();return;
+      }
+      if(e.metaKey||e.ctrlKey)return;
+      switch(e.key){
+        case '/':e.preventDefault();var si=document.querySelector('.search input');if(si)si.focus();break;
+        case '?':e.preventDefault();setHelpOpen(true);break;
+        case 'f':case 'F':if(model){e.preventDefault();doFit();}break;
+        case '+':case '=':if(model){e.preventDefault();zoomBy(1.3);}break;
+        case '-':case '_':if(model){e.preventDefault();zoomBy(0.77);}break;
+        case '[':if(model){e.preventDefault();setRailOpen(function(v){return !v;});}break;
+        case ']':if(model){e.preventDefault();setPanelOpen(function(v){return !v;});}break;
+      }
+    }
+    window.addEventListener('keydown',onKey);
+    return function(){window.removeEventListener('keydown',onKey);};
+  },[model,mapOpen,mapBusy,exOpen,exBusy,repoModal,helpOpen,libOpen,colDetail,ctxMenu,startMenu,query]);
   // Re-fit after a panel collapses/expands (canvas width changed)
   useEffect(function(){var t=setTimeout(doFit,240);return function(){clearTimeout(t);};},[railOpen,panelOpen]);
 
@@ -2584,10 +3068,19 @@ function App(){
     var evs=validEvents();if(!evs.length){setExMsg('No valid events to export.');return;}
     var info=E.parseRepoUrl(exUrl);
     if(!info||info.provider!=='gitlab'){setExMsg('Enter a GitLab repository URL (e.g. https://gitlab.com/group/project).');return;}
-    if(!exToken){setExMsg('A GitLab access token with write_repository scope is required.');return;}
+    var authH=null;
+    if(exAuth==='oauth'){
+      var t=await GLOAuth.token(info.host);
+      if(t&&t!==glTok)setGlTok(t);
+      if(!t){setExMsg('Connect to '+info.host+' with GitLab OAuth first — the session is not connected or has expired.');return;}
+      if(!GLOAuth.canWrite(t)){setExMsg('This OAuth session is read-only. Reconnect with write access (the `api` scope) to publish.');return;}
+      authH={Authorization:'Bearer '+t.access_token};
+    }else{
+      if(!exToken){setExMsg('A GitLab personal access token with the `api` scope is required.');return;}
+      authH={'PRIVATE-TOKEN':exToken};
+    }
     setExBusy(true);setExMsg('Connecting to '+info.host+'…');
     try{
-      var authH={'PRIVATE-TOKEN':exToken};
       var branch=exBranch.trim()||info.branch||await glDefaultBranch(info,authH);
       var base=exPath.trim().replace(/^\/+|\/+$/g,'');
       var files=eventFiles(evs);
@@ -2633,24 +3126,34 @@ function App(){
             h('path',{d:'M50 3 C55 33 66 44 97 50 C66 56 55 67 50 97 C45 67 34 56 3 50 C34 44 45 33 50 3 Z',fill:'url(#lfLogoGrad)'}))),
         h('div',{className:'logo-text'},'LineageFlow')),
       h('div',{className:'tb-sep'}),
-      // Load zone — import spec (primary) + ViewLineage sources dropdown
+      // "Start here" — the two primary journeys, always visible. Create authors new
+      // lineage from a mapping spec; View opens OpenLineage events that already exist.
       h('div',{className:'tb-group'},
-        h('button',{className:'btn',onClick:openMapping,title:'Import ETL Mapping Specifications (v2 template)'},'Import Mapping Specification'),
-        h('div',{style:{position:'relative'},onMouseDown:function(e){e.stopPropagation();}},
-          h('button',{className:'btn',onClick:function(){setVlMenu(!vlMenu);}},'View Lineage ',vlMenu?'▴':'▾'),
-          vlMenu&&h('div',{className:'ctxmenu',style:{position:'absolute',top:'calc(100% + 4px)',left:0,right:'auto'}},
-            h('div',{className:'ctx-head'},'Load OpenLineage'),
-            h('button',{title:'Pick a local folder of OpenLineage .json event files (Chromium browsers)',onClick:function(){setVlMenu(false);openFolder();}},'Open Folder'),
-            h('button',{title:'Load OpenLineage .json events straight from a GitHub or GitLab repository',onClick:function(){setVlMenu(false);setRepoModal(true);}},'Git Repo')))),
+        h('div',{className:'start-seg',onMouseDown:function(e){e.stopPropagation();}},
+          h('div',null,
+            h('button',{className:startMenu==='create'?'on':'',title:'Author new lineage from an ETL mapping specification',
+              onClick:function(){setStartMenu(startMenu==='create'?null:'create');}},'Create lineage ',startMenu==='create'?'▴':'▾'),
+            startMenu==='create'&&h('div',{className:'ctxmenu',style:{position:'absolute',top:'calc(100% + 6px)',left:0,right:'auto',minWidth:230}},
+              h('div',{className:'ctx-head'},'Create lineage'),
+              h('button',{title:'Upload an ETL mapping spreadsheet — validated, then turned into OpenLineage events',onClick:function(){setStartMenu(null);openMapping();}},'Import mapping specification'),
+              h('button',{title:'Download the .xlsx template — every column documented, with examples and dropdowns',onClick:function(){setStartMenu(null);downloadTemplate();}},'Download workbook template'))),
+          h('div',null,
+            h('button',{className:startMenu==='view'?'on':'',title:'Open OpenLineage events you already have',
+              onClick:function(){setStartMenu(startMenu==='view'?null:'view');}},'View Lineage ',startMenu==='view'?'▴':'▾'),
+            startMenu==='view'&&h('div',{className:'ctxmenu',style:{position:'absolute',top:'calc(100% + 6px)',left:0,right:'auto',minWidth:230}},
+              h('div',{className:'ctx-head'},'View existing lineage'),
+              h('button',{title:'Pick a local folder of OpenLineage .json event files (Chromium browsers)',onClick:function(){setStartMenu(null);openFolder();}},'Open folder'),
+              h('button',{title:'Load OpenLineage .json events straight from a GitHub or GitLab repository',onClick:function(){setStartMenu(null);setRepoModal(true);}},'Git repo'),
+              h('button',{title:'Load a sample lineage graph to explore the features immediately',onClick:function(){setStartMenu(null);loadDemo();}},'Load demo'))))),
       h('div',{className:'search'},h('span',{style:{color:'var(--t3)'}},'⌕'),
-        h('input',{placeholder:'Search datasets, jobs, columns',value:query,
+        h('input',{placeholder:'Search datasets, jobs, columns','aria-label':'Search datasets, jobs and columns (press / to focus)',value:query,
           onChange:function(e){setQuery(e.target.value);},
           onKeyDown:function(e){if(e.key==='Enter'){e.preventDefault();stepMatch(e.shiftKey?-1:1);}else if(e.key==='Escape'){setQuery('');}}}),
         query?h('span',{className:'search-nav'},
           h('span',{className:'sn-count'+(searchMatches.length?'':' none')},searchMatches.length?((matchIdx+1)+'/'+searchMatches.length):'0'),
-          h('button',{className:'sn-btn',disabled:!searchMatches.length,title:'Previous match (Shift+Enter)',onClick:function(){stepMatch(-1);}},'‹'),
-          h('button',{className:'sn-btn',disabled:!searchMatches.length,title:'Next match (Enter)',onClick:function(){stepMatch(1);}},'›'),
-          h('button',{className:'sn-btn',title:'Clear (Esc)',onClick:function(){setQuery('');}},'×')):null),
+          h('button',{className:'sn-btn',disabled:!searchMatches.length,title:'Previous match (Shift+Enter)','aria-label':'Previous search match',onClick:function(){stepMatch(-1);}},'‹'),
+          h('button',{className:'sn-btn',disabled:!searchMatches.length,title:'Next match (Enter)','aria-label':'Next search match',onClick:function(){stepMatch(1);}},'›'),
+          h('button',{className:'sn-btn',title:'Clear search (Esc)','aria-label':'Clear search',onClick:function(){setQuery('');}},'×')):null),
       // Export zone (stats live in the left-rail Overview — no duplicate chips here)
       model&&h('div',{className:'tb-sep'}),
       model&&h('div',{className:'tb-group'},
@@ -2665,8 +3168,8 @@ function App(){
       h('div',{className:'tb-sep'}),
       h('div',{className:'tb-group'},
         model&&model.issues.length?h('button',{className:'btn tb-issues',onClick:function(){setPanelOpen(true);setTab('ISSUES');},title:model.issues.length+' validation issue'+(model.issues.length===1?'':'s')+' — click to view'},'⚠ '+model.issues.length):null,
-        h('button',{className:'theme-toggle',onClick:toggleTheme,title:theme==='dark'?'Switch to light theme':'Switch to dark theme'},theme==='dark'?'☀️':'🌙'),
-        h('button',{className:'theme-toggle',onClick:function(){setHelpOpen(true);},title:'Help — how to use LineageFlow'},'?'))
+        h('button',{className:'theme-toggle',onClick:toggleTheme,title:theme==='dark'?'Switch to light theme':'Switch to dark theme','aria-label':theme==='dark'?'Switch to light theme':'Switch to dark theme'},theme==='dark'?'☀️':'🌙'),
+        h('button',{className:'theme-toggle',onClick:function(){setHelpOpen(true);},title:'Help and keyboard shortcuts (?)','aria-label':'Open help and keyboard shortcuts'},'?'))
     ),
     err&&h('div',{style:{background:'rgba(255,95,95,0.12)',color:'var(--red)',padding:'8px 16px',fontSize:11,borderBottom:'1px solid var(--border)'}},err),
     loading&&progress&&h('div',{style:{background:'var(--accbg)',color:'var(--acc)',padding:'8px 16px',fontSize:11,borderBottom:'1px solid var(--border)'}},'⏳ '+progress),
@@ -2674,24 +3177,36 @@ function App(){
     !model?
       h('div',{className:'empty'},
         h('div',{style:{fontSize:40}},'🔗'),
-        h('h2',null,'Visualize OpenLineage'),
-        h('p',null,''),
-        h('div',{className:'row'},
-          h('button',{className:'btn',title:'Upload an ETL mapping spreadsheet (.xlsx, template-V2) — validates it and generates OpenLineage design-time events',onClick:openMapping},'Import Mapping Specifications'),
-          h('button',{className:'btn',title:'Pick a local folder of OpenLineage .json event files (Chromium browsers)',onClick:openFolder},'Open Folder'),
-          h('button',{className:'btn',title:'Load OpenLineage .json events straight from a GitHub or GitLab repository',onClick:function(){setRepoModal(true);}},'Git Repo'),
-          h('button',{className:'btn',title:'Load a sample lineage graph to explore the features immediately',onClick:loadDemo},'Load Demo')),
+        h('h2',null,'Start here'),
+        h('p',null,'Two ways in: author new lineage from a mapping specification, or open OpenLineage events you already have.'),
+        h('div',{className:'start-cards'},
+          h('div',{className:'start-card'},
+            h('div',{className:'sc-ico'},'✎'),
+            h('h3',null,'Create lineage'),
+            h('div',{className:'sc-desc'},'Describe your source→target column mappings in a spreadsheet. LineageFlow validates it and generates OpenLineage events.'),
+            h('div',{className:'sc-acts'},
+              h('button',{className:'btn primary',title:'Upload an ETL mapping spreadsheet — validated, then turned into OpenLineage events',onClick:openMapping},'Import mapping specification'),
+              h('button',{className:'btn',title:'Every column documented, with examples and dropdowns built in',onClick:downloadTemplate},'Download workbook template'))),
+          h('div',{className:'start-card'},
+            h('div',{className:'sc-ico'},'🧬'),
+            h('h3',null,'View existing lineage'),
+            h('div',{className:'sc-desc'},'Already have OpenLineage events? Load them from a folder or a Git repository and explore the graph.'),
+            h('div',{className:'sc-acts'},
+              h('button',{className:'btn primary',title:'Pick a local folder of OpenLineage .json event files (Chromium browsers)',onClick:openFolder},'Open folder'),
+              h('div',{style:{display:'flex',gap:6}},
+                h('button',{className:'btn',style:{flex:1,justifyContent:'center'},title:'Load OpenLineage .json events straight from a GitHub or GitLab repository',onClick:function(){setRepoModal(true);}},'Git repo'),
+                h('button',{className:'btn',style:{flex:1,justifyContent:'center'},title:'Load a sample lineage graph to explore the features immediately',onClick:loadDemo},'Demo'))))),
         recentModels.length?h('div',{style:{marginTop:8,width:'min(460px,90vw)'}},
           h('div',{className:'rail-title',style:{textAlign:'left',marginBottom:6}},'Recent (cached in this browser)'),
           recentModels.slice(0,5).map(function(m){return h('div',{key:m.id,className:'lib-item',onClick:function(){loadCachedModel(m);}},
             h('div',{className:'li-main'},h('div',{className:'li-name'},m.name),h('div',{className:'li-sub'},(m.stats?m.stats.datasets+' datasets · '+m.stats.jobs+' jobs':''))),
-            h('button',{className:'li-del',title:'Delete',onClick:function(e){e.stopPropagation();deleteCachedModel(m.id);}},'🗑'));})):null,
+            h('button',{className:'li-del',title:'Delete','aria-label':'Delete',onClick:function(e){e.stopPropagation();deleteCachedModel(m.id);}},'🗑'));})):null,
         loading&&h('div',{className:'muted'},progress||'Loading…'))
     :
       h('div',{className:'body'},
         // rail — slim icon strip when collapsed, full panel when open
         !railOpen&&h('div',{className:'rail-icons'},
-          h('button',{title:'Expand controls',onClick:function(){setRailOpen(true);}},'»'),
+          h('button',{title:'Expand controls ([)','aria-label':'Expand the controls panel',onClick:function(){setRailOpen(true);}},'»'),
           h('div',{className:'ri-sep'}),
           miniBtn('graph','⚙','Graph controls'),
           miniBtn('filters','⚑','Filters'+(activeFilters?' ('+activeFilters+' active)':'')),
@@ -2702,7 +3217,7 @@ function App(){
           miniBtn('legend','◈','Legend'),
           model.issues.length?h(React.Fragment,null,
             h('div',{className:'ri-sep'}),
-            h('button',{className:'ri-issues',title:model.issues.length+' issue'+(model.issues.length===1?'':'s'),onClick:function(){setRailOpen(true);setTab('ISSUES');}},'⚠',h('span',{className:'ri-dot'},model.issues.length))):null),
+            h('button',{className:'ri-issues','aria-label':model.issues.length+' validation issue'+(model.issues.length===1?'':'s')+' — open the Issues tab',title:model.issues.length+' issue'+(model.issues.length===1?'':'s'),onClick:function(){setRailOpen(true);setTab('ISSUES');}},'⚠',h('span',{className:'ri-dot'},model.issues.length))):null),
         // rail
         railOpen&&h('div',{className:'rail'},
           // ---- Graph controls: entity + edge visibility ----
@@ -2717,7 +3232,7 @@ function App(){
             h(React.Fragment,null,
               fSel('System','system',model.systems||[]),
               fSel('Namespace','namespace',model.namespaces||[]),
-              fSel('Business domain','domain',domainOpts),
+              fSel('Application','domain',appOpts),
               fSel('Owner','owner',ownerOpts),
               activeFilters?h('button',{className:'btn',style:{marginTop:9,width:'100%',justifyContent:'center'},onClick:function(){setFilters({system:'',namespace:'',domain:'',owner:''});}},'✕ Clear filters'):null,
               (window.LFStore&&window.LFStore.available)?h('button',{className:'savebtn',onClick:saveView,title:'Save the current filters, grouping and layout as a named view'},'+ Save filter view'):null)),
@@ -2729,7 +3244,7 @@ function App(){
                   h('span',{className:groupBy==='none'?'on':'',onClick:function(){changeGroupBy('none');}},'None'),
                   h('span',{className:groupBy==='namespace'?'on':'',onClick:function(){changeGroupBy('namespace');}},'Namespace'),
                   h('span',{className:groupBy==='system'?'on':'',onClick:function(){changeGroupBy('system');}},'System'),
-                  h('span',{className:groupBy==='domain'?'on':'',onClick:function(){changeGroupBy('domain');}},'Domain'))),
+                  h('span',{className:groupBy==='domain'?'on':'',onClick:function(){changeGroupBy('domain');}},'Application'))),
               h('div',{className:'fld'},h('label',null,'Lineage view'),
                 h('div',{className:'toggle'},
                   h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
@@ -2768,6 +3283,13 @@ function App(){
               h('div',{className:'muted',style:{marginTop:6}},focusMode?(focusSeed?'Click a node (or its +N badge) to reveal the next hop — 10 neighbors at a time':'Search or click a node to seed exploration'):'Render only an explored subgraph — best for very large graphs'))),
           // ---- Overview (reference) ----
           accSec('overview','Σ','Overview',model.stats.datasets+' · '+model.stats.jobs,
+            h(React.Fragment,null,
+            h('div',{style:{display:'flex',gap:7,padding:'8px 9px',marginBottom:8,borderRadius:7,
+              background:'var(--accbg)',border:'1px solid var(--border)'}},
+              h('span',{style:{flexShrink:0,color:'var(--acc)'}},'ⓘ'),
+              h('span',{style:{fontSize:10,color:'var(--t2)',lineHeight:1.55}},
+                'These counts describe ',h('b',{style:{color:'var(--t0)'}},srcName||'the loaded metadata'),
+                ' as supplied. LineageFlow does not connect to source systems or scan data — gaps in the input appear as gaps here.')),
             h('div',{className:'ov-list'},
               [['Datasets',model.stats.datasets,'var(--blue)',null,'🗄'],
                ['Jobs',model.stats.jobs,'var(--purple)','JOBS','⚙'],
@@ -2780,7 +3302,7 @@ function App(){
                 return h('div',{key:i,className:'ov-row'+(dest?' link':'')+(alert?' alert':''),onClick:dest?function(){setTab(dest);}:null},
                   h('div',{className:'ov-ico',style:{background:'color-mix(in srgb, '+s[2]+' 15%, transparent)',color:s[2]}},s[4]),
                   h('div',{className:'ov-label'},s[0]),
-                  h('div',{className:'ov-count',style:alert?{color:'var(--red)'}:null},s[1]));}))),
+                  h('div',{className:'ov-count',style:alert?{color:'var(--red)'}:null},s[1]));})))),
           // ---- Legend (reference) ----
           accSec('legend','◈','Legend',null,
             h(React.Fragment,null,
@@ -2800,8 +3322,8 @@ function App(){
         // canvas
         h('div',{className:'canvas-wrap'},
           h('svg',{ref:svgRef}),
-          h('button',{className:'edge-toggle left',title:railOpen?'Collapse left panel':'Expand left panel',onClick:function(){setRailOpen(!railOpen);}},railOpen?'‹':'›'),
-          h('button',{className:'edge-toggle right',title:panelOpen?'Collapse right panel':'Expand right panel',onClick:function(){setPanelOpen(!panelOpen);}},panelOpen?'›':'‹'),
+          h('button',{className:'edge-toggle left','aria-label':(railOpen?'Collapse':'Expand')+' left controls panel','aria-expanded':!!railOpen,title:(railOpen?'Collapse':'Expand')+' left panel ([)',onClick:function(){setRailOpen(!railOpen);}},railOpen?'‹':'›'),
+          h('button',{className:'edge-toggle right','aria-label':(panelOpen?'Collapse':'Expand')+' right details panel','aria-expanded':!!panelOpen,title:(panelOpen?'Collapse':'Expand')+' right panel (])',onClick:function(){setPanelOpen(!panelOpen);}},panelOpen?'›':'‹'),
           // §5 breadcrumb: system ▸ namespace ▸ node
           selNode&&h('div',{className:'crumb'},
             h('span',{className:'sys-badge crumb-seg',title:'Group by system: '+selNode.system,
@@ -2844,40 +3366,40 @@ function App(){
             h('span',{className:'ib-depth'},'depth ≤',
               h('input',{type:'range',min:1,max:10,value:tdepth,onChange:function(e){setTdepth(parseInt(e.target.value,10));}}),
               h('b',null,tdepth)),
-            h('button',{className:'close',onClick:clearImpact,title:'Clear analysis'},'×')),
+            h('button',{className:'close',onClick:clearImpact,title:'Clear analysis','aria-label':'Clear impact analysis'},'×')),
           h('div',{className:'zoom-ctl'},
-            h('button',{onClick:function(){zoomBy(1.3);}},'+'),
-            h('button',{onClick:function(){zoomBy(0.77);}},'−'),
-            h('button',{onClick:doFit,title:'Fit'},'⤢')),
+            h('button',{title:'Zoom in (+)','aria-label':'Zoom in',onClick:function(){zoomBy(1.3);}},'+'),
+            h('button',{title:'Zoom out (−)','aria-label':'Zoom out',onClick:function(){zoomBy(0.77);}},'−'),
+            h('button',{onClick:doFit,title:'Fit to window (F)','aria-label':'Fit graph to window'},'⤢')),
           // §Extension: minimap / radar — miniature of the whole layout with a
           // draggable viewport rectangle (drawn by the D3 effect via miniRef).
           h('div',{className:'minimap'+(miniOpen?'':' collapsed')},
             h('div',{className:'minimap-head'},
               h('span',null,'◰ Radar'),
-              h('button',{onClick:function(){setMiniOpen(!miniOpen);},title:miniOpen?'Hide minimap':'Show minimap'},miniOpen?'▾':'▸')),
+              h('button',{onClick:function(){setMiniOpen(!miniOpen);},title:miniOpen?'Hide minimap':'Show minimap','aria-label':miniOpen?'Hide minimap':'Show minimap','aria-expanded':!!miniOpen},miniOpen?'▾':'▸')),
             h('svg',{ref:miniRef,style:{display:miniOpen?'block':'none'}})),
           // §Extension: focus (search-first / hop-wise) status banner
           focusMode&&focusSeed&&layout&&h('div',{className:'focus-banner',style:{bottom:(impact&&impactResult)?60:14}},
             h('span',null,'🎯 Focus: ',h('b',null,layout.nodes.length),' node'+(layout.nodes.length===1?'':'s')+' shown of ',h('b',null,model.stats.datasets+model.stats.jobs)),
             h('span',{className:'muted'},'click nodes to expand hops'),
-            h('button',{className:'fb-close',title:'Exit focus mode',onClick:toggleFocusMode},'×')),
+            h('button',{className:'fb-close',title:'Exit focus mode','aria-label':'Exit focus mode',onClick:toggleFocusMode},'×')),
           // §Extension: Library drawer — recent models + saved views (IndexedDB)
           libOpen&&h('div',{className:'lib-drawer',onMouseDown:function(e){e.stopPropagation();}},
-            h('div',{className:'lib-head'},h('span',null,'🕘 Library'),h('button',{onClick:function(){setLibOpen(false);}},'×')),
+            h('div',{className:'lib-head'},h('span',null,'🕘 Library'),h('button',{title:'Close','aria-label':'Close library',onClick:function(){setLibOpen(false);}},'×')),
             h('div',{className:'lib-body'},
               h('div',{className:'rail-title'},'Recent models ('+recentModels.length+')'),
               recentModels.length?recentModels.map(function(m){return h('div',{key:m.id,className:'lib-item',onClick:function(){loadCachedModel(m);}},
                 h('div',{className:'li-main'},h('div',{className:'li-name'},m.name),h('div',{className:'li-sub'},(m.stats?m.stats.datasets+' datasets · '+m.stats.jobs+' jobs · ':'')+new Date(m.savedAt).toLocaleString())),
-                h('button',{className:'li-del',title:'Delete',onClick:function(e){e.stopPropagation();deleteCachedModel(m.id);}},'🗑')); }):h('div',{className:'muted'},'No cached models yet.'),
+                h('button',{className:'li-del',title:'Delete','aria-label':'Delete',onClick:function(e){e.stopPropagation();deleteCachedModel(m.id);}},'🗑')); }):h('div',{className:'muted'},'No cached models yet.'),
               h('div',{className:'rail-title',style:{marginTop:14}},'Saved views ('+savedViews.length+')'),
               savedViews.length?savedViews.map(function(v){return h('div',{key:v.id,className:'lib-item',onClick:function(){applyView(v);}},
                 h('div',{className:'li-main'},h('div',{className:'li-name'},v.name),h('div',{className:'li-sub'},(v.modelName||'')+' · '+new Date(v.savedAt).toLocaleString())),
-                h('button',{className:'li-del',title:'Delete',onClick:function(e){e.stopPropagation();deleteView(v.id);}},'🗑')); }):h('div',{className:'muted'},'No saved views. Use “💾 Save view”.'))),
+                h('button',{className:'li-del',title:'Delete','aria-label':'Delete',onClick:function(e){e.stopPropagation();deleteView(v.id);}},'🗑')); }):h('div',{className:'muted'},'No saved views. Use “💾 Save view”.'))),
           colDetail&&h('div',{className:'col-modal-bg',onClick:function(){setColDetail(null);}},
             h('div',{className:'col-modal',onClick:function(e){e.stopPropagation();}},
               h('div',{className:'col-modal-head'},
                 h('span',null,'⚡ Column Transformation'),
-                h('button',{onClick:function(){setColDetail(null);}},'×')),
+                h('button',{title:'Close','aria-label':'Close column details',onClick:function(){setColDetail(null);}},'×')),
               h('div',{className:'col-modal-body'},
                 h('div',{style:{display:'flex',alignItems:'baseline',gap:10,marginBottom:4}},
                   h('span',{style:{color:'var(--orange)',fontSize:16,fontWeight:700}},colDetail.field),
@@ -2923,16 +3445,22 @@ function App(){
       h('div',{className:'sb-item'},h('b',null,layout?layout.edges.length:model.stats.edges),' Edges'),
       model.issues.length?h('div',{className:'sb-item',style:{color:'var(--red)'}},'⚠ ',h('b',{style:{color:'var(--red)'}},model.issues.length),' Issues'):null,
       h('div',{className:'sb-right'},
+        // Provenance: this graph is a rendering of what was loaded, nothing more.
+        h('div',{className:'sb-item sb-trust',tabIndex:0,role:'note',
+          title:'LineageFlow renders the metadata you loaded — '+(srcName||'the current source')+'. It does not connect to any source system, and does not scan or profile data. Anything missing from, or wrong in, the input is missing or wrong here too.',
+          'aria-label':'Source data notice: this graph reflects loaded metadata only, not an independent scan. Activate for details.'},
+          'ⓘ Reflects loaded metadata — not an independent scan'),
+        h('div',{className:'sb-sep'}),
         h('div',{className:'sb-item'},groupBy==='none'?'Flat graph':('Grouped · '+groupBy)),
         h('div',{className:'sb-sep'}),
         h('div',{className:'sb-item'},(layoutMode==='manual'?'🔒 Manual · ':'')+((typeof ELK!=='undefined'&&elkOn)?'Layered layout':'Compact layout')))),
     modal&&h('div',{className:'modal-bg',onClick:function(){setModal(null);}},
       h('div',{className:'modal',onClick:function(e){e.stopPropagation();}},
-        h('div',{className:'modal-head'},h('span',null,modal.title),h('button',{onClick:function(){setModal(null);}},'×')),
+        h('div',{className:'modal-head'},h('span',null,modal.title),h('button',{title:'Close','aria-label':'Close dialog',onClick:function(){setModal(null);}},'×')),
         h('pre',null,modal.body))),
     repoModal&&(function(){var info=E.parseRepoUrl(repoUrl);return h('div',{className:'modal-bg',onClick:function(){setRepoModal(false);}},
       h('div',{className:'modal',onClick:function(e){e.stopPropagation();}},
-        h('div',{className:'modal-head'},h('span',null,'⎇ Load from Git repository'),h('button',{onClick:function(){setRepoModal(false);}},'×')),
+        h('div',{className:'modal-head'},h('span',null,'⎇ Load from Git repository'),h('button',{title:'Close','aria-label':'Close dialog',onClick:function(){setRepoModal(false);}},'×')),
         h('div',{style:{padding:16,display:'flex',flexDirection:'column',gap:12,overflow:'auto'}},
           h('div',null,
             h('label',{className:'flabel'},'Repository URL'),
@@ -2942,15 +3470,19 @@ function App(){
             h('div',{style:{flex:1}},
               h('label',{className:'flabel'},'Auth'),
               h('select',{className:'finput',value:repoAuth,onChange:function(e){setRepoAuth(e.target.value);}},
+                h('option',{value:'oauth'},'GitLab OAuth (recommended)'),
                 h('option',{value:'none'},'None (public)'),
                 h('option',{value:'pat'},'Personal Access Token'))),
             h('div',{style:{flex:1}},
               h('label',{className:'flabel'},'Branch (optional)'),
               h('input',{className:'finput',value:repoBranch,placeholder:'default',onChange:function(e){setRepoBranch(e.target.value);}}))),
+          repoAuth==='oauth'&&(info&&info.provider==='github'
+            ? h('div',{style:{fontSize:11,padding:'9px 11px',borderRadius:7,background:'rgba(251,191,36,0.12)',color:'var(--orange)'}},'⚠ OAuth here covers GitLab only. For a private GitHub repo, choose Personal Access Token.')
+            : renderOAuthPanel(info?info.host:null,GLOAuth.SCOPE_READ,'Read-only access — this session cannot modify the repository.')),
           repoAuth==='pat'&&h('div',null,
             h('label',{className:'flabel'},'Token'),
-            h('input',{className:'finput',type:'password',value:repoToken,placeholder:'PAT with read_repository scope',onChange:function(e){setRepoToken(e.target.value);}}),
-            h('div',{className:'muted',style:{marginTop:4}},'Token stays in your browser; sent only to '+(info?info.host:'the repo host')+'.')),
+            h('input',{className:'finput',type:'password',value:repoToken,placeholder:'PAT with read_api scope',onChange:function(e){setRepoToken(e.target.value);}}),
+            h('div',{className:'muted',style:{marginTop:4}},'Token stays in your browser; sent only to '+(info?info.host:'the repo host')+'. Prefer OAuth where available — a PAT is long-lived and broader.')),
           h('div',{className:'muted',style:{fontSize:10}},'Reads every .json file in the repo and parses OpenLineage events. Self-hosted GitLab must allow browser CORS.'),
           h('div',{style:{display:'flex',gap:8,justifyContent:'flex-end',marginTop:4}},
             h('button',{className:'btn',onClick:function(){setRepoModal(false);}},'Cancel'),
@@ -2961,22 +3493,98 @@ function App(){
     // §5 node context menu (right-click)
     ctxMenu&&h('div',{className:'ctxmenu',style:{left:Math.min(ctxMenu.x,window.innerWidth-190),top:Math.min(ctxMenu.y,window.innerHeight-160)},onMouseDown:function(e){e.stopPropagation();}},
       h('div',{className:'ctx-head'},(ctxMenu.kind==='job'?'⚙ ':'▢ ')+trunc(ctxMenu.name,22)),
-      h('button',{onClick:function(){setSelected({kind:ctxMenu.kind,key:ctxMenu.key});setTab('DETAILS');setCtxMenu(null);}},'🔍 Inspect'),
-      h('button',{onClick:function(){startImpact('down',ctxMenu.id);}},'⬇ Trace downstream (impact)'),
-      h('button',{onClick:function(){startImpact('up',ctxMenu.id);}},'⬆ Trace upstream (root cause)'),
-      impact&&h('button',{onClick:function(){clearImpact();setCtxMenu(null);}},'✕ Clear analysis'))
+      h('button',{onClick:function(){setSelected({kind:ctxMenu.kind,key:ctxMenu.key});setTab('DETAILS');setCtxMenu(null);}},'Inspect'),
+      h('button',{onClick:function(){startImpact('down',ctxMenu.id);}},'Trace downstream (impact)'),
+      h('button',{onClick:function(){startImpact('up',ctxMenu.id);}},'Trace upstream (root cause)'),
+      impact&&h('button',{onClick:function(){clearImpact();setCtxMenu(null);}},'Clear analysis'))
   );
 
   // Export OpenLineage events modal — validated events to ZIP / local folder /
   // GitLab. Local folder needs the File System Access API; GitLab commits via the
   // repository/commits API using a write-scoped token the user supplies.
+  // Pre-publication checklist — the review gate in front of the one export that
+  // leaves the browser. Each item names the exact value being committed, so ticking
+  // it means reading it. Changing any of those values clears the ticks (see the
+  // effect below), so a reviewed repo can't be swapped out under an approved list.
+  function prePublishItems(){
+    var issues=(model&&model.issues&&model.issues.length)||0;
+    return [
+      {key:'issues',label:issues?('Reviewed '+issues+' validation issue'+(issues===1?'':'s')+' in this model'):'No validation issues outstanding',
+       hint:issues?'Open the Issues tab — these are exported as-is.':'Nothing flagged during validation.',warn:!!issues},
+      {key:'dest',label:'Destination repository is correct',hint:glOf()?(glOf().host+' / '+glOf().path):'No valid GitLab URL entered yet.'},
+      {key:'branch',label:'Branch is correct',hint:(exBranch||'(project default branch)')+' — the commit lands here directly, with no merge request.'},
+      {key:'path',label:'Target path is correct',hint:(exPath||'openlineage')+'/ — existing files at this path with the same names are overwritten.'},
+      (exAuth==='oauth'
+        ? {key:'token',label:'Publishing as the connected GitLab account',
+           hint:(glTok&&GLOAuth.live(glTok))?((glUser&&glUser.username?('@'+glUser.username):'This session')+' on '+glTok.host+' — the commit is authored by this account. The token lives only in this tab.')
+             :'Not connected — connect with write access above before publishing.'}
+        : {key:'token',label:'Token has the `api` scope and the token is mine',
+           hint:'Sent only to the host above and never stored by LineageFlow. `write_repository` alone will be rejected by the commit API.'})
+    ];
+  }
+  function glOf(){var i=E.parseRepoUrl(exUrl);return (i&&i.provider==='gitlab')?i:null;}
+  function prePublishReady(){return prePublishItems().every(function(it){return exChecks[it.key];});}
+  // Shared GitLab OAuth panel — used by both the read (Git repo) and write
+  // (Export → GitLab) flows. `scope` is what this caller needs, so the export
+  // panel asks for write access while the reader only asks to read.
+  function renderOAuthPanel(host,scope,note){
+    var avail=GLOAuth.available(),tok=glTok,connected=tok&&GLOAuth.live(tok);
+    var sameHost=connected&&(!host||tok.host===host);
+    var needWrite=scope===GLOAuth.SCOPE_WRITE,hasWrite=GLOAuth.canWrite(tok);
+    if(!avail.ok)return h('div',{style:{fontSize:11,padding:'9px 11px',borderRadius:7,background:'rgba(251,191,36,0.12)',color:'var(--orange)'}},
+      avail.why==='file'
+        ? '⚠ OAuth is unavailable because this page is open from a file:// path — a local file cannot be a registered redirect URI. Serve it over http(s), or switch to a personal access token below.'
+        : '⚠ OAuth needs a secure context (https, or http://localhost). Switch to a personal access token below.');
+    if(connected&&sameHost&&(!needWrite||hasWrite))
+      return h('div',{style:{display:'flex',alignItems:'center',gap:9,padding:'9px 11px',borderRadius:7,background:'rgba(52,211,153,0.12)',border:'1px solid var(--green)'}},
+        h('span',{style:{fontSize:13}},'🔓'),
+        h('div',{style:{flex:1,minWidth:0}},
+          h('div',{style:{fontSize:11,color:'var(--t0)'}},'Connected to '+tok.host+(glUser&&glUser.username?(' as @'+glUser.username):'')),
+          h('div',{className:'muted'},(hasWrite?'Read and write':'Read only')+
+            (tok.expires_at?(' · expires '+new Date(tok.expires_at).toLocaleTimeString()):'')+
+            ' · session only, cleared when this tab closes')),
+        h('button',{className:'btn',style:{flexShrink:0},disabled:glBusy,onClick:glDisconnect},'Disconnect'));
+    return h('div',{style:{border:'1px solid var(--border)',borderRadius:8,padding:'10px 11px',display:'flex',flexDirection:'column',gap:8}},
+      connected&&!sameHost?h('div',{style:{fontSize:11,color:'var(--orange)'}},'Connected to '+tok.host+', but this repository is on '+host+'. Reconnect to continue.'):null,
+      connected&&sameHost&&needWrite&&!hasWrite?h('div',{style:{fontSize:11,color:'var(--orange)'}},'This session is read-only. Reconnect to grant write access.'):null,
+      h('div',{style:{display:'flex',gap:8}},
+        h('div',{style:{flex:1}},h('label',{className:'flabel'},'GitLab host'),
+          h('input',{className:'finput',value:glAppHost,placeholder:'gitlab.com',onChange:function(e){setGlAppHost(e.target.value);}})),
+        h('div',{style:{flex:1.4}},h('label',{className:'flabel'},'Application ID'),
+          h('input',{className:'finput',value:glAppId,placeholder:'OAuth application ID',onChange:function(e){setGlAppId(e.target.value);}}))),
+      h('div',{className:'muted',style:{lineHeight:1.55}},
+        'One-time setup on your GitLab: Settings → Applications → Add new application. Set Confidential ',
+        h('b',null,'off'),', scopes ',h('b',null,needWrite?GLOAuth.SCOPE_WRITE:GLOAuth.SCOPE_READ),
+        ', and Redirect URI exactly ',h('b',null,GLOAuth.redirectUri()),
+        '. The Application ID is not a secret; it is remembered in this browser. No client secret is used or stored.'),
+      note?h('div',{className:'muted'},note):null,
+      h('button',{className:'btn primary',style:{justifyContent:'center'},disabled:glBusy,
+        onClick:function(){glConnect(scope);}},glBusy?'⏳ Redirecting…':('🔗 Connect to GitLab'+(needWrite?' (read & write)':' (read only)'))));
+  }
+
+  function renderPrePublishChecklist(){
+    var items=prePublishItems(),done=items.filter(function(it){return exChecks[it.key];}).length;
+    return h('div',{style:{border:'1px solid '+(done===items.length?'var(--green)':'var(--border)'),borderRadius:8,padding:'10px 12px',background:'var(--bg1)'}},
+      h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:6}},
+        h('span',{style:{fontSize:11,fontWeight:600,color:'var(--t0)'}},'Before you publish'),
+        h('span',{className:'muted',style:{marginLeft:'auto'}},done+'/'+items.length)),
+      items.map(function(it){
+        return h('label',{key:it.key,style:{display:'flex',gap:8,alignItems:'flex-start',padding:'5px 0',cursor:'pointer'}},
+          h('input',{type:'checkbox',checked:!!exChecks[it.key],style:{marginTop:2,accentColor:'var(--acc)',flexShrink:0},
+            onChange:function(e){var v=e.target.checked;setExChecks(function(p){var c=Object.assign({},p);c[it.key]=v;return c;});}}),
+          h('span',{style:{minWidth:0}},
+            h('span',{style:{fontSize:11,color:it.warn&&!exChecks[it.key]?'var(--orange)':'var(--t0)'}},it.label),
+            h('span',{className:'muted',style:{display:'block',lineHeight:1.5}},it.hint)));
+      }));
+  }
+
   function renderExportModal(){
     var total=(events||[]).length,valid=validEvents().length;
     var glInfo=E.parseRepoUrl(exUrl);
     function destTab(id,label){return h('span',{className:exDest===id?'on':'',onClick:function(){setExMsg('');setExDest(id);}},label);}
     return h('div',{className:'modal-bg',onClick:function(){if(!exBusy)setExOpen(false);}},
       h('div',{className:'modal',onClick:function(e){e.stopPropagation();}},
-        h('div',{className:'modal-head'},h('span',null,'📤 Export OpenLineage Events'),h('button',{onClick:function(){if(!exBusy)setExOpen(false);}},'×')),
+        h('div',{className:'modal-head'},h('span',null,'📤 Export OpenLineage Events'),h('button',{title:'Close','aria-label':'Close dialog',onClick:function(){if(!exBusy)setExOpen(false);}},'×')),
         h('div',{style:{padding:16,display:'flex',flexDirection:'column',gap:12,overflow:'auto'}},
           h('div',{className:'box'},
             h('div',{className:'kv'},h('span',{className:'k'},'Source'),h('span',{className:'v'},srcName||'—')),
@@ -2994,14 +3602,23 @@ function App(){
             h('div',{style:{display:'flex',gap:10}},
               h('div',{style:{flex:1}},h('label',{className:'flabel'},'Branch'),h('input',{className:'finput',value:exBranch,placeholder:'default',onChange:function(e){setExBranch(e.target.value);}})),
               h('div',{style:{flex:1}},h('label',{className:'flabel'},'Target path'),h('input',{className:'finput',value:exPath,placeholder:'openlineage',onChange:function(e){setExPath(e.target.value);}}))),
-            h('div',null,h('label',{className:'flabel'},'Access token (write_repository)'),h('input',{className:'finput',type:'password',value:exToken,placeholder:'glpat-…',onChange:function(e){setExToken(e.target.value);}}),
-              h('div',{className:'muted',style:{marginTop:4}},'Token stays in your browser; sent only to '+(glInfo?glInfo.host:'the GitLab host')+'. It creates a commit on the branch above.')),
-            h('div',null,h('label',{className:'flabel'},'Commit message'),h('input',{className:'finput',value:exCommit,onChange:function(e){setExCommit(e.target.value);}}))
+            h('div',null,h('label',{className:'flabel'},'Credential'),
+              h('div',{className:'toggle'},
+                h('span',{className:exAuth==='oauth'?'on':'',onClick:function(){setExMsg('');setExAuth('oauth');}},'OAuth'),
+                h('span',{className:exAuth==='pat'?'on':'',onClick:function(){setExMsg('');setExAuth('pat');}},'Personal Access Token'))),
+            exAuth==='oauth'
+              ? renderOAuthPanel(glInfo?glInfo.host:null,GLOAuth.SCOPE_WRITE,'Publishing commits through the REST API needs the `api` scope — `write_repository` covers git-over-HTTP only and will be rejected.')
+              : h('div',null,h('label',{className:'flabel'},'Access token (api scope)'),h('input',{className:'finput',type:'password',value:exToken,placeholder:'glpat-…',onChange:function(e){setExToken(e.target.value);}}),
+                  h('div',{className:'muted',style:{marginTop:4}},'Token stays in your browser; sent only to '+(glInfo?glInfo.host:'the GitLab host')+'. It creates a commit on the branch above. The `api` scope is required — `write_repository` does not grant REST commit access.')),
+            h('div',null,h('label',{className:'flabel'},'Commit message'),h('input',{className:'finput',value:exCommit,onChange:function(e){setExCommit(e.target.value);}})),
+            renderPrePublishChecklist()
           ):null,
           exMsg?h('div',{style:{fontSize:11,padding:'8px 10px',borderRadius:6,background:/failed|No valid|required|not supported/i.test(exMsg)?'rgba(255,95,95,0.12)':'var(--accbg)',color:/failed|No valid|required|not supported/i.test(exMsg)?'var(--red)':'var(--acc)'}},exMsg):null,
           h('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
             h('button',{className:'btn',onClick:function(){if(!exBusy)setExOpen(false);}},'Close'),
-            h('button',{className:'btn primary',disabled:exBusy||!valid,onClick:function(){exDest==='zip'?doExportZip():exDest==='folder'?doExportFolder():doExportGitLab();}},
+            h('button',{className:'btn primary',disabled:exBusy||!valid||(exDest==='gitlab'&&!prePublishReady()),
+              title:(exDest==='gitlab'&&!prePublishReady())?'Complete the pre-publication checklist first':'',
+              onClick:function(){exDest==='zip'?doExportZip():exDest==='folder'?doExportFolder():doExportGitLab();}},
               exBusy?'⏳ Working…':(exDest==='zip'?'Download ZIP':exDest==='folder'?'Save to folder':'Push to GitLab'))))));
   }
 
@@ -3019,15 +3636,25 @@ function App(){
       h('div',{className:'modal wide-modal',onClick:function(e){e.stopPropagation();}},
         h('div',{className:'modal-head'},
           h('span',null,'❔ LineageFlow — Help & Usage'),
-          h('button',{onClick:function(){setHelpOpen(false);}},'×')),
+          h('button',{title:'Close','aria-label':'Close help',onClick:function(){setHelpOpen(false);}},'×')),
         h('div',{style:{padding:18,overflow:'auto'}},
           h('div',{style:{fontSize:12,color:'var(--t1)',lineHeight:1.6,marginBottom:16}},
             'LineageFlow visualizes ',h('b',null,'OpenLineage'),' as an interactive dataset ⇄ job graph with column-level lineage. Load existing OpenLineage JSON, or generate design-time events from an ETL Mapping Specification spreadsheet.'),
+          // Keyboard shortcuts first — this is where people look for them.
+          h('div',{style:{marginBottom:16}},
+            h('div',{className:'sec-label',style:{marginTop:0,fontSize:11,color:'var(--acc)'}},'Keyboard shortcuts'),
+            h('div',{style:{display:'flex',flexDirection:'column',gap:5}},
+              KEY_HELP.map(function(k,i){return h('div',{key:i,style:{display:'flex',gap:10,fontSize:11,alignItems:'baseline'}},
+                h('kbd',{style:{flexShrink:0,minWidth:150,fontFamily:'inherit',fontSize:10,fontWeight:600,color:'var(--t0)',
+                  background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:5,padding:'2px 7px',textAlign:'center'}},k[0]),
+                h('span',{style:{color:'var(--t2)'}},k[1]));})),
+            h('div',{className:'muted',style:{marginTop:6}},'Shortcuts pause while you are typing in a field, so they never interfere with input.')),
           sec('1 · Load data',[
-            ['📥 Import MappingSpecifications-V2','Upload an ETL mapping spreadsheet (.xlsx). Validates it, reports gaps, and generates OpenLineage design-time events.'],
-            ['🧬 ViewLineage','Load existing OpenLineage events — dropdown with Open folder (local .json) and Git repo (GitHub/GitLab).'],
-            ['▶ Load demo','Sample graph to explore the features immediately.'],
-            ['🕘 Library','Reopen recently loaded models and saved views cached in this browser (IndexedDB).']]),
+            ['Create lineage','Author new lineage: import an ETL mapping spreadsheet (.xlsx), which is validated and turned into OpenLineage design-time events.'],
+            ['Download workbook template','A ready-to-fill .xlsx: both template layouts, a field guide, worked examples, and per-column input messages with dropdowns in Excel.'],
+            ['View existing lineage','Open OpenLineage events you already have — local folder (.json) or a GitHub/GitLab repo.'],
+            ['Load demo','Sample graph to explore the features immediately.'],
+            ['Library','Reopen recently loaded models and saved views cached in this browser (IndexedDB).']]),
           sec('2 · Right-panel tabs',[
             ['DETAILS','Inspect the selected node. Dataset → system, owners, tags, schema, column search, producers/consumers. Job → run info, facets (documentation, SQL, source), View-facets JSON, inputs/outputs.'],
             ['COLUMNS','Column-level lineage for the selected dataset: each target column, its sources, and the transformation applied. Click a column to trace it.'],
@@ -3037,7 +3664,7 @@ function App(){
           sec('3 · Left rail',[
             ['Overview','Live counts (datasets, jobs, namespaces, systems, edges, column links, issues). Click a stat to jump to its tab.'],
             ['Lineage view','Table = dataset/job level only. Column = expand datasets to show column lineage.'],
-            ['Group by','None (flat), Namespace, or System. Grouped nodes collapse; click to drill down.'],
+            ['Group by','None (flat), Namespace, System, or Application. Grouped nodes collapse; click to drill down.'],
             ['Explore (focus)','Progressive exploration for large graphs — render only a seed node and reveal neighbours 10 at a time (opt-in; best for very large graphs).'],
             ['Node spacing','Slider to spread nodes; Reset arrangement clears manual drags.'],
             ['Legend','Node/edge and column-transformation styling reference.']]),
@@ -3053,6 +3680,7 @@ function App(){
             ['Validate','Per-row checks produce a gap report (ERRORs exclude a row; WARNINGs do not). The detected template is shown per sheet.'],
             ['Generate','Valid rows → OpenLineage events, rendered here. Design rows → static JobEvent; RunTime rows → RunEvent.'],
             ['Export','OpenLineage JSON, column-lineage CSV, gap report (JSON/CSV/XLSX), or a ZIP (per-job folders + summary).'],
+            ['Publish to GitLab','Export OL Events → GitLab commits the events straight to a branch. A pre-publication checklist covers outstanding issues, repository, branch, path, and token scope before Push enables; editing any of those clears it.'],
             ['Full reference','docs/import-mapping-specification.md — every column, alias, rule, and the exact OpenLineage mapping.']]),
           sec('5a · Template A — Source→Target (columns, * = required value)',[
             ['Source System *','Source platform (Oracle, Snowflake…) → namespace scheme  <system>://<schema>.'],
@@ -3093,6 +3721,29 @@ function App(){
 
   // §11 ETL Mapping Specification modal — upload → worksheet select → validate
   // → gap report → generate → visualize + exports.
+  // ---- Gap-report filtering (view-only; exports always cover the full set) ----
+  function gapMatches(g,f,except){
+    for(var k in GAP_KEYS){
+      if(k===except||!f[k])continue;
+      if(String(g[GAP_KEYS[k]]||'')!==f[k])return false;
+    }
+    return true;
+  }
+  function filterGaps(gaps,f){return gaps.filter(function(g){return gapMatches(g,f);});}
+  function gapFacets(f){var n=0;for(var k in GAP_KEYS)if(f[k])n++;return n;}
+  // Counts for one facet, computed against the *other* active filters so the
+  // numbers reflect what selecting that value would actually show.
+  function gapCounts(gaps,f,prop){
+    var key=null;for(var k in GAP_KEYS)if(GAP_KEYS[k]===prop)key=k;
+    var m={};
+    gaps.forEach(function(g){
+      if(!gapMatches(g,f,key))return;
+      var v=String(g[prop]||'');if(!v)return;
+      m[v]=(m[v]||0)+1;
+    });
+    return Object.keys(m).sort().map(function(v){return {v:v,n:m[v]};});
+  }
+
   function renderMapModal(){
     var sum=mapVal&&mapVal.summary;
     var canValidate=mapSheets.length&&Object.keys(mapSel).length&&!mapBusy;
@@ -3102,7 +3753,7 @@ function App(){
       h('div',{className:'modal wide-modal',onClick:function(e){e.stopPropagation();}},
         h('div',{className:'modal-head'},
           h('span',null,'📊 ETL Mapping Specification → OpenLineage'),
-          h('button',{onClick:function(){if(!mapBusy)setMapOpen(false);}},'×')),
+          h('button',{title:'Close','aria-label':'Close dialog',onClick:function(){if(!mapBusy)setMapOpen(false);}},'×')),
         h('div',{className:'map-steps'},
           h('div',{className:stepCls('upload')},'1 · Upload'),
           h('div',{className:stepCls('validate')},'2 · Worksheets & Validate'),
@@ -3110,10 +3761,23 @@ function App(){
         h('div',{style:{padding:16,overflow:'auto'}},
           mapBusy&&mapProg&&h('div',{style:{background:'var(--accbg)',color:'var(--acc)',padding:'7px 10px',borderRadius:6,fontSize:11,marginBottom:12}},'⏳ '+mapProg),
           // Step 1: upload
-          !mapSheets.length&&h('div',{className:'dropzone',onClick:function(){if(mapInputRef.current)mapInputRef.current.click();}},
-            h('div',{style:{fontSize:32,marginBottom:8}},'📄'),
-            h('div',{style:{fontSize:13,color:'var(--t0)',marginBottom:4}},'Click to choose an Excel workbook'),
-            h('div',{className:'muted'},'.xlsx, .xls, or .xlsm — one or many worksheets. Rows are source→target column mappings.')),
+          !mapSheets.length&&h(React.Fragment,null,
+            h('div',{className:'dropzone'+(mapDrag?' over':''),
+              onClick:function(){if(mapInputRef.current)mapInputRef.current.click();},
+              onDragOver:function(e){e.preventDefault();e.dataTransfer.dropEffect='copy';if(!mapDrag)setMapDrag(true);},
+              onDragEnter:function(e){e.preventDefault();setMapDrag(true);},
+              onDragLeave:function(e){e.preventDefault();setMapDrag(false);},
+              onDrop:function(e){
+                e.preventDefault();setMapDrag(false);
+                var dt=e.dataTransfer,f=dt&&dt.files&&dt.files[0];
+                if(f)ingestSpecFile(f);
+              }},
+              h('div',{style:{fontSize:32,marginBottom:8}},'📄'),
+              h('div',{style:{fontSize:13,color:'var(--t0)',marginBottom:4}},mapDrag?'Drop the workbook to load it':'Drop an Excel workbook here, or click to choose'),
+              h('div',{className:'muted'},'.xlsx, .xls, or .xlsm — one or many worksheets. Rows are source→target column mappings.')),
+            h('div',{style:{display:'flex',alignItems:'center',gap:8,marginTop:10,padding:'9px 11px',border:'1px dashed var(--border)',borderRadius:8}},
+              h('span',{style:{fontSize:11,color:'var(--t2)',flex:1}},'Starting from scratch? The template documents every column, with examples and dropdowns.'),
+              h('button',{className:'btn',style:{flexShrink:0},onClick:downloadTemplate},'⬇ Download template'))),
           // Step 2: worksheet select + validate
           mapSheets.length?h(React.Fragment,null,
             h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
@@ -3125,8 +3789,23 @@ function App(){
                 h('input',{type:'checkbox',className:'ns-check',checked:!!mapSel[s.name],readOnly:true,tabIndex:-1}),
                 s.name,h('span',{className:'muted'},'('+s.rows.length+')'));})),
             h('div',{style:{display:'flex',gap:8,marginBottom:6}},
-              h('button',{className:'btn primary',onClick:runValidate,disabled:!canValidate},'✓ Validate selected'),
-              mapVal&&h('button',{className:'btn',onClick:runGenerate,disabled:!canGenerate},'⚡ Generate lineage'))
+              h('button',{className:'btn primary',onClick:runValidate,disabled:!canValidate},'Validate selected'),
+              mapVal&&h('button',{className:'btn',onClick:runGenerate,disabled:!canGenerate},'Generate lineage')),
+            // What actually blocks generation — stated before validating, not after.
+            h('div',{style:{display:'flex',gap:14,flexWrap:'wrap',alignItems:'flex-start',
+              padding:'8px 10px',border:'1px solid var(--border)',borderRadius:7,background:'var(--bg1)',marginBottom:6}},
+              h('div',{style:{display:'flex',gap:7,alignItems:'flex-start',flex:'1 1 210px'}},
+                h('span',{className:'gsev ERROR',style:{flexShrink:0}},'ERROR'),
+                h('span',{style:{fontSize:10.5,color:'var(--t2)',lineHeight:1.5}},
+                  h('b',{style:{color:'var(--t0)'}},'Blocks that row.'),' The row is excluded from generation; every other valid row still generates.')),
+              h('div',{style:{display:'flex',gap:7,alignItems:'flex-start',flex:'1 1 210px'}},
+                h('span',{className:'gsev WARNING',style:{flexShrink:0}},'WARNING'),
+                h('span',{style:{fontSize:10.5,color:'var(--t2)',lineHeight:1.5}},
+                  h('b',{style:{color:'var(--t0)'}},'Does not block.'),' The row is generated as-is — review it, because the lineage may be incomplete.')),
+              h('div',{style:{display:'flex',gap:7,alignItems:'flex-start',flex:'1 1 210px'}},
+                h('span',{style:{flexShrink:0,fontSize:9,fontWeight:700,letterSpacing:0.4,color:'var(--red)',border:'1px solid var(--red)',borderRadius:4,padding:'1px 5px'}},'TEMPLATE'),
+                h('span',{style:{fontSize:10.5,color:'var(--t2)',lineHeight:1.5}},
+                  h('b',{style:{color:'var(--t0)'}},'Blocks the sheet.'),' A missing or duplicated required header stops that worksheet entirely.')))
           ):null,
           // Template failures
           mapVal&&mapVal.templateFails.length?h('div',{style:{background:'rgba(255,95,95,0.1)',border:'1px solid var(--red)',borderRadius:8,padding:'10px 12px',margin:'12px 0',fontSize:11}},
@@ -3142,17 +3821,42 @@ function App(){
               [['Valid rows',sum.validRows,'var(--green)'],['Invalid rows',sum.invalidRows,sum.invalidRows?'var(--red)':'var(--t0)'],['Errors',sum.errors,sum.errors?'var(--red)':'var(--t0)'],['Warnings',sum.warnings,sum.warnings?'var(--orange)':'var(--t0)']]
                 .map(function(c,i){return h('div',{key:i,className:'sum-card'},h('div',{className:'n',style:{color:c[2]}},c[1]),h('div',{className:'l'},c[0]));})),
             mapGen?h('div',{style:{background:'rgba(34,197,94,0.1)',border:'1px solid var(--green)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:11,color:'var(--green)'}},'✓ Generated '+mapGen.events.length+' design-time events · '+mapGen.columnLineageReport.length+' column links'+(mapGen.eventIssues.length?(' · '+mapGen.eventIssues.length+' event issue(s)'):'')):null,
-            mapVal.gaps.length?h(React.Fragment,null,
-              h('div',{className:'sec-label'},'Validation gaps ('+mapVal.gaps.length+')'),
-              h('div',{style:{maxHeight:240,overflow:'auto',border:'1px solid var(--border)',borderRadius:8}},
-                h('table',{className:'gap-table'},
-                  h('thead',null,h('tr',null,['Row','Sheet','Sev','Field','Message','Recommendation'].map(function(hh){return h('th',{key:hh},hh);}))),
-                  h('tbody',null,mapVal.gaps.slice(0,500).map(function(g,i){return h('tr',{key:i},
-                    h('td',null,g.row||'—'),h('td',null,g.sheet||'—'),
-                    h('td',null,h('span',{className:'gsev '+g.severity},g.severity)),
-                    h('td',null,g.field),h('td',null,g.message),h('td',{style:{color:'var(--t2)'}},g.recommendation));})))),
-              mapVal.gaps.length>500?h('div',{className:'muted',style:{marginTop:4}},'Showing first 500 of '+mapVal.gaps.length+' — export for the full report.'):null
-            ):h('div',{style:{color:'var(--green)',fontSize:12,padding:'8px 0'}},'✓ No validation gaps.'),
+            mapVal.gaps.length?(function(){
+              // Remediation filters. Each dropdown lists only values actually
+              // present, with counts, so a large report narrows to one rule or
+              // one field in a click. Filtering is view-only — exports stay whole.
+              var shown=filterGaps(mapVal.gaps,gapF),active=gapFacets(gapF);
+              function facetSel(key,label,vals){
+                return h('div',{style:{flex:'1 1 130px',minWidth:0}},
+                  h('label',{className:'flabel'},label),
+                  h('select',{className:'fsel','aria-label':'Filter gaps by '+label.toLowerCase(),value:gapF[key],
+                    onChange:function(e){var v=e.target.value;setGapF(function(p){var c=Object.assign({},p);c[key]=v;return c;});}},
+                    h('option',{value:''},'All'+(vals.length?(' ('+vals.reduce(function(n,v){return n+v.n;},0)+')'):'')),
+                    vals.map(function(v){return h('option',{key:v.v,value:v.v},v.v+' ('+v.n+')');})));
+              }
+              return h(React.Fragment,null,
+                h('div',{className:'sec-label'},'Validation gaps ('+mapVal.gaps.length+')'),
+                h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end',marginBottom:8}},
+                  facetSel('sev','Severity',gapCounts(mapVal.gaps,gapF,'severity')),
+                  facetSel('sheet','Sheet',gapCounts(mapVal.gaps,gapF,'sheet')),
+                  facetSel('rule','Rule',gapCounts(mapVal.gaps,gapF,'rule')),
+                  facetSel('field','Field',gapCounts(mapVal.gaps,gapF,'field')),
+                  active?h('button',{className:'btn',style:{flexShrink:0},onClick:function(){setGapF({sev:'',sheet:'',rule:'',field:''});}},'Clear filters'):null),
+                h('div',{className:'muted',style:{marginBottom:6}},
+                  active?('Showing '+shown.length+' of '+mapVal.gaps.length+' gaps · '+active+' filter'+(active===1?'':'s')+' active')
+                        :('Showing all '+mapVal.gaps.length+' gaps')),
+                shown.length?h(React.Fragment,null,
+                  h('div',{style:{maxHeight:240,overflow:'auto',border:'1px solid var(--border)',borderRadius:8}},
+                    h('table',{className:'gap-table'},
+                      h('thead',null,h('tr',null,['Row','Sheet','Sev','Field','Rule','Message','Recommendation'].map(function(hh){return h('th',{key:hh},hh);}))),
+                      h('tbody',null,shown.slice(0,500).map(function(g,i){return h('tr',{key:i},
+                        h('td',null,g.row||'—'),h('td',null,g.sheet||'—'),
+                        h('td',null,h('span',{className:'gsev '+g.severity},g.severity)),
+                        h('td',null,g.field),h('td',{style:{color:'var(--t3)'}},g.rule||'—'),
+                        h('td',null,g.message),h('td',{style:{color:'var(--t2)'}},g.recommendation));})))),
+                  shown.length>500?h('div',{className:'muted',style:{marginTop:4}},'Showing first 500 of '+shown.length+' matching — export for the full report.'):null
+                ):h('div',{className:'muted',style:{padding:'10px 0'}},'No gaps match these filters.'));
+            })():h('div',{style:{color:'var(--green)',fontSize:12,padding:'8px 0'}},'No validation gaps.'),
             // Exports
             h('div',{className:'sec-label'},'Export'),
             h('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
