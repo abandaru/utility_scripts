@@ -138,6 +138,16 @@ body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',R
 .fmulti input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
 .fm-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fm-empty{padding:8px;font-size:10px;color:var(--t3)}
+/* Lineage level ladder — coarse at the top, fine at the bottom, with the node
+   count each level would draw so the cost of going finer is visible up front. */
+.lvl-ladder{display:flex;flex-direction:column;gap:2px;background:var(--bg0);border:1px solid var(--border);border-radius:8px;padding:3px}
+.lvl{display:flex;align-items:center;gap:8px;width:100%;padding:6px 9px;border:0;border-radius:6px;background:transparent;color:var(--t1);font-family:inherit;font-size:11px;cursor:pointer;text-align:left;transition:background 0.15s,color 0.15s}
+.lvl:hover{background:var(--bg2);color:var(--t0)}
+.lvl.on{background:var(--accbg);color:var(--acc);font-weight:600;box-shadow:inset 2px 0 0 var(--acc)}
+.lvl:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.lvl-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lvl-n{font-size:9px;color:var(--t3);font-variant-numeric:tabular-nums;flex-shrink:0}
+.lvl.on .lvl-n{color:var(--acc)}
 .savebtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px;padding:7px;border:1px dashed var(--acc);border-radius:8px;background:var(--accbg);color:var(--acc);font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;transition:background 0.15s}
 .savebtn:hover{background:var(--bg2)}
 .ns-row{display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;color:var(--t1);user-select:none;border:1px solid transparent;margin-bottom:3px}
@@ -637,7 +647,35 @@ select.finput{cursor:pointer}
     // internal ranking/barycenter placement is skipped and these coordinates are
     // used instead — giving clean, overlap-free, straightened large graphs.
     var positions=opts.positions||null;
-    var HEADER=44,ROWH=16,MAXF=12,MAXFULL=200,DSW=160,DSWMAX=320,JOBW=120,JOBWMAX=260;
+    // Node boxes are a fixed width per kind so a row of them reads as a row, not
+    // a ragged skyline. Long names wrap onto extra lines and grow the box
+    // downwards instead of stretching it sideways.
+    var HEADER=44,ROWH=16,MAXF=12,MAXFULL=200;
+    var DSW=200,JOBW=150,GROUPW=210,NAME_LH=13,GNAME_LH=15,MAX_NAME_LINES=2;
+    // Break on the separators that appear in dataset names (dots, underscores,
+    // slashes) before resorting to a hard character break.
+    function wrapText(s,maxChars,maxLines){
+      s=String(s==null?'':s);
+      if(s.length<=maxChars)return [s];
+      var toks=s.match(/[^._\-\/ ]+[._\-\/ ]*/g)||[s],lines=[],cur='';
+      toks.forEach(function(t){
+        if(!cur){cur=t;return;}
+        if((cur+t).length<=maxChars){cur+=t;return;}
+        lines.push(cur);cur=t;
+      });
+      if(cur)lines.push(cur);
+      var out=[];
+      lines.forEach(function(l){
+        while(l.length>maxChars){out.push(l.slice(0,maxChars));l=l.slice(maxChars);}
+        if(l)out.push(l);
+      });
+      if(out.length>maxLines){
+        out=out.slice(0,maxLines);
+        var last=out[maxLines-1];
+        out[maxLines-1]=last.length>maxChars-1?last.slice(0,maxChars-1)+'\u2026':last+'\u2026';
+      }
+      return out;
+    }
     var COLGAP=opts.colGap!=null?opts.colGap:90;
     var ROWGAP=opts.rowGap!=null?opts.rowGap:26;
 
@@ -661,22 +699,20 @@ select.finput{cursor:pointer}
       var cap=showAll?Math.min(matched.length,MAXFULL):MAXF;
       var shown=matched.slice(0,cap);
       var more=Math.max(0,matched.length-shown.length);
-      var h=exp&&shown.length?HEADER+shown.length*ROWH+(more||showAll||filt?18:6):46;
-      // Auto-size width to fit the dataset name (and, when expanded, the widest
-      // column row) so long names stay legible. Clamped [DSW, DSWMAX]; anything
-      // beyond DSWMAX truncates with a hover tooltip.
       var sys=d.system||systemOf(d.namespace);
-      var nameW=(d.name||'').length*6.7+20;
-      var colW=0;shown.forEach(function(f){colW=Math.max(colW,(f.name||'').length*6+(f.type||'').length*5.4+46);});
-      var w=Math.min(DSWMAX,Math.max(DSW,Math.ceil(Math.max(nameW,colW))));
-      nodes[id]={id:id,kind:'dataset',key:k,name:d.name,namespace:d.namespace,system:sys,color:model.nsColor[d.namespace]||'#888',w:w,h:h,expanded:exp,fields:shown,moreFields:more,totalFields:allF.length,matchCount:matched.length,filtered:!!filt,showAll:showAll,group:dsGroup(k)};
+      var w=DSW;
+      var nameLines=wrapText(d.name,Math.floor((w-18)/6.7),MAX_NAME_LINES);
+      var hdr=HEADER+(nameLines.length-1)*NAME_LH;// header grows with the wrap
+      var h=exp&&shown.length?hdr+shown.length*ROWH+(more||showAll||filt?18:6):46+(nameLines.length-1)*NAME_LH;
+      nodes[id]={id:id,kind:'dataset',key:k,name:d.name,nameLines:nameLines,hdr:hdr,namespace:d.namespace,system:sys,color:model.nsColor[d.namespace]||'#888',w:w,h:h,expanded:exp,fields:shown,moreFields:more,totalFields:allF.length,matchCount:matched.length,filtered:!!filt,showAll:showAll,group:dsGroup(k)};
       order.push(id);
     }
     function buildJobNode(k){
       var j=model.jobs[k];var id='j:'+k;
       // Auto-size job width to the name (+ hex point insets) so labels never clip.
-      var jw=Math.min(JOBWMAX,Math.max(JOBW,Math.ceil((j.name||'').length*6.7)+48));
-      nodes[id]={id:id,kind:'job',key:k,name:j.name,namespace:j.namespace,system:systemOf(j.namespace),color:JOB_COLOR,w:jw,h:46,eventType:j.latestEventType,group:jobGroup(k)};
+      var jw=JOBW;
+      var jLines=wrapText(j.name,Math.floor((jw-34)/6),MAX_NAME_LINES);
+      nodes[id]={id:id,kind:'job',key:k,name:j.name,nameLines:jLines,namespace:j.namespace,system:systemOf(j.namespace),color:JOB_COLOR,w:jw,h:46+(jLines.length-1)*12,eventType:j.latestEventType,group:jobGroup(k)};
       order.push(id);
     }
 
@@ -712,9 +748,9 @@ select.finput{cursor:pointer}
           var G=groups[g];
           // Auto-size group width to the (icon-prefixed) name so it never clips;
           // also keep room for the counts/drill-down rows. Clamped [190, 380].
-          var gLabelLen=String(g).length+(groupBy==='system'?2:0);
-          var gW=Math.min(380,Math.max(190,Math.ceil(gLabelLen*7.3)+34));
-          nodes['g:'+g]={id:'g:'+g,kind:'group',key:g,name:g,group:g,groupBy:groupBy,dsCount:G.ds.length,jobCount:G.jobs.length,nsCount:Object.keys(G.nss).length,color:G.color||'#888',system:G.sys,namespace:(groupBy==='namespace'?g:''),w:gW,h:70};
+          var gW=GROUPW;
+          var gLines=wrapText(g,Math.floor((gW-30)/7.1)-(groupBy==='system'?2:0),MAX_NAME_LINES);
+          nodes['g:'+g]={id:'g:'+g,kind:'group',key:g,name:g,nameLines:gLines,group:g,groupBy:groupBy,dsCount:G.ds.length,jobCount:G.jobs.length,nsCount:Object.keys(G.nss).length,color:G.color||'#888',system:G.sys,namespace:(groupBy==='namespace'?g:''),w:gW,h:70+(gLines.length-1)*GNAME_LH};
           order.push('g:'+g);
         }
       });
@@ -834,7 +870,7 @@ select.finput{cursor:pointer}
       if(!nd.expanded)return nd.y+nd.h/2;
       var idx=nd.fields.findIndex(function(f){return f.name===fname;});
       if(idx<0)return nd.y+nd.h/2;
-      return nd.y+HEADER+idx*ROWH+ROWH/2;
+      return nd.y+(nd.hdr||HEADER)+idx*ROWH+ROWH/2;
     }
 
     var colEdges=[];
@@ -1903,7 +1939,8 @@ function App(){
   var s_elkBusy=useState(false),elkBusy=s_elkBusy[0],setElkBusy=s_elkBusy[1];
   var s_help=useState(false),helpOpen=s_help[0],setHelpOpen=s_help[1];
   var s_events=useState([]),events=s_events[0],setEvents=s_events[1];// raw loaded OpenLineage events (for export)
-  var s_startMenu=useState(null),startMenu=s_startMenu[0],setStartMenu=s_startMenu[1];// 'create' | 'view' | null — open Start here dropdown
+  var s_startMenu=useState(null),startMenu=s_startMenu[0],setStartMenu=s_startMenu[1];
+  var s_imgMenu=useState(false),imgMenu=s_imgMenu[0],setImgMenu=s_imgMenu[1];// Save Image format menu// 'create' | 'view' | null — open Start here dropdown
   var s_exOpen=useState(false),exOpen=s_exOpen[0],setExOpen=s_exOpen[1];// Export OL Events modal
   var s_exDest=useState('zip'),exDest=s_exDest[0],setExDest=s_exDest[1];// 'zip' | 'folder' | 'gitlab'
   var s_exBusy=useState(false),exBusy=s_exBusy[0],setExBusy=s_exBusy[1];
@@ -2134,6 +2171,43 @@ function App(){
   },[layoutBase,elkPos,elkOn,elkSig,model,manualPos]);
 
   function toggleGroup(g){setExpGroups(function(p){var c=Object.assign({},p);if(c[g])delete c[g];else c[g]=1;return c;});}
+  // §Lineage levels. Coarse -> fine. Each level is a (grouping, view) pair; the
+  // ladder is the single control, so "Application" and "Column" are rungs of one
+  // scale rather than two settings the reader has to combine.
+  var LINEAGE_LEVELS=[
+    {id:'application',groupBy:'domain',view:'table',label:'Application',hint:'One node per owning application. Edges carry the template\u2019s own hop labels.'},
+    {id:'system',groupBy:'system',view:'table',label:'System',hint:'One node per platform (Snowflake, Oracle, S3\u2026).'},
+    {id:'namespace',groupBy:'namespace',view:'table',label:'Namespace',hint:'One node per OpenLineage namespace.'},
+    {id:'table',groupBy:'none',view:'table',label:'Table',hint:'Every dataset and job, without column detail.'},
+    {id:'column',groupBy:'none',view:'column',label:'Column',hint:'Datasets expand to fields, with column-level edges.'}
+  ];
+  function currentLevel(){
+    for(var i=0;i<LINEAGE_LEVELS.length;i++){
+      var L=LINEAGE_LEVELS[i];
+      if(L.groupBy===groupBy&&(L.groupBy!=='none'||L.view===viewMode))return L.id;
+    }
+    return 'table';
+  }
+  function setLevel(id){
+    var L=null;LINEAGE_LEVELS.forEach(function(x){if(x.id===id)L=x;});
+    if(!L)return;
+    changeGroupBy(L.groupBy);
+    setViewMode(L.view);
+  }
+  // How many nodes that level would draw — shown on the rung so the cost of
+  // going finer is visible before the click, not after the canvas fills.
+  function levelCount(id){
+    if(!model)return '';
+    var ds=Object.keys(model.datasets),js=Object.keys(model.jobs);
+    function uniq(f){var m={};ds.forEach(function(k){var v=f(model.datasets[k]);if(v)m[v]=1;});return Object.keys(m).length;}
+    if(id==='application')return uniq(function(d){return d.domain||d.namespace;});
+    if(id==='system')return uniq(function(d){return d.system||E.systemOf(d.namespace);});
+    if(id==='namespace')return uniq(function(d){return d.namespace;});
+    if(id==='table')return ds.length+js.length;
+    var cols=0;ds.forEach(function(k){var d=model.datasets[k];cols+=(d.schemaFields||[]).length;});
+    return cols||ds.length;
+  }
+
   function changeGroupBy(mode){setGroupBy(mode);setExpGroups({});setGrpMenu(false);}// keep manual drags across grouping changes
   // list of group keys + member counts for the current grouping mode
   function groupList(){
@@ -2159,11 +2233,11 @@ function App(){
 
   // close the open "Start here" dropdown on any outside interaction
   useEffect(function(){
-    if(!startMenu)return;
-    var close=function(){setStartMenu(null);};
+    if(!startMenu&&!imgMenu)return;
+    var close=function(){setStartMenu(null);setImgMenu(false);};
     window.addEventListener('mousedown',close);
     return function(){window.removeEventListener('mousedown',close);};
-  },[startMenu]);
+  },[startMenu,imgMenu]);
 
   function toggleFull(id){setFullCols(function(p){var c=Object.assign({},p);if(c[id])delete c[id];else c[id]=1;return c;});}
   function setDsFilter(k,v){setColFilter(function(p){var c=Object.assign({},p);if(v)c[k]=v;else delete c[k];return c;});}
@@ -2173,8 +2247,42 @@ function App(){
   // §5 Impact / root-cause traversal result over the structural graph.
   var impactResult=useMemo(function(){
     if(!impact||!model)return null;
+    // Tracing from a collapsed group: the underlying graph has no group nodes,
+    // so walk from every member and project the result back onto group ids.
+    // Depth is kept in the underlying graph, which is what the hop cap means.
+    if(String(impact.startId).indexOf('g:')===0){
+      var key=impact.startId.slice(2),seeds=[];
+      Object.keys(model.datasets).forEach(function(k){if(groupKeyOf('dataset',k)===key)seeds.push('d:'+k);});
+      Object.keys(model.jobs).forEach(function(k){if(groupKeyOf('job',k)===key)seeds.push('j:'+k);});
+      if(!seeds.length)return null;
+      var depth={},edges={};
+      seeds.forEach(function(sd){
+        var r=E.traverse(model,sd,impact.mode,tdepth);
+        Object.keys(r.depth).forEach(function(n){
+          if(depth[n]==null||r.depth[n]<depth[n])depth[n]=r.depth[n];
+        });
+        Object.keys(r.edges).forEach(function(ek){edges[ek]=1;});
+      });
+      // Project onto the group ids the canvas is actually drawing.
+      var gdepth={},gedges={};
+      function gid(n){
+        var kind=n[0]==='d'?'dataset':'job',kk=n.slice(2);
+        var gk=groupKeyOf(kind,kk);
+        return expGroups[gk]?n:'g:'+gk;
+      }
+      Object.keys(depth).forEach(function(n){
+        var g=gid(n);
+        if(gdepth[g]==null||depth[n]<gdepth[g])gdepth[g]=depth[n];
+      });
+      Object.keys(edges).forEach(function(ek){
+        var pr=ek.split('>'),a=gid(pr[0]),b=gid(pr[1]);
+        if(a!==b)gedges[a+'>'+b]=1;
+      });
+      gdepth[impact.startId]=0;
+      return{depth:gdepth,edges:gedges,count:Object.keys(gdepth).length-1,direction:impact.mode,start:impact.startId};
+    }
     return E.traverse(model,impact.startId,impact.mode,tdepth);
-  },[impact,tdepth,model]);
+  },[impact,tdepth,model,groupBy,expGroups]);
   function startImpact(mode,id){setImpact({mode:mode,startId:id});setCtxMenu(null);}
   function clearImpact(){setImpact(null);}
   // Dismiss the context menu on any outside interaction.
@@ -2777,9 +2885,17 @@ function App(){
     var eg=g.append('g'),cg=g.append('g');
     function fieldAnchor(n,fname,side){
       var cy;
-      if(n.expanded){var idx=n.fields.findIndex(function(f){return f.name===fname;});cy=idx>=0?n.y+HEADER+idx*ROWH+ROWH/2:n.y+n.h/2;}
+      if(n.expanded){var idx=n.fields.findIndex(function(f){return f.name===fname;});cy=idx>=0?n.y+(n.hdr||HEADER)+idx*ROWH+ROWH/2:n.y+n.h/2;}
       else cy=n.y+n.h/2;
       return side==='out'?[n.x+n.w,cy]:[n.x,cy];
+    }
+    // Render a wrapped label as one text row per line. SVG has no text flow, so
+    // the lines are laid out explicitly at the line height the layout budgeted.
+    function drawLines(g,lines,x,y,lh,cls,opts){
+      (lines||[]).forEach(function(ln,i){
+        var t=g.append('text').attr('x',x).attr('y',y+i*lh).attr('class',cls).text(ln);
+        if(opts){Object.keys(opts).forEach(function(k){t.attr(k,opts[k]);});}
+      });
     }
     function drawEdges(){
       eg.selectAll('*').remove();cg.selectAll('*').remove();
@@ -2806,7 +2922,7 @@ function App(){
         // Application hops: name the depth(s) carrying this source app -> target app.
         var hops=(e.hops||[]).filter(function(hh){return String(hh||'').trim();});
         if(hops.length&&!dim){
-          var lbl='depth '+hops.join(', ');
+          var lbl=hops.join(', ');// the template's own values, verbatim
           var mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;// anchors are [x,y] pairs
           var tw=lbl.length*5.4+12;
           eg.append('rect').attr('x',mx-tw/2).attr('y',my-8).attr('width',tw).attr('height',15)
@@ -2880,10 +2996,11 @@ function App(){
         grp.append('rect').attr('width',5).attr('height',n.h).attr('rx',2).attr('fill',n.color);
         grp.append('title').text(n.name);
         var gPrefix=n.groupBy==='system'?E.systemIcon(n.system)+' ':'';
-        var gCap=Math.max(10,Math.floor((n.w-24)/7.1)-gPrefix.length);
-        grp.append('text').attr('x',16).attr('y',24).attr('class','node-label').attr('font-size','12px').attr('font-weight','700').text(gPrefix+trunc(n.name,gCap));
-        grp.append('text').attr('x',16).attr('y',42).attr('class','node-sub').text(n.dsCount+' table'+(n.dsCount!==1?'s':'')+' · '+n.jobCount+' job'+(n.jobCount!==1?'s':''));
-        grp.append('text').attr('x',16).attr('y',58).attr('class','node-sub').attr('fill',accColor).text('▸ drill down');
+        var gl=(n.nameLines||[n.name]).slice();gl[0]=gPrefix+gl[0];
+        drawLines(grp,gl,16,24,15,'node-label',{'font-size':'12px','font-weight':'700'});
+        var gBase=24+(gl.length-1)*15;
+        grp.append('text').attr('x',16).attr('y',gBase+18).attr('class','node-sub').text(n.dsCount+' table'+(n.dsCount!==1?'s':'')+' · '+n.jobCount+' job'+(n.jobCount!==1?'s':''));
+        grp.append('text').attr('x',16).attr('y',gBase+34).attr('class','node-sub').attr('fill',accColor).text('▸ drill down');
       }else if(n.kind==='job'){
         // Distinct hexagon glyph for jobs/transforms (points at left/right for LR flow anchors)
         var hi=Math.min(16,n.h/2);
@@ -2892,8 +3009,7 @@ function App(){
         if(isSel)grp.append('path').attr('d',hex).attr('fill','none').attr('stroke',accColor).attr('stroke-width',5).attr('opacity',0.12);
         grp.append('title').text(n.name+'\n'+n.namespace);
         grp.append('text').attr('x',n.w/2).attr('y',21).attr('text-anchor','middle').attr('font-size','14px').attr('fill',n.color).text('⚙');
-        var jCap=Math.max(8,Math.floor((n.w-26)/6));
-        grp.append('text').attr('x',n.w/2).attr('y',35).attr('text-anchor','middle').attr('class','node-label').attr('font-size','10px').text(trunc(n.name,jCap));
+        drawLines(grp,n.nameLines||[n.name],n.w/2,35,12,'node-label',{'text-anchor':'middle','font-size':'10px'});
       }else{
         grp.append('rect').attr('width',n.w).attr('height',n.h).attr('rx',9)
           .attr('fill',nodeBg).attr('stroke',isSel?accColor:(impStroke||n.color)).attr('stroke-width',(isSel||impStroke)?2:1).attr('filter',useShadow?'url(#nodeShadow)':null);
@@ -2901,31 +3017,33 @@ function App(){
         // Full name/namespace/system on hover (for anything still truncated)
         grp.append('title').text(n.name+'\n'+n.namespace+'  ·  '+n.system);
         // Row 1: dataset name gets the whole width (truncation scales with width)
-        var nameCap=Math.max(6,Math.floor((n.w-16)/6.7));
-        grp.append('text').attr('x',9).attr('y',19).attr('class','node-label').text(trunc(n.name,nameCap));
+        var dl=n.nameLines||[n.name];
+        drawLines(grp,dl,9,19,13,'node-label');
+        var sub=19+(dl.length-1)*13+15;// second row sits below however many name lines
         // Row 2: system badge on the right, namespace fills the space to its left
         var sysTxt=E.systemIcon(n.system)+' '+trunc(n.system,9);
-        grp.append('text').attr('x',n.w-9).attr('y',34).attr('text-anchor','end').attr('class','node-sub').attr('fill',n.color).text(sysTxt);
+        grp.append('text').attr('x',n.w-9).attr('y',sub).attr('text-anchor','end').attr('class','node-sub').attr('fill',n.color).text(sysTxt);
         var nsCap=Math.max(4,Math.floor((n.w-18-sysTxt.length*5.6)/5.6));
-        grp.append('text').attr('x',9).attr('y',34).attr('class','node-sub').text(trunc(n.namespace,nsCap));
+        grp.append('text').attr('x',9).attr('y',sub).attr('class','node-sub').text(trunc(n.namespace,nsCap));
         if(n.expanded&&n.fields.length){
           // Separator + tinted columns band, indented from the header for clarity.
-          grp.append('line').attr('x1',0).attr('x2',n.w).attr('y1',HEADER).attr('y2',HEADER).attr('stroke',edgeClr);
-          grp.append('rect').attr('x',0).attr('y',HEADER).attr('width',4).attr('height',n.h-HEADER).attr('fill',n.color).attr('opacity',0.5);
+          var HD=n.hdr||HEADER;// header height for this node, after name wrapping
+          grp.append('line').attr('x1',0).attr('x2',n.w).attr('y1',HD).attr('y2',HD).attr('stroke',edgeClr);
+          grp.append('rect').attr('x',0).attr('y',HD).attr('width',4).attr('height',n.h-HD).attr('fill',n.color).attr('opacity',0.5);
           n.fields.forEach(function(f,i){
-            var y=HEADER+i*ROWH+11;
+            var y=HD+i*ROWH+11;
             // Check if this field is part of the full transitive column lineage chain
             var isHighlighted=colChain&&colChain.fields[n.key+'::'+f.name];
             if(isHighlighted){
               // Highlight background for active field
-              grp.append('rect').attr('x',1).attr('y',HEADER+i*ROWH).attr('width',n.w-2).attr('height',ROWH).attr('fill','rgba(255,159,67,0.2)').attr('rx',2);
-              grp.append('rect').attr('x',0).attr('y',HEADER+i*ROWH).attr('width',3).attr('height',ROWH).attr('fill','#ff9f43').attr('rx',1);
+              grp.append('rect').attr('x',1).attr('y',HD+i*ROWH).attr('width',n.w-2).attr('height',ROWH).attr('fill','rgba(255,159,67,0.2)').attr('rx',2);
+              grp.append('rect').attr('x',0).attr('y',HD+i*ROWH).attr('width',3).attr('height',ROWH).attr('fill','#ff9f43').attr('rx',1);
             }
             var fnCap=Math.max(8,Math.floor((n.w-21-(f.type||'').length*6-14)/6));
             grp.append('text').attr('x',14).attr('y',y).attr('class','field-txt').attr('fill',isHighlighted?'#ff9f43':null).text(trunc(f.name,fnCap));
             grp.append('text').attr('x',n.w-9).attr('y',y).attr('text-anchor','end').attr('class','field-type').text(trunc(f.type,10));
             if(hasColLineage(n.key,f.name)){
-              var fr=grp.append('rect').attr('x',1).attr('y',HEADER+i*ROWH+1).attr('width',n.w-2).attr('height',ROWH-1).attr('fill','transparent').attr('rx',2).style('cursor','pointer');
+              var fr=grp.append('rect').attr('x',1).attr('y',HD+i*ROWH+1).attr('width',n.w-2).attr('height',ROWH-1).attr('fill','transparent').attr('rx',2).style('cursor','pointer');
               fr.on('mouseover',function(){d3.select(this).attr('fill','rgba(255,159,67,0.14)');}).on('mouseout',function(){d3.select(this).attr('fill','transparent');});
               // Stop mousedown reaching the node's d3.drag: otherwise drag installs a click-suppressor
               // that swallows this row's click and the transformation popup never opens.
@@ -2934,7 +3052,7 @@ function App(){
             }
           });
           // Footer row: match count when filtering, else a clickable show-all / show-fewer toggle
-          var fy=HEADER+n.fields.length*ROWH+9;
+          var fy=HD+n.fields.length*ROWH+9;
           if(n.filtered){
             grp.append('text').attr('x',14).attr('y',fy).attr('class','node-sub').attr('fill',accColor).text(n.matchCount+' / '+n.totalFields+' match'+(n.matchCount===1?'':'es'));
           }else if(n.moreFields||n.showAll){
@@ -2961,11 +3079,12 @@ function App(){
           grp.append('text').attr('x',fbx).attr('y',6).attr('text-anchor','middle').attr('font-size','8px').attr('font-weight','700').attr('fill','#fff').style('pointer-events','none').text('+'+fc);
         }
       }
-      if(n.kind!=='group')grp.on('contextmenu',function(ev){ev.preventDefault();ev.stopPropagation();setCtxMenu({x:ev.clientX,y:ev.clientY,id:n.id,kind:n.kind,key:n.key,name:n.name});});
+      // Groups get the same context menu: tracing is meaningful at every level.
+      grp.on('contextmenu',function(ev){ev.preventDefault();ev.stopPropagation();setCtxMenu({x:ev.clientX,y:ev.clientY,id:n.id,kind:n.kind,key:n.key,name:n.name});});
       var drag=d3.drag()
         .on('start',function(ev){ev.sourceEvent.stopPropagation();grp.raise().style('cursor','grabbing');grp.node().__moved=false;})
         .on('drag',function(ev){n.x+=ev.dx;n.y+=ev.dy;grp.attr('transform','translate('+n.x+','+n.y+')');manualRef.current[n.id]={x:n.x,y:n.y};grp.node().__moved=true;drawEdges();})
-        .on('end',function(ev){grp.style('cursor','grab');if(!grp.node().__moved){if(n.kind==='group')toggleGroup(n.key);else{setSelected({kind:n.kind,key:n.key});setPanelOpen(true);setTab('DETAILS');if(focusMode)expandFocus(n.id);}}else{var nx=n.x,ny=n.y,nid=n.id;setManualPos(function(p){var c=Object.assign({},p);c[nid]={x:nx,y:ny};return c;});}});
+        .on('end',function(ev){grp.style('cursor','grab');if(!grp.node().__moved){if(n.kind==='group'){setSelected({kind:'group',key:n.key,id:n.id});setPanelOpen(true);setTab('DETAILS');}else{setSelected({kind:n.kind,key:n.key});setPanelOpen(true);setTab('DETAILS');if(focusMode)expandFocus(n.id);}}else{var nx=n.x,ny=n.y,nid=n.id;setManualPos(function(p){var c=Object.assign({},p);c[nid]={x:nx,y:ny};return c;});}});
       grp.call(drag);
     });
 
@@ -3236,13 +3355,53 @@ function App(){
       edges:model.edges,columnEdges:model.colEdges,issues:model.issues};
     dl(JSON.stringify(out,null,2),'lineageflow-summary.json','application/json');
   }
-  function exportPNG(){
-    if(!svgRef.current)return;
-    var svg=svgRef.current;var clone=svg.cloneNode(true);
-    var xml=new XMLSerializer().serializeToString(clone);
-    var img=new Image();var w=svg.clientWidth,ht=svg.clientHeight;
-    img.onload=function(){var c=document.createElement('canvas');c.width=w;c.height=ht;var ctx=c.getContext('2d');ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--bg0').trim()||'#0a0a0c';ctx.fillRect(0,0,w,ht);ctx.drawImage(img,0,0);c.toBlob(function(b){var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download='lineageflow.png';a.click();URL.revokeObjectURL(u);});};
-    img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(xml)));
+  // Canvas export. SVG is the default: the diagram is already vector, so writing
+  // it out as SVG keeps it sharp at any zoom and leaves text selectable, where
+  // the previous PNG was rasterised at whatever the window happened to be.
+  // Inline the CSS variables the SVG references — they live on :root, which is
+  // not part of the exported fragment, so colours would otherwise fall back.
+  function canvasSVG(){
+    if(!svgRef.current)return null;
+    var svg=svgRef.current,clone=svg.cloneNode(true);
+    var cs=getComputedStyle(document.documentElement);
+    var vars=['--bg0','--bg1','--bg2','--bg3','--bg4','--border','--border2','--t0','--t1','--t2','--t3',
+      '--acc','--acc2','--accbg','--blue','--purple','--orange','--red','--cyan','--pink','--green',
+      '--node-bg','--edge-color','--canvas-dot','--hover'];
+    var decl=vars.map(function(v){return v+':'+cs.getPropertyValue(v).trim()+';';}).join('');
+    // Bound the export to the drawing, not the viewport, so nothing is cropped.
+    var bb=null;try{bb=svg.getBBox();}catch(e){}
+    var pad=24;
+    var x=bb?Math.floor(bb.x-pad):0,y=bb?Math.floor(bb.y-pad):0;
+    var w=bb?Math.ceil(bb.width+pad*2):svg.clientWidth,ht=bb?Math.ceil(bb.height+pad*2):svg.clientHeight;
+    clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    clone.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+    clone.setAttribute('viewBox',x+' '+y+' '+w+' '+ht);
+    clone.setAttribute('width',w);clone.setAttribute('height',ht);
+    var style=document.createElementNS('http://www.w3.org/2000/svg','style');
+    style.textContent='svg{'+decl+'font-family:Inter,system-ui,-apple-system,sans-serif}'+
+      '.node-label,.node-sub,text{font-family:Inter,system-ui,-apple-system,sans-serif}';
+    clone.insertBefore(style,clone.firstChild);
+    var bg=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    bg.setAttribute('x',x);bg.setAttribute('y',y);bg.setAttribute('width',w);bg.setAttribute('height',ht);
+    bg.setAttribute('fill',cs.getPropertyValue('--bg0').trim()||'#0d1017');
+    clone.insertBefore(bg,style.nextSibling);
+    return{xml:'<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(clone),w:w,ht:ht};
+  }
+  function exportSVG(){
+    var r=canvasSVG();if(!r){setErr('Nothing on the canvas to export yet.');return;}
+    dl(r.xml,(srcName?safeName(srcName):'lineageflow')+'.svg','image/svg+xml');
+  }
+  // PNG kept for pasting into decks, but rendered at 3x so it is not soft.
+  function exportPNG(scale){
+    var r=canvasSVG();if(!r)return;
+    var k=scale||3,img=new Image();
+    img.onload=function(){
+      var c=document.createElement('canvas');c.width=r.w*k;c.height=r.ht*k;
+      var ctx=c.getContext('2d');ctx.scale(k,k);ctx.drawImage(img,0,0);
+      c.toBlob(function(b){dlBlob(b,(srcName?safeName(srcName):'lineageflow')+'@'+k+'x.png');});
+    };
+    img.onerror=function(){setErr('Could not rasterise the canvas — use SVG instead.');};
+    img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(r.xml)));
   }
   function dl(text,name,type){var b=new Blob([text],{type:type});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
   function dlBlob(blob,name){var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
@@ -3361,7 +3520,7 @@ function App(){
   // auto demo via ?demo
   useEffect(function(){if(/[?&]demo/.test(location.search))loadDemo();},[]);
 
-  var selNode=selected&&model?(selected.kind==='dataset'?model.datasets[selected.key]:model.jobs[selected.key]):null;
+  var selNode=selected&&model?(selected.kind==='group'?{name:selected.key,group:true}:selected.kind==='dataset'?model.datasets[selected.key]:model.jobs[selected.key]):null;
 
   return h('div',{className:'app'},
     h('input',{type:'file',ref:folderInputRef,webkitdirectory:'',directory:'',multiple:true,style:{display:'none'},onChange:onFolderInput}),
@@ -3412,7 +3571,13 @@ function App(){
       // Export zone (stats live in the left-rail Overview — no duplicate chips here)
       model&&h('div',{className:'tb-sep'}),
       model&&h('div',{className:'tb-group'},
-        h('button',{className:'btn',onClick:exportPNG,title:'Export canvas as PNG image'},'Save Image'),
+        h('div',{style:{position:'relative'},onMouseDown:function(e){e.stopPropagation();}},
+          h('button',{className:'btn',onClick:function(){setImgMenu(!imgMenu);},title:'Export the canvas as an image'},'Save Image ',imgMenu?'▴':'▾'),
+          imgMenu&&h('div',{className:'ctxmenu',style:{position:'absolute',top:'calc(100% + 6px)',left:0,right:'auto',minWidth:210}},
+            h('div',{className:'ctx-head'},'Save canvas'),
+            h('button',{title:'Vector — stays sharp at any zoom, text remains selectable',onClick:function(){setImgMenu(false);exportSVG();}},'SVG (vector)'),
+            h('button',{title:'Raster at 3x for slides and documents',onClick:function(){setImgMenu(false);exportPNG(3);}},'PNG · 3x'),
+            h('button',{title:'Raster at 1x',onClick:function(){setImgMenu(false);exportPNG(1);}},'PNG · 1x'))),
         h('button',{className:'btn',onClick:openExport,title:'Export validated OpenLineage events (ZIP / folder / GitLab)'},'Export OL Events')),
       // Workspace zone
       window.LFStore&&window.LFStore.available&&h('div',{className:'tb-sep'}),
@@ -3494,17 +3659,20 @@ function App(){
           // ---- View & grouping ----
           accSec('view','⊞','Grouping',(groupBy==='none'?'Flat':groupBy)+' · '+(viewMode==='column'?'Col':'Table'),
             h(React.Fragment,null,
-              h('div',{className:'fld'},h('label',null,'Group by'),
-                h('div',{className:'toggle four'},
-                  h('span',{className:groupBy==='none'?'on':'',onClick:function(){changeGroupBy('none');}},'None'),
-                  h('span',{className:groupBy==='namespace'?'on':'',onClick:function(){changeGroupBy('namespace');}},'Namespace'),
-                  h('span',{className:groupBy==='system'?'on':'',onClick:function(){changeGroupBy('system');}},'System'),
-                  h('span',{className:groupBy==='domain'?'on':'',onClick:function(){changeGroupBy('domain');}},'Application'))),
-              h('div',{className:'fld'},h('label',null,'Lineage view'),
-                h('div',{className:'toggle'},
-                  h('span',{className:viewMode==='table'?'on':'',onClick:function(){setViewMode('table');}},'Table'),
-                  h('span',{className:viewMode==='column'?'on':'',onClick:function(){setViewMode('column');}},'Column'))),
-              h('div',{className:'muted',style:{marginTop:8}},groupBy==='none'?'Flat table-level graph':'Click a group to drill down to tables'))),
+              // One ladder from coarsest to finest, rather than two controls the
+              // reader has to combine mentally. Each rung sets the grouping and
+              // the table/column view together.
+              h('div',{className:'fld'},h('label',null,'Lineage level'),
+                h('div',{className:'lvl-ladder'},
+                  LINEAGE_LEVELS.map(function(L){
+                    var on=currentLevel()===L.id;
+                    return h('button',{key:L.id,className:'lvl'+(on?' on':''),title:L.hint,
+                      'aria-pressed':on,onClick:function(){setLevel(L.id);}},
+                      h('span',{className:'lvl-name'},L.label),
+                      h('span',{className:'lvl-n'},levelCount(L.id)));
+                  })),
+                h('div',{className:'muted',style:{marginTop:6,lineHeight:1.5}},
+                  (LINEAGE_LEVELS.filter(function(L){return L.id===currentLevel();})[0]||{}).hint)))),
           // ---- Layout & spacing ----
           accSec('layout','⤢','Layout',((typeof ELK!=='undefined'&&elkOn)?'Layered':'Compact')+' · '+(layoutMode==='manual'?'Manual':'Auto'),
             h(React.Fragment,null,
@@ -3747,8 +3915,9 @@ function App(){
     helpOpen&&renderHelpModal(),
     // §5 node context menu (right-click)
     ctxMenu&&h('div',{className:'ctxmenu',style:{left:Math.min(ctxMenu.x,window.innerWidth-190),top:Math.min(ctxMenu.y,window.innerHeight-160)},onMouseDown:function(e){e.stopPropagation();}},
-      h('div',{className:'ctx-head'},(ctxMenu.kind==='job'?'⚙ ':'▢ ')+trunc(ctxMenu.name,22)),
-      h('button',{onClick:function(){setSelected({kind:ctxMenu.kind,key:ctxMenu.key});setTab('DETAILS');setCtxMenu(null);}},'Inspect'),
+      h('div',{className:'ctx-head'},(ctxMenu.kind==='job'?'⚙ ':ctxMenu.kind==='group'?'▤ ':'▢ ')+trunc(ctxMenu.name,22)),
+      h('button',{onClick:function(){setSelected({kind:ctxMenu.kind,key:ctxMenu.key,id:ctxMenu.id});setTab('DETAILS');setPanelOpen(true);setCtxMenu(null);}},'Inspect'),
+      ctxMenu.kind==='group'?h('button',{onClick:function(){toggleGroup(ctxMenu.key);setCtxMenu(null);}},'Expand / collapse this group'):null,
       h('button',{onClick:function(){startImpact('down',ctxMenu.id);}},'Trace downstream (impact)'),
       h('button',{onClick:function(){startImpact('up',ctxMenu.id);}},'Trace upstream (root cause)'),
       impact&&h('button',{onClick:function(){clearImpact();setCtxMenu(null);}},'Clear analysis'))
@@ -4191,6 +4360,7 @@ function App(){
 
   function renderDetails(){
     if(!selNode)return h('div',{className:'muted'},'Select a node in the graph to inspect it.');
+    if(selected.kind==='group')return renderGroupDetails(selected.key,selected.id);
     if(selected.kind==='dataset'){
       var d=selNode;
       return h(React.Fragment,null,
@@ -4260,6 +4430,60 @@ function App(){
       h('div',{className:'sec-label'},'Inputs'),Object.keys(j.inputs).map(function(k){return h('div',{key:k,className:'list-item',onClick:function(){setSelected({kind:'dataset',key:k});}},k);}),
       h('div',{className:'sec-label'},'Outputs'),Object.keys(j.outputs).map(function(k){return h('div',{key:k,className:'list-item',onClick:function(){setSelected({kind:'dataset',key:k});}},k);})
     );
+  }
+
+  // Details for a collapsed group (Application / System / Namespace level). The
+  // same trace actions are offered here as on a table, so exploration works the
+  // same way at every rung of the ladder.
+  function renderGroupDetails(key,id){
+    var members=[],jobs=[];
+    Object.keys(model.datasets).forEach(function(k){
+      var d=model.datasets[k];
+      if(groupKeyOf('dataset',k)===key)members.push({k:k,d:d});
+    });
+    Object.keys(model.jobs).forEach(function(k){
+      if(groupKeyOf('job',k)===key)jobs.push(k);
+    });
+    var hopsIn=[],hopsOut=[];
+    if(groupBy==='domain'&&model.appHops)Object.keys(model.appHops).forEach(function(kk){
+      var pair=kk.split('\u0000');
+      if(pair[1]===key)hopsIn.push(pair[0]+' \u2192 '+model.appHops[kk].join(', '));
+      if(pair[0]===key)hopsOut.push(pair[1]+' \u2192 '+model.appHops[kk].join(', '));
+    });
+    var lvl=(LINEAGE_LEVELS.filter(function(L){return L.groupBy===groupBy;})[0]||{}).label||'Group';
+    return h(React.Fragment,null,
+      h('div',{style:{display:'flex',alignItems:'center',gap:6}},
+        h('span',{style:{color:'var(--t0)',fontSize:12,fontWeight:600}},key)),
+      h('div',{className:'muted',style:{marginTop:2}},lvl+' \u00b7 '+members.length+' table'+(members.length===1?'':'s')+' \u00b7 '+jobs.length+' job'+(jobs.length===1?'':'s')),
+      h('div',{style:{display:'flex',gap:6,marginTop:10,flexWrap:'wrap'}},
+        h('button',{className:'btn',onClick:function(){startImpact('down',id||('g:'+key));}},'\u2b07 Impact'),
+        h('button',{className:'btn',onClick:function(){startImpact('up',id||('g:'+key));}},'\u2b06 Root cause'),
+        h('button',{className:'btn',onClick:function(){toggleGroup(key);}},expGroups[key]?'Collapse':'Drill down')),
+      hopsIn.length?h(React.Fragment,null,
+        h('div',{className:'sec-label'},'Populated by'),
+        hopsIn.map(function(t,i){return h('div',{key:i,className:'muted',style:{lineHeight:1.7}},t);})):null,
+      hopsOut.length?h(React.Fragment,null,
+        h('div',{className:'sec-label'},'Populates'),
+        hopsOut.map(function(t,i){return h('div',{key:i,className:'muted',style:{lineHeight:1.7}},t);})):null,
+      h('div',{className:'sec-label'},'Tables ('+members.length+')'),
+      members.slice(0,80).map(function(m){
+        return h('div',{key:m.k,className:'list-item',onClick:function(){setSelected({kind:'dataset',key:m.k});}},
+          h('span',{className:'sw',style:{background:model.nsColor[m.d.namespace]}}),m.d.name);
+      }),
+      members.length>80?h('div',{className:'muted'},'Showing first 80 of '+members.length+'.'):null);
+  }
+  // Which group a node falls into at the current level — mirrors computeLayout.
+  function groupKeyOf(kind,k){
+    if(kind==='dataset'){
+      var d=model.datasets[k];
+      if(groupBy==='domain')return d.domain||d.namespace;
+      if(groupBy==='system')return d.system||E.systemOf(d.namespace);
+      return d.namespace;
+    }
+    var j=model.jobs[k];
+    if(groupBy==='domain')return j.domain||j.namespace;
+    if(groupBy==='system')return E.systemOf(j.namespace);
+    return j.namespace;
   }
 
   function renderColumns(){
