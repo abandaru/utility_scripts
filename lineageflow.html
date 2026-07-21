@@ -396,6 +396,20 @@ select.finput{cursor:pointer}
     return 'TRANSFORM';
   }
 
+  // Depths are free-form labels ("1", "H2", "Hop-10"), so order them the way a
+  // reader would: digit runs compared numerically, everything else as text.
+  function natCompare(a,b){
+    var ra=String(a).match(/\d+|\D+/g)||[],rb=String(b).match(/\d+|\D+/g)||[];
+    for(var i=0;i<Math.max(ra.length,rb.length);i++){
+      var x=ra[i],y=rb[i];
+      if(x===undefined)return -1;
+      if(y===undefined)return 1;
+      var nx=/^\d+$/.test(x),ny=/^\d+$/.test(y);
+      if(nx&&ny){if(+x!==+y)return +x-+y;}
+      else if(x!==y)return x<y?-1:1;
+    }
+    return 0;
+  }
   function dsKey(ns,name){return (ns||'')+'::'+(name||'');}
 
   function collectEvent(o,events,issues,file,idx){
@@ -534,7 +548,8 @@ select.finput{cursor:pointer}
       if(!d.domain||!d.mappingMeta||!d.columnLineage)return;
       Object.keys(d.mappingMeta).forEach(function(f){
         var m=d.mappingMeta[f],depth=m&&m.lineageDepth;
-        if(depth==null||depth==='')return;
+        depth=(depth==null?'':String(depth)).trim();
+        if(!depth)return;// no depth recorded -> nothing to label the edge with
         var spec=d.columnLineage[f];
         if(!spec||!Array.isArray(spec.inputFields))return;
         spec.inputFields.forEach(function(inp){
@@ -546,7 +561,7 @@ select.finput{cursor:pointer}
       });
     });
     Object.keys(appHops).forEach(function(kk){
-      appHops[kk]=Object.keys(appHops[kk]).map(Number).sort(function(a,b){return a-b;});
+      appHops[kk]=Object.keys(appHops[kk]).sort(natCompare);
     });
 
     var model={datasets:datasets,jobs:jobs,edges:edges,colEdges:colEdges,namespaces:nsOrder,systems:systems,nsColor:nsColor,stats:stats,issues:issues,appHops:appHops};
@@ -715,7 +730,9 @@ select.finput{cursor:pointer}
         if(groupBy!=='domain'||!model.appHops)return null;
         if(a.indexOf('g:')!==0||b.indexOf('g:')!==0)return null;
         var arr=model.appHops[a.slice(2)+'\u0000'+b.slice(2)];
-        return (arr&&arr.length)?arr:null;
+        if(!arr)return null;
+        arr=arr.filter(function(x){return String(x||'').trim();});
+        return arr.length?arr:null;
       }
       function addGroupEdge(a,b,byp){
         if(!a||!b||a===b||!nodes[a]||!nodes[b])return;
@@ -1070,7 +1087,7 @@ select.finput{cursor:pointer}
     sourceObjectId:{desc:'Unique data object id of the source, as registered in the data object inventory.',ex:'DO-44107'},
     physicalOrigin:{desc:'Y when this is the physical data element of origin — where the value is first created or digitised, with no lineage upstream of it.',ex:'N',list:'Booleans'},
     contactName:{desc:'Person who confirmed this data flow, and who will be contacted to re-validate it.',ex:'Priya Raman'},
-    lineageDepth:{desc:'Hop number from the data flow diagram. 1 is the first hop from the origin.',ex:'2'},
+    lineageDepth:{desc:'Hop identifier from the data flow diagram. Free text — 1, 2, 3 or labels such as H1, Hop-2. Used to label Application-level edges.',ex:'H1'},
     templateFile:{desc:'Lineage template workbook this row came from, for provenance when rows are consolidated.',ex:'orders-lineage-v3.xlsx'},
     sourceSystem:{desc:'Platform or application that owns the source table.',ex:'Oracle ERP'},
     sourceSchema:{desc:'Schema, or folder structure, holding the source table or file.',ex:'SALES'},
@@ -1297,8 +1314,6 @@ select.finput{cursor:pointer}
         });
         if(rec.physicalOrigin&&parseBool(rec.physicalOrigin)==null)
           gaps.push(gap(er,'WARNING','Physical Data Element of Origin (Y/N)',rec.physicalOrigin,'Y/N boolean','invalid-physical-origin','Physical Data Element of Origin "'+rec.physicalOrigin+'" is not a recognized boolean.','Use Y/N, true/false, or 1/0.'));
-        if(rec.lineageDepth&&!/^\d+$/.test(String(rec.lineageDepth).trim()))
-          gaps.push(gap(er,'WARNING','Lineage Depth',rec.lineageDepth,'whole number','invalid-lineage-depth','Lineage Depth "'+rec.lineageDepth+'" is not a whole number.','Use the hop number from the data flow diagram, e.g. 1, 2, 3.'));
         // A CDE names one element: "<table or file>.<field>".
         if(rec.cde&&String(rec.cde).indexOf('.')<0)
           gaps.push(gap(er,'WARNING','CDE Associated with Row',rec.cde,'<table>.<field>','invalid-cde-format','CDE "'+rec.cde+'" is not in <table>.<field> form.','Write the table or file, a period, then the field — or leave blank to derive it from the target.'));
@@ -1410,7 +1425,7 @@ select.finput{cursor:pointer}
         out.meta=out.meta||{};
         out.meta[r.targetField]={lineageId:r.lineageId||'',cde:r.cde||'',filterCriteria:r.filterCriteria||'',
           physicalDataElementOfOrigin:r.physicalOrigin==null?null:!!r.physicalOrigin,
-          contactName:r.contactName||'',lineageDepth:r.lineageDepth===''?null:Number(r.lineageDepth),
+          contactName:r.contactName||'',lineageDepth:String(r.lineageDepth||'').trim()||null,
           templateFile:r.templateFile||''};
       }
       if(out.fields[r.targetField]==null){out.fields[r.targetField]=r.dataType||'';out.fieldOrder.push(r.targetField);}
@@ -2647,7 +2662,7 @@ function App(){
          filterCriteria:"WHERE order_status = 'COMPLETE'",
          sourceAssetId:'APP-01920',sourceDomain:'SAP ECC',sourceDatabase:'ERP_PROD',sourceSchema:'SALES',
          sourceTable:'ORDERS',sourceColumn:'ORDER_ID',sourceObjectId:'DO-44107',sourceSystem:'Oracle ERP',
-         physicalOrigin:'Y',contactName:'Priya Raman',lineageDepth:'1',templateFile:'orders-lineage-v3.xlsx'},
+         physicalOrigin:'Y',contactName:'Priya Raman',lineageDepth:'H1',templateFile:'orders-lineage-v3.xlsx'},
         // A derived field one hop further downstream, with the code location named.
         {lineageId:'LIN-000124',cde:'DIM_CUSTOMER.CUSTOMER_NAME',
          targetAssetId:'APP-04417',targetDomain:'Snowflake EDW',targetDatabase:'ANALYTICS_PROD',targetSchema:'ANALYTICS',
@@ -2657,7 +2672,7 @@ function App(){
          filterCriteria:'',
          sourceAssetId:'APP-01920',sourceDomain:'SAP ECC',sourceDatabase:'ERP_PROD',sourceSchema:'SALES',
          sourceTable:'CUSTOMERS',sourceColumn:'CUSTOMER_NAME',sourceObjectId:'DO-44118',sourceSystem:'Oracle ERP',
-         physicalOrigin:'N',contactName:'Priya Raman',lineageDepth:'2',templateFile:'orders-lineage-v3.xlsx'}
+         physicalOrigin:'N',contactName:'Priya Raman',lineageDepth:'H2',templateFile:'orders-lineage-v3.xlsx'}
       ])},
       {name:'Lists',xml:xlSheet(listRows,lists.map(function(){return 18;}),null,1)}
     ];
@@ -2789,8 +2804,9 @@ function App(){
         var p=eg.append('path').attr('d',path(a,b)).attr('fill','none').attr('stroke',stroke).attr('stroke-width',w).attr('marker-end',marker).attr('opacity',op);
         if(dash)p.attr('stroke-dasharray',dash);
         // Application hops: name the depth(s) carrying this source app -> target app.
-        if(e.hops&&e.hops.length&&!dim){
-          var lbl='depth '+e.hops.join(', ');
+        var hops=(e.hops||[]).filter(function(hh){return String(hh||'').trim();});
+        if(hops.length&&!dim){
+          var lbl='depth '+hops.join(', ');
           var mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;// anchors are [x,y] pairs
           var tw=lbl.length*5.4+12;
           eg.append('rect').attr('x',mx-tw/2).attr('y',my-8).attr('width',tw).attr('height',15)
@@ -3940,7 +3956,7 @@ function App(){
             ['Dataset / Field Level Filter Criteria','Filter applied to the source so only records of interest are processed. → mappingMetadata facet.'],
             ['Physical Data Element of Origin (Y/N)','Y where the value is first created or digitised, with no lineage upstream of it. Non-boolean values warn.'],
             ['Contact Name for row','Who confirmed this flow, and who is contacted to re-validate it.'],
-            ['Lineage Depth','Hop number from the data flow diagram. Must be a whole number.'],
+            ['Lineage Depth','Hop identifier from the data flow diagram — free text, so 1, 2, 3 or H1, Hop-2 all work. Shown on Application-level edges; blank adds no label.'],
             ['Lineage Template File','Which template workbook the row came from — provenance once rows are consolidated.'],
             ['Backward compatible','Every governance column is optional. Workbooks written against the earlier 14-column layout still validate unchanged, and the old header names are still accepted as aliases.']]),
           sec('5b · Template B — Process Lineage (columns, * = required value)',[
@@ -4019,7 +4035,7 @@ function App(){
       h('div',{style:{display:'flex',gap:10,flexWrap:'wrap'}},
         block('A · Source→Target Mapping',ME2.FIELDS,
           'Schema, Table and Field on both sides, plus governance columns (CDE, Asset ID, Lineage Depth) that Template B does not have.',
-          'Lineage ID unique; Asset IDs prefixed APP/MOD/EUC; Physical Origin Y/N; Lineage Depth numeric; CDE as <table>.<field>; known data type and mapping type.'),
+          'Lineage ID unique; Asset IDs prefixed APP/MOD/EUC; Physical Origin Y/N; CDE as <table>.<field>; known data type and mapping type.'),
         block('B · Process Lineage',ME2.PROCESS_FIELDS,
           'ProcessName plus the technology/host columns that Template A does not have.',
           'LineageType Design or RunTime; RunId present for RunTime rows; ports numeric.')),
