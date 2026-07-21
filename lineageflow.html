@@ -123,6 +123,21 @@ body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',R
 .chk-row input{width:15px;height:15px;accent-color:var(--acc);cursor:pointer;margin:0;flex-shrink:0}
 .fsel{width:100%;padding:6px 8px;background:var(--bg0);border:1px solid var(--border);border-radius:7px;color:var(--t0);font-family:inherit;font-size:11px;cursor:pointer;outline:none}
 .fsel:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--accbg)}
+/* Multi-select attribute filter: header + All/None + a bounded checkbox list.
+   The list is capped and scrolls so four facets cannot push the rail long. */
+.fhead{display:flex;align-items:baseline;gap:6px}
+.fhead>label{display:block;font-size:9px;color:var(--t3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px}
+.fhead .fh-sum{margin-left:auto;font-size:9px;color:var(--t3);white-space:nowrap}
+.fbtns{display:flex;gap:5px;margin-bottom:5px}
+.fbtn{flex:1;justify-content:center;padding:3px 6px;min-height:0;font-size:9.5px;letter-spacing:0.3px}
+.fbtn:disabled{opacity:0.4;cursor:not-allowed}
+.fmulti{border:1px solid var(--border);border-radius:7px;background:var(--bg0);max-height:132px;overflow-y:auto}
+.fmulti>label{display:flex;align-items:center;gap:8px;padding:5px 8px;font-size:11px;color:var(--t0);cursor:pointer;user-select:none}
+.fmulti>label:hover{background:var(--bg2)}
+.fmulti input{width:14px;height:14px;accent-color:var(--acc);cursor:pointer;margin:0;flex-shrink:0}
+.fmulti input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.fm-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fm-empty{padding:8px;font-size:10px;color:var(--t3)}
 .savebtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px;padding:7px;border:1px dashed var(--acc);border-radius:8px;background:var(--accbg);color:var(--acc);font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;transition:background 0.15s}
 .savebtn:hover{background:var(--bg2)}
 .ns-row{display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;color:var(--t1);user-select:none;border:1px solid transparent;margin-bottom:3px}
@@ -465,6 +480,9 @@ select.finput{cursor:pointer}
         ds.schemaFields=facets.schema.fields.map(function(f){return{name:f.name,type:f.type||''};});
       }
       if(facets.columnLineage&&facets.columnLineage.fields)ds.columnLineage=facets.columnLineage.fields;
+      // Per-field governance metadata (lineage id, depth, contact…) — the hop
+      // number is what labels application-to-application edges when grouping.
+      if(facets.mappingMetadata&&facets.mappingMetadata.fields)ds.mappingMeta=facets.mappingMetadata.fields;
       // §3 ownership + tags facets -> governance metadata on the node
       if(facets.ownership&&Array.isArray(facets.ownership.owners))
         ds.owners=facets.ownership.owners.map(function(o){return{name:o.name||'',type:o.type||''};}).filter(function(o){return o.name;});
@@ -506,7 +524,32 @@ select.finput{cursor:pointer}
     var systems=[];dsList.forEach(function(d){if(systems.indexOf(d.system)<0)systems.push(d.system);});
     var stats={datasets:dsList.length,jobs:jobList.length,namespaces:nsOrder.length,systems:systems.length,edges:edges.length,columnEdges:colEdges.length,events:events.length};
 
-    var model={datasets:datasets,jobs:jobs,edges:edges,colEdges:colEdges,namespaces:nsOrder,systems:systems,nsColor:nsColor,stats:stats,issues:issues};
+    // §Application hops. Each mapping row records the hop it represents; roll
+    // those up per source-application -> target-application pair so a collapsed
+    // Application graph can say *how* one application populates another, e.g.
+    // "SAP ECC -> Snowflake EDW  ·  depth 1, 2" rather than an unlabelled arrow.
+    var appHops={};
+    Object.keys(datasets).forEach(function(k){
+      var d=datasets[k];
+      if(!d.domain||!d.mappingMeta||!d.columnLineage)return;
+      Object.keys(d.mappingMeta).forEach(function(f){
+        var m=d.mappingMeta[f],depth=m&&m.lineageDepth;
+        if(depth==null||depth==='')return;
+        var spec=d.columnLineage[f];
+        if(!spec||!Array.isArray(spec.inputFields))return;
+        spec.inputFields.forEach(function(inp){
+          var src=datasets[dsKey(inp.namespace,inp.name)];
+          if(!src||!src.domain||src.domain===d.domain)return;
+          var kk=src.domain+'\u0000'+d.domain;
+          (appHops[kk]||(appHops[kk]={}))[depth]=1;
+        });
+      });
+    });
+    Object.keys(appHops).forEach(function(kk){
+      appHops[kk]=Object.keys(appHops[kk]).map(Number).sort(function(a,b){return a-b;});
+    });
+
+    var model={datasets:datasets,jobs:jobs,edges:edges,colEdges:colEdges,namespaces:nsOrder,systems:systems,nsColor:nsColor,stats:stats,issues:issues,appHops:appHops};
     validate(model);
     return model;
   }
@@ -666,7 +709,21 @@ select.finput{cursor:pointer}
         var k2=id.slice(2);var j=model.jobs[k2];if(!j||hidden[j.namespace])return null;var g2=jobGroup(k2);return expandedGroups[g2]?id:'g:'+g2;
       }
       edges=[];var eset={};
-      function addGroupEdge(a,b,byp){if(!a||!b||a===b||!nodes[a]||!nodes[b])return;var ek=a+'>'+b;if(eset[ek])return;eset[ek]=1;edges.push(byp?{from:a,to:b,bypass:true}:{from:a,to:b});}
+      // When both ends are collapsed Application groups, carry the hop numbers
+      // that connect them so the edge can say how the flow happens.
+      function hopsFor(a,b){
+        if(groupBy!=='domain'||!model.appHops)return null;
+        if(a.indexOf('g:')!==0||b.indexOf('g:')!==0)return null;
+        var arr=model.appHops[a.slice(2)+'\u0000'+b.slice(2)];
+        return (arr&&arr.length)?arr:null;
+      }
+      function addGroupEdge(a,b,byp){
+        if(!a||!b||a===b||!nodes[a]||!nodes[b])return;
+        var ek=a+'>'+b;if(eset[ek])return;eset[ek]=1;
+        var e=byp?{from:a,to:b,bypass:true}:{from:a,to:b};
+        var hops=hopsFor(a,b);if(hops)e.hops=hops;
+        edges.push(e);
+      }
       // adjacency over the underlying dataset↔job graph, for bypassing hidden nodes.
       var gadj={};model.edges.forEach(function(e){(gadj[e.from]||(gadj[e.from]=[])).push(e.to);});
       // Transitive group edges: when a target maps to a hidden namespace (repr null),
@@ -898,28 +955,50 @@ select.finput{cursor:pointer}
   // extra facets as long as they declare _producer and _schemaURL, so consumers
   // that do not know it can ignore it safely.
   var APP_FACET='https://github.com/lineageflow/spec/facets/1-0-0/ApplicationFacet.json';
+  var ASSET_FACET='https://github.com/lineageflow/spec/facets/1-0-0/AssetFacet.json';
+  var MAPPING_META_FACET='https://github.com/lineageflow/spec/facets/1-0-0/MappingMetadataFacet.json';
 
   function normKey(s){return (s==null?'':String(s)).toLowerCase().replace(/[^a-z0-9]/g,'');}
   function mkAlias(fields){var a={};fields.forEach(function(f){a[normKey(f.label)]=f;f.aliases.forEach(function(al){a[al]=f;});});return a;}
   function labelOf(tmpl,key){for(var i=0;i<tmpl.fields.length;i++)if(tmpl.fields[i].key===key)return tmpl.fields[i].label;return key;}
 
-  // §3 Template A — classic Source→Target column mapping. `req` = header must be
-  // present; `val` = severity when a row value is empty. Transformation optional.
+  // §3 Template A — Source→Target column mapping with governance metadata.
+  // `req` = header must be present; `val` = severity when a row value is empty.
+  // Every column added for the governance extension is req:false so workbooks
+  // written against the earlier 14-column layout still validate unchanged.
+  // Consolidations (deliberate, to avoid asking for the same fact twice):
+  //   Asset Name  == the Application column that drives Group by > Application.
+  //   CDE         == "<table>.<field>", derived from the target when left blank.
+  //   Database    is now its own column; it used to be an alias of Schema, so
+  //               those aliases moved here or the two would bind to one field.
   var FIELDS=[
-    {key:'sourceSystem',label:'Source System',req:true,val:'error',aliases:['sourcesystem','srcsystem','sourcesys','sourceplatform']},
-    {key:'sourceSchema',label:'Source Schema',req:true,val:'warn',aliases:['sourceschema','srcschema','sourcedatabase','sourcedb']},
-    {key:'sourceTable',label:'Source Table',req:true,val:'error',aliases:['sourcetable','srctable','sourceentity','sourceobject']},
-    {key:'sourceColumn',label:'Source Column',req:true,val:'error',aliases:['sourcecolumn','srccolumn','sourceattribute']},
+    {key:'lineageId',label:'Lineage ID',req:false,val:'warn',aliases:['lineageid','lineageno','lineageserial','serialnumber','srno','rowid']},
+    {key:'cde',label:'CDE Associated with Row',req:false,val:'none',aliases:['cdeassociatedwithrow','cde','criticaldataelement','cdename']},
+    {key:'targetAssetId',label:'Target Asset ID',req:false,val:'none',aliases:['targetassetid','tgtassetid','targetasset','targetapplicationid']},
+    {key:'targetDomain',label:'Target Asset Name',req:false,val:'none',aliases:['targetassetname','tgtassetname','targetapplication','tgtapplication','targetapp','tgtapp','application','targetdomain','tgtdomain','targetbusinessdomain','domain','businessdomain']},
+    {key:'targetDatabase',label:'Target Database',req:false,val:'none',aliases:['targetdatabase','targetdatabaseifapplicable','tgtdatabase','targetdb','tgtdb','targetcatalog']},
+    {key:'targetSchema',label:'Target Schema / Folder',req:true,val:'warn',aliases:['targetschemafolder','targetschemafolderifapplicable','targetschema','tgtschema','targetfolder','targetfolderstructure']},
+    {key:'targetTable',label:'Target Table / File',req:true,val:'error',aliases:['targettablefile','targettable','tgttable','targetfile','targetentity','targetobject']},
+    {key:'targetColumn',label:'Target Field',req:true,val:'error',aliases:['targetfield','targetcolumn','tgtcolumn','tgtfield','targetattribute']},
+    {key:'targetObjectId',label:'For Target: Unique Data Object ID',req:false,val:'none',aliases:['fortargetuniquedataobjectid','targetuniquedataobjectid','targetdataobjectid','targetobjectid','tgtobjectid']},
     {key:'targetSystem',label:'Target System',req:true,val:'error',aliases:['targetsystem','tgtsystem','targetsys','targetplatform']},
-    {key:'targetSchema',label:'Target Schema',req:true,val:'warn',aliases:['targetschema','tgtschema','targetdatabase','targetdb']},
-    {key:'targetTable',label:'Target Table',req:true,val:'error',aliases:['targettable','tgttable','targetentity','targetobject']},
-    {key:'targetColumn',label:'Target Column',req:true,val:'error',aliases:['targetcolumn','tgtcolumn','targetattribute']},
-    {key:'transformation',label:'Transformation Logic',req:false,val:'none',aliases:['transformationlogic','transformation','transform','transformationrule','mappingrule','transformationdescription','derivation','businessrule']},
     {key:'dataType',label:'Data Type',req:true,val:'warn',aliases:['datatype','type','columntype','targetdatatype']},
     {key:'nullable',label:'Nullable',req:true,val:'none',aliases:['nullable','isnullable','null','nullability']},
     {key:'mappingType',label:'Mapping Type',req:true,val:'none',aliases:['mappingtype','maptype','mappingcategory']},
-    {key:'sourceDomain',label:'Source Application',req:false,val:'none',aliases:['sourceapplication','srcapplication','sourceapp','srcapp','sourcedomain','srcdomain','sourcebusinessdomain']},
-    {key:'targetDomain',label:'Target Application',req:false,val:'none',aliases:['targetapplication','tgtapplication','targetapp','tgtapp','application','targetdomain','tgtdomain','targetbusinessdomain','domain','businessdomain']}
+    {key:'transformation',label:'Transformation',req:false,val:'none',aliases:['transformation','transformationlogic','transform','transformationrule','mappingrule','transformationdescription','derivation','businessrule']},
+    {key:'filterCriteria',label:'Dataset / Field Level Filter Criteria',req:false,val:'none',aliases:['datasetfieldlevelfiltercriteria','datasetfiledlevelfiltercriteria','filtercriteria','filter','rowfilter','selectioncriteria']},
+    {key:'sourceAssetId',label:'Source Asset ID',req:false,val:'none',aliases:['sourceassetid','srcassetid','sourceasset','sourceapplicationid']},
+    {key:'sourceDomain',label:'Source Asset Name',req:false,val:'none',aliases:['sourceassetname','srcassetname','sourceapplication','srcapplication','sourceapp','srcapp','sourcedomain','srcdomain','sourcebusinessdomain']},
+    {key:'sourceDatabase',label:'Source Database Name',req:false,val:'none',aliases:['sourcedatabasename','sourcedatabasenameifapplicable','sourcedatabase','srcdatabase','sourcedb','srcdb','sourcecatalog']},
+    {key:'sourceSchema',label:'Source Schema / Folder',req:true,val:'warn',aliases:['sourceschemafolder','sourceschemafolderstructuredetails','sourceschemafolderstructuredetailsifapplicable','sourceschema','srcschema','sourcefolder','sourcefolderstructure']},
+    {key:'sourceTable',label:'Source Table',req:true,val:'error',aliases:['sourcetable','srctable','sourcefile','sourceentity','sourceobject']},
+    {key:'sourceColumn',label:'Source Field',req:true,val:'error',aliases:['sourcefield','sourcecolumn','srccolumn','srcfield','sourceattribute']},
+    {key:'sourceObjectId',label:'For Source: Unique Data Object ID',req:false,val:'none',aliases:['forsourceuniquedataobjectid','sourceuniquedataobjectid','sourcedataobjectid','sourceobjectid','srcobjectid']},
+    {key:'sourceSystem',label:'Source System',req:true,val:'error',aliases:['sourcesystem','srcsystem','sourcesys','sourceplatform']},
+    {key:'physicalOrigin',label:'Physical Data Element of Origin (Y/N)',req:false,val:'none',aliases:['physicaldataelementoforiginyn','physicaldataelementoforigin','physicalorigin','elementoforigin','isoriginyn','isorigin']},
+    {key:'contactName',label:'Contact Name for Row',req:false,val:'none',aliases:['contactnameforrow','contactname','contact','datasteward','steward','confirmedby']},
+    {key:'lineageDepth',label:'Lineage Depth',req:false,val:'none',aliases:['lineagedepth','depth','hopid','hop','hopnumber']},
+    {key:'templateFile',label:'Lineage Template File',req:false,val:'none',aliases:['lineagetemplatefile','templatefile','sourcetemplatefile','templatename']}
   ];
 
   // §3 Template B — process lineage. Technology/host/port datasets, Design vs
@@ -952,6 +1031,8 @@ select.finput{cursor:pointer}
   var DATA_TYPES={};['varchar','varchar2','nvarchar','char','nchar','text','string','clob','int','integer','smallint','tinyint','bigint','decimal','numeric','number','float','double','real','money','bit','boolean','bool','date','datetime','timestamp','time','binary','blob','uuid','json','jsonb','array','struct'].forEach(function(t){DATA_TYPES[t]=1;});
   var MAPPING_TYPES={};['direct','derived','transformation','lookup','aggregation','aggregate','join','expression','constant','union','pivot','scd'].forEach(function(t){MAPPING_TYPES[t]=1;});
   var LINEAGE_TYPES=['Design','RunTime'],BOOL_VALUES=['TRUE','FALSE'],OBJECT_TYPES=['TABLE','VIEW','FILE','TOPIC','STREAM'];
+  // Asset-register id prefixes: APP application, MOD model, EUC end-user computing.
+  var ASSET_PREFIXES=['APP','MOD','EUC'],ASSET_ID_RE=/^(APP|MOD|EUC)[-_ ]?\S+/i;
 
   // §3b Authoring guide for the downloadable workbook template. `desc` becomes the
   // Excel data-validation input message shown when the cell is selected, so keep
@@ -978,20 +1059,33 @@ select.finput{cursor:pointer}
     targetPort:{desc:'Port of the target system. Optional.',ex:'443'},
     targetDataset:{desc:'Fully qualified target table or view that this process writes.',ex:'analytics.fct_orders'},
     targetField:{desc:'Target column populated by this row.',ex:'order_key'},
+    lineageId:{desc:'Unique serial number for this row. Lets a downstream question be traced back to the exact mapping line.',ex:'LIN-000123'},
+    cde:{desc:'Critical data element this row produces, written as <table or file>.<field>. Leave blank to derive it from the target table and field.',ex:'FCT_ORDERS.ORDER_KEY'},
+    targetAssetId:{desc:'Asset-register id of the target. Prefix APP- application, MOD- model, EUC- end-user computing.',ex:'APP-04417',list:'AssetPrefixes'},
+    targetDatabase:{desc:'Database or catalog holding the target table. Leave blank where the platform has no database layer.',ex:'ANALYTICS_PROD'},
+    targetObjectId:{desc:'Unique data object id of the target, as registered in the data object inventory.',ex:'DO-88231'},
+    filterCriteria:{desc:'Filter applied to the source so only records of interest are processed. Dataset or field level.',ex:"WHERE order_status = 'COMPLETE'"},
+    sourceAssetId:{desc:'Asset-register id of the source. Prefix APP- application, MOD- model, EUC- end-user computing.',ex:'APP-01920',list:'AssetPrefixes'},
+    sourceDatabase:{desc:'Database or catalog holding the source table. Leave blank where the platform has no database layer.',ex:'ERP_PROD'},
+    sourceObjectId:{desc:'Unique data object id of the source, as registered in the data object inventory.',ex:'DO-44107'},
+    physicalOrigin:{desc:'Y when this is the physical data element of origin — where the value is first created or digitised, with no lineage upstream of it.',ex:'N',list:'Booleans'},
+    contactName:{desc:'Person who confirmed this data flow, and who will be contacted to re-validate it.',ex:'Priya Raman'},
+    lineageDepth:{desc:'Hop number from the data flow diagram. 1 is the first hop from the origin.',ex:'2'},
+    templateFile:{desc:'Lineage template workbook this row came from, for provenance when rows are consolidated.',ex:'orders-lineage-v3.xlsx'},
     sourceSystem:{desc:'Platform or application that owns the source table.',ex:'Oracle ERP'},
-    sourceSchema:{desc:'Database or schema holding the source table.',ex:'SALES'},
-    sourceTable:{desc:'Source table or view name.',ex:'ORDERS'},
-    sourceColumn:{desc:'Source column feeding the target column.',ex:'ORDER_ID'},
+    sourceSchema:{desc:'Schema, or folder structure, holding the source table or file.',ex:'SALES'},
+    sourceTable:{desc:'Source table, view or file name.',ex:'ORDERS'},
+    sourceColumn:{desc:'Source field feeding the target field. One row per source-to-target field pair.',ex:'ORDER_ID'},
     targetSystem:{desc:'Platform or application that owns the target table.',ex:'Snowflake'},
-    targetSchema:{desc:'Database or schema holding the target table.',ex:'ANALYTICS'},
-    targetTable:{desc:'Target table or view name.',ex:'FCT_ORDERS'},
-    targetColumn:{desc:'Target column populated by this row.',ex:'ORDER_KEY'},
-    transformation:{desc:'How the target value is derived. Leave blank for a straight copy — blank is read as a direct mapping.',ex:'UPPER(TRIM(customer_name))'},
+    targetSchema:{desc:'Schema, or folder structure, holding the target table or file.',ex:'ANALYTICS'},
+    targetTable:{desc:'Target table, view or file name.',ex:'FCT_ORDERS'},
+    targetColumn:{desc:'Target field populated by this row.',ex:'ORDER_KEY'},
+    transformation:{desc:'Field-level technical transformation from source to target. Include the platform and the location of the code where applicable. Blank means a straight copy.',ex:'UPPER(TRIM(customer_name)) — dbt model marts/dim_customer.sql'},
     dataType:{desc:'Data type of the target column. Pick from the list; unknown types are reported as a warning.',ex:'varchar',list:'DataTypes'},
     nullable:{desc:'Whether the target column accepts NULL. TRUE/FALSE, Yes/No and 1/0 are all accepted.',ex:'TRUE',list:'Booleans'},
     mappingType:{desc:'Category of the mapping. Pick from the list; unknown values are reported as a warning.',ex:'direct',list:'MappingTypes'},
-    sourceDomain:{desc:'Application that owns the source, e.g. SAP or Salesforce. Enables Group by > Application in the explorer.',ex:'SAP ECC'},
-    targetDomain:{desc:'Application that owns the target. Enables Group by > Application in the explorer.',ex:'Snowflake EDW'}
+    sourceDomain:{desc:'Asset name of the source — the application, model or EUC tool named by Source Asset ID. Drives Group by > Application.',ex:'SAP ECC'},
+    targetDomain:{desc:'Asset name of the target — the application, model or EUC tool named by Target Asset ID. Drives Group by > Application.',ex:'Snowflake EDW'}
   };
 
   // §7 Transformation categories -> OpenLineage transformation {type,subtype}.
@@ -1118,7 +1212,7 @@ select.finput{cursor:pointer}
     opts=opts||{};rows=rows||[];
     var tmpl=(opts.template&&TEMPLATES[opts.template])||templateForMap(map);
     var headerRow=opts.headerRow||1;
-    var gaps=[],valid=[],seenMap={},edges=[],edgeSet={},processed=0,invalid=0;
+    var gaps=[],valid=[],seenMap={},edges=[],edgeSet={},processed=0,invalid=0,seenLineageId={};
     function get(row,key){var i=map[key];return i==null?undefined:row[i];}
     rows.forEach(function(row,ri){
       if(!row||row.every(isBlank))return;// ignore completely empty rows
@@ -1139,6 +1233,13 @@ select.finput{cursor:pointer}
         var v=rec[k];if(v&&!IDENT_RE.test(v)){var lbl=labelOf(tmpl,k);gaps.push(gap(excelRow,'WARNING',lbl,v,'valid identifier','invalid-name',lbl+' "'+v+'" is not a valid identifier.','Use letters, digits, _ and . only.'));}
       });
       tmpl.check(rec,gaps,excelRow);
+      // Lineage ID is declared a unique serial, so a repeat is a real defect —
+      // it breaks traceability back to the row a downstream question came from.
+      if(rec.lineageId){
+        var lid=String(rec.lineageId).trim();
+        if(seenLineageId[lid])gaps.push(gap(excelRow,'WARNING','Lineage ID',lid,'unique across the sheet','duplicate-lineage-id','Lineage ID "'+lid+'" is already used on row '+seenLineageId[lid]+'.','Give each row its own identifier.'));
+        else seenLineageId[lid]=excelRow;
+      }
       // duplicate + structural edge (for cross-row cycle detection)
       var e=tmpl.edge(rec);
       if(e){
@@ -1169,6 +1270,18 @@ select.finput{cursor:pointer}
         if(rec.dataType&&!DATA_TYPES[normKey(rec.dataType).replace(/\(.*/,'')])gaps.push(gap(er,'WARNING','Data Type',rec.dataType,'known SQL type','invalid-data-type','Unrecognized data type "'+rec.dataType+'".','Use a standard SQL type (e.g. varchar, decimal, timestamp).'));
         if(rec.mappingType&&!MAPPING_TYPES[normKey(rec.mappingType)])gaps.push(gap(er,'WARNING','Mapping Type',rec.mappingType,'supported mapping type','unsupported-mapping-type','Unsupported mapping type "'+rec.mappingType+'".','Use DIRECT, DERIVED, LOOKUP, AGGREGATION, JOIN, EXPRESSION, or CONSTANT.'));
         if(rec.nullable&&parseBool(rec.nullable)==null)gaps.push(gap(er,'WARNING','Nullable',rec.nullable,'Y/N boolean','invalid-nullable','Nullable "'+rec.nullable+'" is not a recognized boolean.','Use Y/N, true/false, or 1/0.'));
+        // Asset IDs are drawn from the asset register, which prefixes by kind.
+        [['Source Asset ID',rec.sourceAssetId],['Target Asset ID',rec.targetAssetId]].forEach(function(a){
+          if(a[1]&&!ASSET_ID_RE.test(String(a[1]).trim()))
+            gaps.push(gap(er,'WARNING',a[0],a[1],'APP/MOD/EUC prefix','invalid-asset-id',a[0]+' "'+a[1]+'" does not start with a known asset prefix.','Prefix with APP- (application), MOD- (model), or EUC- (end-user computing).'));
+        });
+        if(rec.physicalOrigin&&parseBool(rec.physicalOrigin)==null)
+          gaps.push(gap(er,'WARNING','Physical Data Element of Origin (Y/N)',rec.physicalOrigin,'Y/N boolean','invalid-physical-origin','Physical Data Element of Origin "'+rec.physicalOrigin+'" is not a recognized boolean.','Use Y/N, true/false, or 1/0.'));
+        if(rec.lineageDepth&&!/^\d+$/.test(String(rec.lineageDepth).trim()))
+          gaps.push(gap(er,'WARNING','Lineage Depth',rec.lineageDepth,'whole number','invalid-lineage-depth','Lineage Depth "'+rec.lineageDepth+'" is not a whole number.','Use the hop number from the data flow diagram, e.g. 1, 2, 3.'));
+        // A CDE names one element: "<table or file>.<field>".
+        if(rec.cde&&String(rec.cde).indexOf('.')<0)
+          gaps.push(gap(er,'WARNING','CDE Associated with Row',rec.cde,'<table>.<field>','invalid-cde-format','CDE "'+rec.cde+'" is not in <table>.<field> form.','Write the table or file, a period, then the field — or leave blank to derive it from the target.'));
       },
       edge:function(rec){
         var srcFq=rec.sourceSystem+'.'+rec.sourceSchema+'.'+rec.sourceTable;
@@ -1179,9 +1292,18 @@ select.finput{cursor:pointer}
         var tx=classifyTransformation(rec.transformation,rec.mappingType);
         var sNs=nsFor(rec.sourceSystem,rec.sourceSchema),sName=nameFor(rec.sourceSchema,rec.sourceTable);
         var tNs=nsFor(rec.targetSystem,rec.targetSchema),tName=nameFor(rec.targetSchema,rec.targetTable);
+        // A CDE identifies the element this row produces; derive it from the
+        // target when the author left it blank rather than demanding it twice.
+        var cde=String(rec.cde||'').trim()||((rec.targetTable&&rec.targetColumn)?(rec.targetTable+'.'+rec.targetColumn):'');
         return{row:er,sourceNs:sNs,sourceName:sName,sourceField:rec.sourceColumn,sourceObjectType:'TABLE',
           targetNs:tNs,targetName:tName,targetField:rec.targetColumn,targetObjectType:'TABLE',
           sourceDomain:rec.sourceDomain||'',targetDomain:rec.targetDomain||'',dataType:rec.dataType,nullable:parseBool(rec.nullable)!==false,tx:tx,tableTx:null,
+          lineageId:rec.lineageId||'',cde:cde,filterCriteria:rec.filterCriteria||'',
+          sourceAssetId:rec.sourceAssetId||'',targetAssetId:rec.targetAssetId||'',
+          sourceObjectId:rec.sourceObjectId||'',targetObjectId:rec.targetObjectId||'',
+          sourceDatabase:rec.sourceDatabase||'',targetDatabase:rec.targetDatabase||'',
+          physicalOrigin:parseBool(rec.physicalOrigin),contactName:rec.contactName||'',
+          lineageDepth:rec.lineageDepth||'',templateFile:rec.templateFile||'',
           jobName:'map.'+tName,jobKey:tNs+'::'+tName,jobNamespace:opts.jobNamespace||'etl.mapping',lineageType:'DESIGN',runId:null};
       }},
     process:{id:'process',label:'Process Lineage',fields:PROCESS_FIELDS,alias:mkAlias(PROCESS_FIELDS),
@@ -1253,10 +1375,18 @@ select.finput{cursor:pointer}
       var job=jobs[r.jobKey];
       if(!job){job=jobs[r.jobKey]={key:r.jobKey,name:r.jobName,namespace:r.jobNamespace,lineageType:r.lineageType,runId:r.runId,tableTx:r.tableTx,inputs:{},inputOrder:[],outputs:{},outputOrder:[],sqlLike:false};jobOrder.push(r.jobKey);}
       var ik=r.sourceNs+'::'+r.sourceName;
-      var inp=job.inputs[ik];if(!inp){inp=job.inputs[ik]={namespace:r.sourceNs,name:r.sourceName,objectType:r.sourceObjectType,domain:r.sourceDomain||'',fields:{},fieldOrder:[]};job.inputOrder.push(ik);}
+      var inp=job.inputs[ik];if(!inp){inp=job.inputs[ik]={namespace:r.sourceNs,name:r.sourceName,objectType:r.sourceObjectType,domain:r.sourceDomain||'',assetId:r.sourceAssetId||'',objectId:r.sourceObjectId||'',database:r.sourceDatabase||'',fields:{},fieldOrder:[]};job.inputOrder.push(ik);}
       if(r.sourceField&&inp.fields[r.sourceField]==null){inp.fields[r.sourceField]=1;inp.fieldOrder.push(r.sourceField);}
       var ok=r.targetNs+'::'+r.targetName;targetSet[ok]=1;
-      var out=job.outputs[ok];if(!out){out=job.outputs[ok]={namespace:r.targetNs,name:r.targetName,objectType:r.targetObjectType,domain:r.targetDomain||'',fields:{},fieldOrder:[],cl:{}};job.outputOrder.push(ok);}
+      var out=job.outputs[ok];if(!out){out=job.outputs[ok]={namespace:r.targetNs,name:r.targetName,objectType:r.targetObjectType,domain:r.targetDomain||'',assetId:r.targetAssetId||'',objectId:r.targetObjectId||'',database:r.targetDatabase||'',fields:{},fieldOrder:[],cl:{},meta:{}};job.outputOrder.push(ok);}
+      // Row-level governance metadata, keyed by the target field it describes.
+      if(r.targetField&&(r.lineageId||r.cde||r.filterCriteria||r.contactName||r.lineageDepth||r.templateFile||r.physicalOrigin!=null)){
+        out.meta=out.meta||{};
+        out.meta[r.targetField]={lineageId:r.lineageId||'',cde:r.cde||'',filterCriteria:r.filterCriteria||'',
+          physicalDataElementOfOrigin:r.physicalOrigin==null?null:!!r.physicalOrigin,
+          contactName:r.contactName||'',lineageDepth:r.lineageDepth===''?null:Number(r.lineageDepth),
+          templateFile:r.templateFile||''};
+      }
       if(out.fields[r.targetField]==null){out.fields[r.targetField]=r.dataType||'';out.fieldOrder.push(r.targetField);}
       var cl=out.cl[r.targetField]||(out.cl[r.targetField]={inputFields:[]});
       cl.inputFields.push({namespace:r.sourceNs,name:r.sourceName,field:r.sourceField,transformations:[{type:r.tx.type,subtype:r.tx.subtype,description:r.tx.description||'',masking:!!r.tx.masking}]});
@@ -1277,6 +1407,17 @@ select.finput{cursor:pointer}
         facets.application={_producer:producer,_schemaURL:APP_FACET,name:String(d.domain)};
         facets.domain={_producer:producer,_schemaURL:APP_FACET,name:String(d.domain),deprecated:'Use the application facet.'};
       }
+      // Asset-register identity (APP/MOD/EUC) and the unique data object id.
+      if(d.assetId||d.domain||d.objectId||d.database){
+        facets.asset={_producer:producer,_schemaURL:ASSET_FACET};
+        if(d.assetId)facets.asset.id=String(d.assetId);
+        if(d.domain)facets.asset.name=String(d.domain);
+        if(d.objectId)facets.asset.dataObjectId=String(d.objectId);
+        if(d.database)facets.asset.database=String(d.database);
+      }
+      // Per-field governance metadata for the columns this dataset produces.
+      if(isOutput&&d.meta&&Object.keys(d.meta).length)
+        facets.mappingMetadata={_producer:producer,_schemaURL:MAPPING_META_FACET,fields:d.meta};
       return{namespace:d.namespace,name:d.name,facets:facets};
     }
     var events=jobOrder.map(function(jk){
@@ -1384,7 +1525,7 @@ select.finput{cursor:pointer}
     detectCycles:detectCycles,nsFor:nsFor,nameFor:nameFor,techNs:techNs,uuidFrom:uuidFrom,
     gapsToCSV:gapsToCSV,columnLineageToCSV:columnLineageToCSV,normKey:normKey,PRODUCER:PRODUCER,
     TEMPLATE_DOC:TEMPLATE_DOC,DATA_TYPES:DATA_TYPES,MAPPING_TYPES:MAPPING_TYPES,
-    LINEAGE_TYPES:LINEAGE_TYPES,BOOL_VALUES:BOOL_VALUES,OBJECT_TYPES:OBJECT_TYPES};
+    LINEAGE_TYPES:LINEAGE_TYPES,BOOL_VALUES:BOOL_VALUES,OBJECT_TYPES:OBJECT_TYPES,ASSET_PREFIXES:ASSET_PREFIXES};
 })();
 /* MAPPING_ENGINE_END */
 </script>
@@ -1616,14 +1757,42 @@ function App(){
       h('input',{type:'checkbox',checked:!!val,onChange:function(){setShowCtl(function(p){var c=Object.assign({},p);c[key]=!c[key];return c;});}}),
       label);
   }
+  // Multi-select attribute filter. An empty selection means "no filter on this
+  // attribute", so a fresh model shows everything without needing every box
+  // ticked. All/None are bulk helpers over the list; None clears back to unfiltered.
   function fSel(label,key,opts){
-    return h('div',{className:'fld'},h('label',null,label),
-      h('select',{className:'fsel',value:filters[key]||'',onChange:function(e){var v=e.target.value;setFilters(function(p){var c=Object.assign({},p);c[key]=v;return c;});}},
-        h('option',{value:''},'All'),
-        (opts||[]).map(function(o){return h('option',{key:o,value:o},o);})));
+    var list=opts||[],sel=filters[key]||[];
+    function put(next){setFilters(function(p){var c=Object.assign({},p);c[key]=next;return c;});}
+    return h('div',{className:'fld'},
+      h('div',{className:'fhead'},
+        h('label',null,label),
+        h('span',{className:'fh-sum'},sel.length?(sel.length+' of '+list.length):'All')),
+      h('div',{className:'fbtns'},
+        h('button',{className:'btn fbtn',disabled:!list.length||sel.length===list.length,
+          title:'Select every '+label.toLowerCase(),onClick:function(){put(list.slice());}},'All'),
+        h('button',{className:'btn fbtn',disabled:!sel.length,
+          title:'Clear this filter — shows everything',onClick:function(){put([]);}},'None')),
+      h('div',{className:'fmulti'},
+        list.length?list.map(function(o){
+          return h('label',{key:o,title:o},
+            h('input',{type:'checkbox',checked:sel.indexOf(o)>=0,'aria-label':label+': '+o,
+              onChange:function(){var i=sel.indexOf(o);put(i<0?sel.concat([o]):sel.filter(function(x){return x!==o;}));}}),
+            h('span',{className:'fm-lbl'},o));
+        }):h('div',{className:'fm-empty'},'No values in this model')));
   }
+  // Saved views (and older sessions) may hold a single string per facet.
+  function normFilters(f){
+    var out={system:[],namespace:[],domain:[],owner:[]};
+    Object.keys(out).forEach(function(k){
+      var v=f&&f[k];
+      if(Array.isArray(v))out[k]=v.slice();
+      else if(v)out[k]=[v];
+    });
+    return out;
+  }
+  function fPass(key,val){var s=filters[key];return !s||!s.length||s.indexOf(val)>=0;}
   // Attribute filters (all backed by model data) + entity-type / edge visibility.
-  var s_filters=useState({system:'',namespace:'',domain:'',owner:''}),filters=s_filters[0],setFilters=s_filters[1];
+  var s_filters=useState({system:[],namespace:[],domain:[],owner:[]}),filters=s_filters[0],setFilters=s_filters[1];
   var s_show=useState({datasets:true,jobs:true,xsys:true,collinks:true}),showCtl=s_show[0],setShowCtl=s_show[1];
   var s_rail=useState(true),railOpen=s_rail[0],setRailOpen=s_rail[1];
   var s_panel=useState(true),panelOpen=s_panel[0],setPanelOpen=s_panel[1];
@@ -1817,21 +1986,22 @@ function App(){
   // Filter option lists, derived from the model.
   var appOpts=useMemo(function(){if(!model)return [];var s={};Object.keys(model.datasets).forEach(function(k){var d=model.datasets[k].domain;if(d)s[d]=1;});return Object.keys(s).sort();},[model]);
   var ownerOpts=useMemo(function(){if(!model)return [];var s={};Object.keys(model.datasets).forEach(function(k){(model.datasets[k].owners||[]).forEach(function(o){if(o.name)s[o.name]=1;});});return Object.keys(s).sort();},[model]);
-  var activeFilters=['system','namespace','domain','owner'].filter(function(k){return filters[k];}).length;
+  var activeFilters=['system','namespace','domain','owner'].filter(function(k){return (filters[k]||[]).length;}).length;
 
   // Attribute filters + entity-type visibility -> an allowlist of node ids. Jobs are
   // kept when they touch an allowed dataset, so filtered lineage stays connected.
   var filterOnly=useMemo(function(){
     if(!model)return null;
-    var anyAttr=!!(filters.system||filters.namespace||filters.domain||filters.owner);
+    var anyAttr=!!activeFilters;
     if(!anyAttr&&showCtl.datasets&&showCtl.jobs)return null;
     var allow={};
     if(showCtl.datasets)Object.keys(model.datasets).forEach(function(k){
       var d=model.datasets[k];
-      if(filters.system&&d.system!==filters.system)return;
-      if(filters.namespace&&d.namespace!==filters.namespace)return;
-      if(filters.domain&&(d.domain||'')!==filters.domain)return;
-      if(filters.owner&&!(d.owners||[]).some(function(o){return o.name===filters.owner;}))return;
+      if(!fPass('system',d.system))return;
+      if(!fPass('namespace',d.namespace))return;
+      if(!fPass('domain',d.domain||''))return;
+      var ow=filters.owner||[];
+      if(ow.length&&!(d.owners||[]).some(function(o){return ow.indexOf(o.name)>=0;}))return;
       allow['d:'+k]=1;
     });
     if(showCtl.jobs)Object.keys(model.jobs).forEach(function(k){
@@ -2052,7 +2222,7 @@ function App(){
     if(st.viewMode)setViewMode(st.viewMode);
     if(st.theme){setTheme(st.theme);document.documentElement.setAttribute('data-theme',st.theme);}
     setHiddenNs(st.hiddenNs||{});setExpGroups(st.expGroups||{});
-    setFilters(st.filters||{system:'',namespace:'',domain:'',owner:''});
+    setFilters(normFilters(st.filters));
     setShowCtl(st.showCtl||{datasets:true,jobs:true,xsys:true,collinks:true});
     setFocusMode(!!st.focusMode);setFocusSeed(st.focusSeed||null);setFocusExpanded(st.focusExpanded||{});
     setManualPos(st.manual||{});
@@ -2367,9 +2537,13 @@ function App(){
   // Header row + example rows + one validation per column, driven by the same
   // FIELDS/PROCESS_FIELDS arrays the importer validates against — so the template
   // can never drift from the parser.
+  // `examples` are keyed by field key, not positional — a 27-column template is
+  // far too easy to mis-align by hand, and this stays correct if the order moves.
   function xlTemplateSheet(fields,examples){
     var head=fields.map(function(f){return {v:f.label,s:1};});
-    var rows=[head].concat(examples.map(function(ex){return ex.map(function(v){return {v:v,s:3};});}));
+    var rows=[head].concat(examples.map(function(ex){
+      return fields.map(function(f){return {v:(ex[f.key]==null?'':ex[f.key]),s:3};});
+    }));
     var dvs=fields.map(function(f,i){
       var doc=ME.TEMPLATE_DOC[f.key]||{},c=colRef(i);
       var prompt=(doc.desc||f.label)+(doc.ex?('\n\nExample: '+doc.ex):'')+
@@ -2384,7 +2558,8 @@ function App(){
       {name:'MappingTypes',values:Object.keys(ME.MAPPING_TYPES)},
       {name:'Booleans',values:ME.BOOL_VALUES},
       {name:'LineageTypes',values:ME.LINEAGE_TYPES},
-      {name:'ObjectTypes',values:ME.OBJECT_TYPES}
+      {name:'ObjectTypes',values:ME.OBJECT_TYPES},
+      {name:'AssetPrefixes',values:ME.ASSET_PREFIXES}
     ];
     // Lists sheet — one column per enumeration; defined names point at each range.
     var maxLen=0;lists.forEach(function(l){maxLen=Math.max(maxLen,l.values.length);});
@@ -2425,12 +2600,37 @@ function App(){
       {name:'Start here',xml:xlSheet(startRows,[26,96],null,0)},
       {name:'Field guide',xml:xlSheet(guideRows,[17,26,15,20,64,26,44],null,1)},
       {name:'Process lineage',xml:xlTemplateSheet(ME.PROCESS_FIELDS,[
-        ['load_orders','MAP-001','Design','','TABLE','postgres','db.prod.internal','5432','public.orders','order_id','','','DIRECT','','TABLE','snowflake','acme.eu-west-1','','analytics.fct_orders','order_key','SAP ECC','Snowflake EDW'],
-        ['load_orders','MAP-002','Design','','TABLE','postgres','db.prod.internal','5432','public.orders','amount','AGGREGATION','GROUP BY customer_id','DERIVED','SUM(amount)','TABLE','snowflake','acme.eu-west-1','','analytics.fct_orders','total_amount','SAP ECC','Snowflake EDW']
+        {processName:'load_orders',lineageId:'MAP-001',lineageType:'Design',sourceObjectType:'TABLE',
+         sourceTech:'postgres',sourceHost:'db.prod.internal',sourcePort:'5432',sourceDataset:'public.orders',sourceField:'order_id',
+         columnTransformationType:'DIRECT',targetObjectType:'TABLE',targetTech:'snowflake',targetHost:'acme.eu-west-1',
+         targetDataset:'analytics.fct_orders',targetField:'order_key',sourceDomain:'SAP ECC',targetDomain:'Snowflake EDW'},
+        {processName:'load_orders',lineageId:'MAP-002',lineageType:'Design',sourceObjectType:'TABLE',
+         sourceTech:'postgres',sourceHost:'db.prod.internal',sourcePort:'5432',sourceDataset:'public.orders',sourceField:'amount',
+         tableTransformationType:'AGGREGATION',tableTransformationLogic:'GROUP BY customer_id',
+         columnTransformationType:'DERIVED',columnTransformationLogic:'SUM(amount)',
+         targetObjectType:'TABLE',targetTech:'snowflake',targetHost:'acme.eu-west-1',
+         targetDataset:'analytics.fct_orders',targetField:'total_amount',sourceDomain:'SAP ECC',targetDomain:'Snowflake EDW'}
       ])},
       {name:'Column mapping',xml:xlTemplateSheet(ME.FIELDS,[
-        ['Oracle ERP','SALES','ORDERS','ORDER_ID','Snowflake','ANALYTICS','FCT_ORDERS','ORDER_KEY','','bigint','FALSE','direct','Oracle ERP','Snowflake EDW'],
-        ['Oracle ERP','SALES','CUSTOMERS','CUSTOMER_NAME','Snowflake','ANALYTICS','DIM_CUSTOMER','CUSTOMER_NAME','UPPER(TRIM(customer_name))','varchar','TRUE','derived','Oracle ERP','Snowflake EDW']
+        // A straight copy at the first hop, from the physical element of origin.
+        {lineageId:'LIN-000123',cde:'FCT_ORDERS.ORDER_KEY',
+         targetAssetId:'APP-04417',targetDomain:'Snowflake EDW',targetDatabase:'ANALYTICS_PROD',targetSchema:'ANALYTICS',
+         targetTable:'FCT_ORDERS',targetColumn:'ORDER_KEY',targetObjectId:'DO-88231',targetSystem:'Snowflake',
+         dataType:'bigint',nullable:'FALSE',mappingType:'direct',transformation:'',
+         filterCriteria:"WHERE order_status = 'COMPLETE'",
+         sourceAssetId:'APP-01920',sourceDomain:'SAP ECC',sourceDatabase:'ERP_PROD',sourceSchema:'SALES',
+         sourceTable:'ORDERS',sourceColumn:'ORDER_ID',sourceObjectId:'DO-44107',sourceSystem:'Oracle ERP',
+         physicalOrigin:'Y',contactName:'Priya Raman',lineageDepth:'1',templateFile:'orders-lineage-v3.xlsx'},
+        // A derived field one hop further downstream, with the code location named.
+        {lineageId:'LIN-000124',cde:'DIM_CUSTOMER.CUSTOMER_NAME',
+         targetAssetId:'APP-04417',targetDomain:'Snowflake EDW',targetDatabase:'ANALYTICS_PROD',targetSchema:'ANALYTICS',
+         targetTable:'DIM_CUSTOMER',targetColumn:'CUSTOMER_NAME',targetObjectId:'DO-88245',targetSystem:'Snowflake',
+         dataType:'varchar',nullable:'TRUE',mappingType:'derived',
+         transformation:'UPPER(TRIM(customer_name)) — dbt model marts/dim_customer.sql',
+         filterCriteria:'',
+         sourceAssetId:'APP-01920',sourceDomain:'SAP ECC',sourceDatabase:'ERP_PROD',sourceSchema:'SALES',
+         sourceTable:'CUSTOMERS',sourceColumn:'CUSTOMER_NAME',sourceObjectId:'DO-44118',sourceSystem:'Oracle ERP',
+         physicalOrigin:'N',contactName:'Priya Raman',lineageDepth:'2',templateFile:'orders-lineage-v3.xlsx'}
       ])},
       {name:'Lists',xml:xlSheet(listRows,lists.map(function(){return 18;}),null,1)}
     ];
@@ -2561,6 +2761,18 @@ function App(){
         if(dim)op=0.1;
         var p=eg.append('path').attr('d',path(a,b)).attr('fill','none').attr('stroke',stroke).attr('stroke-width',w).attr('marker-end',marker).attr('opacity',op);
         if(dash)p.attr('stroke-dasharray',dash);
+        // Application hops: name the depth(s) carrying this source app -> target app.
+        if(e.hops&&e.hops.length&&!dim){
+          var lbl='depth '+e.hops.join(', ');
+          var mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;// anchors are [x,y] pairs
+          var tw=lbl.length*5.4+12;
+          eg.append('rect').attr('x',mx-tw/2).attr('y',my-8).attr('width',tw).attr('height',15)
+            .attr('rx',7).attr('fill',cv('--bg1','#161b2b')).attr('stroke',stroke)
+            .attr('stroke-width',0.8).attr('opacity',0.96);
+          eg.append('text').attr('x',mx).attr('y',my+2.5).attr('text-anchor','middle')
+            .attr('font-size',9).attr('font-family','inherit').attr('fill',stroke)
+            .attr('pointer-events','none').text(lbl);
+        }
       });
       // §8 per-transformation-class visual language for column edges
       var TXST={
@@ -3234,7 +3446,7 @@ function App(){
               fSel('Namespace','namespace',model.namespaces||[]),
               fSel('Application','domain',appOpts),
               fSel('Owner','owner',ownerOpts),
-              activeFilters?h('button',{className:'btn',style:{marginTop:9,width:'100%',justifyContent:'center'},onClick:function(){setFilters({system:'',namespace:'',domain:'',owner:''});}},'✕ Clear filters'):null,
+              activeFilters?h('button',{className:'btn',style:{marginTop:9,width:'100%',justifyContent:'center'},onClick:function(){setFilters({system:[],namespace:[],domain:[],owner:[]});}},'Clear all filters'):null,
               (window.LFStore&&window.LFStore.available)?h('button',{className:'savebtn',onClick:saveView,title:'Save the current filters, grouping and layout as a named view'},'+ Save filter view'):null)),
           // ---- View & grouping ----
           accSec('view','⊞','Grouping',(groupBy==='none'?'Flat':groupBy)+' · '+(viewMode==='column'?'Col':'Table'),
@@ -3676,22 +3888,34 @@ function App(){
             ['Zoom · Fit','Bottom-left controls: +, −, and fit-to-screen.'],
             ['◰ Radar','Bottom-right minimap of the whole layout; drag or click inside it to pan the main view.']]),
           sec('5 · Mapping pipeline (📊)',[
-            ['Templates','Two column layouts auto-detected per worksheet: A) Source→Target mapping, and B) Process lineage. Row 1 = headers; headers match case/space/underscore-insensitively with aliases.'],
+            ['Templates','Two column layouts auto-detected per worksheet: A) Source→Target mapping — 27 columns covering the mapping plus lineage identity, asset references and ownership; and B) Process lineage — 22 columns organised around the ETL process. Row 1 = headers; headers match case/space/underscore-insensitively with aliases.'],
             ['Validate','Per-row checks produce a gap report (ERRORs exclude a row; WARNINGs do not). The detected template is shown per sheet.'],
             ['Generate','Valid rows → OpenLineage events, rendered here. Design rows → static JobEvent; RunTime rows → RunEvent.'],
             ['Export','OpenLineage JSON, column-lineage CSV, gap report (JSON/CSV/XLSX), or a ZIP (per-job folders + summary).'],
             ['Publish to GitLab','Export OL Events → GitLab commits the events straight to a branch. A pre-publication checklist covers outstanding issues, repository, branch, path, and token scope before Push enables; editing any of those clears it.'],
+            ['Custom facets','Beyond the standard schema, columnLineage, documentation, datasetType and sql facets, LineageFlow emits three of its own: application (owning asset name), asset (register id, data object id, database) and mappingMetadata (per target field: lineage id, CDE, filter criteria, origin flag, contact, depth, template file). All declare _producer and _schemaURL, so consumers that do not know them can ignore them.'],
             ['Full reference','docs/import-mapping-specification.md — every column, alias, rule, and the exact OpenLineage mapping.']]),
-          sec('5a · Template A — Source→Target (columns, * = required value)',[
-            ['Source System *','Source platform (Oracle, Snowflake…) → namespace scheme  <system>://<schema>.'],
-            ['Source Schema','→ namespace + dataset name (warn if empty).'],
-            ['Source Table *','→ source dataset name  schema.table.'],
-            ['Source Column *','→ columnLineage input field.'],
-            ['Target System/Schema/Table/Column *','As source, for the output. Target Table also names the job (map.<table>).'],
-            ['Transformation Logic','Optional — empty = DIRECT/IDENTITY copy. Classified to OL {type,subtype}; drives the SQL facet.'],
+          sec('5a · Template A — Source→Target (27 columns, * = required value)',[
+            ['Lineage ID','Per-row sequence number. Must be unique across the sheet — a repeat, or a blank, warns, because it is what traces an answer back to the row it came from.'],
+            ['CDE Associated with Row','The critical data element this row produces, as <table>.<field>. Leave blank and it is derived from the target table and field.'],
+            ['Source/Target Asset ID','Asset-register id. Prefix APP- (application), MOD- (model), EUC- (end-user computing); anything else warns. → asset facet.'],
+            ['Source/Target Asset Name','The asset behind that id. This is the same column that drives Group by > Application. → application + asset facets.'],
+            ['Source/Target Database','Database or catalog holding the table. Optional — leave blank where the platform has no database layer.'],
+            ['Source/Target Schema / Folder','Schema, or folder structure, holding the table or file. → namespace + dataset name (warn if empty).'],
+            ['Source/Target Table / File *','→ dataset name  schema.table. Target Table also names the job (map.<table>).'],
+            ['Source/Target Field *','→ columnLineage input and output fields.'],
+            ['For Source/Target: Unique Data Object ID','Data object inventory id for each side. → asset facet (dataObjectId).'],
+            ['Source/Target System *','Platform (Oracle, Snowflake…) → namespace scheme  <system>://<schema>.'],
             ['Data Type','→ output schema field type (warn if empty).'],
             ['Nullable','Y/N · true/false · 1/0.'],
-            ['Mapping Type','DIRECT / DERIVED / LOOKUP / AGGREGATION / JOIN / EXPRESSION / CONSTANT …']]),
+            ['Mapping Type','DIRECT / DERIVED / LOOKUP / AGGREGATION / JOIN / EXPRESSION / CONSTANT …'],
+            ['Transformation','Field-level logic, plus the platform and code location where applicable. Empty = DIRECT/IDENTITY copy. Classified to OL {type,subtype}; drives the SQL facet.'],
+            ['Dataset / Field Level Filter Criteria','Filter applied to the source so only records of interest are processed. → mappingMetadata facet.'],
+            ['Physical Data Element of Origin (Y/N)','Y where the value is first created or digitised, with no lineage upstream of it. Non-boolean values warn.'],
+            ['Contact Name for Row','Who confirmed this flow, and who is contacted to re-validate it.'],
+            ['Lineage Depth','Hop number from the data flow diagram. Must be a whole number.'],
+            ['Lineage Template File','Which template workbook the row came from — provenance once rows are consolidated.'],
+            ['Backward compatible','Every governance column is optional. Workbooks written against the earlier 14-column layout still validate unchanged, and the old header names are still accepted as aliases.']]),
           sec('5b · Template B — Process Lineage (columns, * = required value)',[
             ['ProcessName *','→ OpenLineage job name.'],
             ['LineageType','Design (default) → static JobEvent (design-time); RunTime → RunEvent (runtime).'],
