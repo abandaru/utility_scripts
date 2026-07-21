@@ -1940,7 +1940,8 @@ function App(){
   var s_help=useState(false),helpOpen=s_help[0],setHelpOpen=s_help[1];
   var s_events=useState([]),events=s_events[0],setEvents=s_events[1];// raw loaded OpenLineage events (for export)
   var s_startMenu=useState(null),startMenu=s_startMenu[0],setStartMenu=s_startMenu[1];
-  var s_imgMenu=useState(false),imgMenu=s_imgMenu[0],setImgMenu=s_imgMenu[1];// Save Image format menu// 'create' | 'view' | null — open Start here dropdown
+  var s_imgMenu=useState(false),imgMenu=s_imgMenu[0],setImgMenu=s_imgMenu[1];// Save Image format menu
+  var s_showAllBig=useState(false),showAllBig=s_showAllBig[0],setShowAllBig=s_showAllBig[1];// user overrode the large-graph guard// 'create' | 'view' | null — open Start here dropdown
   var s_exOpen=useState(false),exOpen=s_exOpen[0],setExOpen=s_exOpen[1];// Export OL Events modal
   var s_exDest=useState('zip'),exDest=s_exDest[0],setExDest=s_exDest[1];// 'zip' | 'folder' | 'gitlab'
   var s_exBusy=useState(false),exBusy=s_exBusy[0],setExBusy=s_exBusy[1];
@@ -2179,7 +2180,7 @@ function App(){
     {id:'system',groupBy:'system',view:'table',label:'System',hint:'One node per platform (Snowflake, Oracle, S3\u2026).'},
     {id:'namespace',groupBy:'namespace',view:'table',label:'Namespace',hint:'One node per OpenLineage namespace.'},
     {id:'table',groupBy:'none',view:'table',label:'Table',hint:'Every dataset and job, without column detail.'},
-    {id:'column',groupBy:'none',view:'column',label:'Column',hint:'Datasets expand to fields, with column-level edges.'}
+    {id:'column',groupBy:'none',view:'column',label:'Column',hint:'Datasets expand to show their columns, with column-level edges. Click a column to highlight its upstream and downstream.'}
   ];
   function currentLevel(){
     for(var i=0;i<LINEAGE_LEVELS.length;i++){
@@ -2191,9 +2192,14 @@ function App(){
   function setLevel(id){
     var L=null;LINEAGE_LEVELS.forEach(function(x){if(x.id===id)L=x;});
     if(!L)return;
+    setShowAllBig(false);// each level gets its own size decision
     changeGroupBy(L.groupBy);
     setViewMode(L.view);
   }
+  // Above this, a level is rendered as a focused subgraph rather than in full:
+  // a canvas of several thousand boxes is unreadable and slow, and the useful
+  // question at that size is always "what connects to this one thing?".
+  var BIG_GRAPH=160;
   // How many nodes that level would draw — shown on the rung so the cost of
   // going finer is visible before the click, not after the canvas fills.
   function levelCount(id){
@@ -3790,6 +3796,7 @@ function App(){
               h('input',{type:'range',min:1,max:10,value:tdepth,onChange:function(e){setTdepth(parseInt(e.target.value,10));}}),
               h('b',null,tdepth)),
             h('button',{className:'close',onClick:clearImpact,title:'Clear analysis','aria-label':'Clear impact analysis'},'×')),
+          renderBigGraphGuard(),
           h('div',{className:'zoom-ctl'},
             h('button',{title:'Zoom in (+)','aria-label':'Zoom in',onClick:function(){zoomBy(1.3);}},'+'),
             h('button',{title:'Zoom out (−)','aria-label':'Zoom out',onClick:function(){zoomBy(0.77);}},'−'),
@@ -4087,8 +4094,11 @@ function App(){
             ['NAMESPACES','Toggle namespaces on/off to show or hide them on the canvas.']]),
           sec('3 · Left rail',[
             ['Overview','Live counts (datasets, jobs, namespaces, systems, edges, column links, issues). Click a stat to jump to its tab.'],
-            ['Lineage view','Table = dataset/job level only. Column = expand datasets to show column lineage.'],
-            ['Group by','None (flat), Namespace, System, or Application. Grouped nodes collapse; click to drill down.'],
+            ['Lineage level','One ladder from coarse to fine: Application \u2192 System \u2192 Namespace \u2192 Table \u2192 Column. Each rung shows how many nodes it would draw, so the cost of going finer is visible before you click. Replaces the old separate Group-by and Lineage-view toggles.'],
+            ['Application / System / Namespace','One node per application, platform or namespace. Click a node to inspect it, drill into its members, or trace impact from the group as a whole. Application edges are labelled with the Lineage Depth values from the mapping template.'],
+            ['Table','Every dataset and job, without column detail. Click a dataset to expand its columns inline.'],
+            ['Column','Datasets expand to show their columns. Click a column to highlight its full upstream and downstream chain across tables.'],
+            ['Filters','System, Application, Namespace and Owner are multi-select with All / None. An empty selection means no filter on that attribute; None clears back to that. Selections are OR within an attribute and AND across attributes.'],
             ['Explore (focus)','Progressive exploration for large graphs — render only a seed node and reveal neighbours 10 at a time (opt-in; best for very large graphs).'],
             ['Node spacing','Slider to spread nodes; Reset arrangement clears manual drags.'],
             ['Legend','Node/edge and column-transformation styling reference.']]),
@@ -4097,7 +4107,8 @@ function App(){
             ['Search','Top bar — jumps to and centres the first matching dataset, job, or column.'],
             ['Impact','Right-click a node (or use DETAILS buttons) → trace downstream Impact or upstream Root cause.'],
             ['Column lineage','In Column view, click a dataset column to highlight its full transitive lineage across nodes.'],
-            ['Zoom · Fit','Bottom-left controls: +, −, and fit-to-screen.'],
+            ['Zoom \u00b7 Fit','Bottom-left controls: +, \u2212, and fit-to-screen.'],
+            ['Large graphs','Above ~160 nodes at the chosen level, the canvas offers to trace outward from the busiest node rather than drawing everything. Search for a specific node, step up to a coarser level, or override and draw it all.'],
             ['◰ Radar','Bottom-right minimap of the whole layout; drag or click inside it to pan the main view.']]),
           sec('5 · Mapping pipeline (📊)',[
             ['Templates','Two column layouts auto-detected per worksheet: A) Source→Target mapping — 27 columns covering the mapping plus lineage identity, asset references and ownership; and B) Process lineage — 22 columns organised around the ETL process. Row 1 = headers; headers match case/space/underscore-insensitively with aliases.'],
@@ -4150,7 +4161,8 @@ function App(){
           sec('6 · Persistence & sharing',[
             ['💾 Save view','Store the current grouping, layout, focus, theme, and positions; reopen later from the Library.'],
             ['📤 Export OL Events','Bundle the validated OpenLineage events and download as ZIP, write to a local folder, or commit to a GitLab repository.'],
-            ['PNG','Export the current canvas as an image.'],
+            ['Save Image','SVG keeps the diagram vector \u2014 sharp at any zoom, text still selectable and searchable. PNG is offered at 3x for slides, 1x for a quick paste. Both crop to the drawing rather than the window.'],
+            ['Persistence','Loaded and generated models are cached in this browser (IndexedDB) and reopen from the Library.'],
             ['Theme','🌙 / ☀️ toggles light and dark.']])
         )));
   }
@@ -4209,6 +4221,46 @@ function App(){
           'ProcessName plus the technology/host columns that Template A does not have.',
           'LineageType Design or RunTime; RunId present for RunTime rows; ports numeric.')),
       h('div',{className:'muted',style:{marginTop:7}},'Headers match case-, space- and punctuation-insensitively, and common aliases are accepted. Keep one template per worksheet — mixing columns from both confuses detection.'));
+  }
+
+  // §Large-graph guard. Trips on the node count for the level the user is on.
+  // Not a hard block: it seeds a trace from the busiest node so there is
+  // something meaningful on screen, and offers the full render as an escape.
+  // The node with the most connections — the most useful default seed.
+  function busiestNode(){
+    if(!model)return null;
+    var deg={};
+    model.edges.forEach(function(e){deg[e.from]=(deg[e.from]||0)+1;deg[e.to]=(deg[e.to]||0)+1;});
+    var best=null,bn=-1;
+    Object.keys(deg).forEach(function(id){if(deg[id]>bn){bn=deg[id];best=id;}});
+    return best;
+  }
+  function guardTrace(){
+    var seed=busiestNode();
+    if(!seed)return;
+    setImpact({mode:'down',startId:seed});
+    setTdepth(Math.min(tdepth,2));
+    var kind=seed[0]==='d'?'dataset':'job';
+    setSelected({kind:kind,key:seed.slice(2)});
+    setPanelOpen(true);setTab('DETAILS');
+  }
+  function renderBigGraphGuard(){
+    // Computed here, not in a hook: this function is defined below App's return,
+    // so a useMemo at this point would never run and would silently read undefined.
+    if(!model||impact||focusMode||showAllBig)return null;
+    var levelSize=levelCount(currentLevel());
+    if(typeof levelSize!=='number'||levelSize<=BIG_GRAPH)return null;
+    return h('div',{style:{position:'absolute',left:'50%',top:24,transform:'translateX(-50%)',zIndex:14,
+      width:'min(430px,92%)',background:'var(--bg1)',border:'1px solid var(--orange)',borderRadius:10,
+      padding:'12px 14px',boxShadow:'var(--shadow-md)'}},
+      h('div',{style:{fontSize:12,color:'var(--t0)',fontWeight:600,marginBottom:4}},
+        levelSize.toLocaleString()+' nodes at this level'),
+      h('div',{className:'muted',style:{lineHeight:1.6,marginBottom:9}},
+        'Drawing them all at once is slow and hard to read. Trace outward from one node instead, or pick a coarser level on the ladder.'),
+      h('div',{style:{display:'flex',gap:7,flexWrap:'wrap'}},
+        h('button',{className:'btn primary',onClick:guardTrace},'Trace from the busiest node'),
+        h('button',{className:'btn',onClick:function(){var el=document.querySelector('.search input');if(el)el.focus();}},'Search for a node'),
+        h('button',{className:'btn',onClick:function(){setShowAllBig(true);}},'Draw all '+levelSize.toLocaleString())));
   }
 
   function renderMapModal(){
