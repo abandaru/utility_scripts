@@ -973,18 +973,18 @@ select.finput{cursor:pointer}
   //               those aliases moved here or the two would bind to one field.
   var FIELDS=[
     {key:'lineageId',label:'Lineage ID',req:false,val:'warn',aliases:['lineageid','lineageno','lineageserial','serialnumber','srno','rowid']},
-    {key:'cde',label:'CDE Associated with Row',req:false,val:'none',aliases:['cdeassociatedwithrow','cde','criticaldataelement','cdename']},
+    {key:'cde',label:'CDE associated with row',req:false,val:'none',aliases:['cdeassociatedwithrow','cde','criticaldataelement','cdename']},
     {key:'targetAssetId',label:'Target Asset ID',req:false,val:'none',aliases:['targetassetid','tgtassetid','targetasset','targetapplicationid']},
     {key:'targetDomain',label:'Target Asset Name',req:false,val:'none',aliases:['targetassetname','tgtassetname','targetapplication','tgtapplication','targetapp','tgtapp','application','targetdomain','tgtdomain','targetbusinessdomain','domain','businessdomain']},
     {key:'targetDatabase',label:'Target Database',req:false,val:'none',aliases:['targetdatabase','targetdatabaseifapplicable','tgtdatabase','targetdb','tgtdb','targetcatalog']},
     {key:'targetSchema',label:'Target Schema / Folder',req:true,val:'warn',aliases:['targetschemafolder','targetschemafolderifapplicable','targetschema','tgtschema','targetfolder','targetfolderstructure']},
     {key:'targetTable',label:'Target Table / File',req:true,val:'error',aliases:['targettablefile','targettable','tgttable','targetfile','targetentity','targetobject']},
     {key:'targetColumn',label:'Target Field',req:true,val:'error',aliases:['targetfield','targetcolumn','tgtcolumn','tgtfield','targetattribute']},
-    {key:'targetObjectId',label:'For Target: Unique Data Object ID',req:false,val:'none',aliases:['fortargetuniquedataobjectid','targetuniquedataobjectid','targetdataobjectid','targetobjectid','tgtobjectid']},
-    {key:'targetSystem',label:'Target System',req:true,val:'error',aliases:['targetsystem','tgtsystem','targetsys','targetplatform']},
-    {key:'dataType',label:'Data Type',req:true,val:'warn',aliases:['datatype','type','columntype','targetdatatype']},
-    {key:'nullable',label:'Nullable',req:true,val:'none',aliases:['nullable','isnullable','null','nullability']},
-    {key:'mappingType',label:'Mapping Type',req:true,val:'none',aliases:['mappingtype','maptype','mappingcategory']},
+    {key:'targetObjectId',label:'For Target: Unique Data Object Id',req:false,val:'none',aliases:['fortargetuniquedataobjectid','targetuniquedataobjectid','targetdataobjectid','targetobjectid','tgtobjectid']},
+    {key:'targetSystem',label:'Target System',req:false,val:'none',aliases:['targetsystem','tgtsystem','targetsys','targetplatform']},
+    {key:'dataType',label:'Data Type',req:false,val:'none',aliases:['datatype','type','columntype','targetdatatype']},
+    {key:'nullable',label:'Nullable',req:false,val:'none',aliases:['nullable','isnullable','null','nullability']},
+    {key:'mappingType',label:'Mapping Type',req:false,val:'none',aliases:['mappingtype','maptype','mappingcategory']},
     {key:'transformation',label:'Transformation',req:false,val:'none',aliases:['transformation','transformationlogic','transform','transformationrule','mappingrule','transformationdescription','derivation','businessrule']},
     {key:'filterCriteria',label:'Dataset / Field Level Filter Criteria',req:false,val:'none',aliases:['datasetfieldlevelfiltercriteria','datasetfiledlevelfiltercriteria','filtercriteria','filter','rowfilter','selectioncriteria']},
     {key:'sourceAssetId',label:'Source Asset ID',req:false,val:'none',aliases:['sourceassetid','srcassetid','sourceasset','sourceapplicationid']},
@@ -993,10 +993,10 @@ select.finput{cursor:pointer}
     {key:'sourceSchema',label:'Source Schema / Folder',req:true,val:'warn',aliases:['sourceschemafolder','sourceschemafolderstructuredetails','sourceschemafolderstructuredetailsifapplicable','sourceschema','srcschema','sourcefolder','sourcefolderstructure']},
     {key:'sourceTable',label:'Source Table',req:true,val:'error',aliases:['sourcetable','srctable','sourcefile','sourceentity','sourceobject']},
     {key:'sourceColumn',label:'Source Field',req:true,val:'error',aliases:['sourcefield','sourcecolumn','srccolumn','srcfield','sourceattribute']},
-    {key:'sourceObjectId',label:'For Source: Unique Data Object ID',req:false,val:'none',aliases:['forsourceuniquedataobjectid','sourceuniquedataobjectid','sourcedataobjectid','sourceobjectid','srcobjectid']},
-    {key:'sourceSystem',label:'Source System',req:true,val:'error',aliases:['sourcesystem','srcsystem','sourcesys','sourceplatform']},
+    {key:'sourceObjectId',label:'For Source: Unique Data Object Id',req:false,val:'none',aliases:['forsourceuniquedataobjectid','sourceuniquedataobjectid','sourcedataobjectid','sourceobjectid','srcobjectid']},
+    {key:'sourceSystem',label:'Source System',req:false,val:'none',aliases:['sourcesystem','srcsystem','sourcesys','sourceplatform']},
     {key:'physicalOrigin',label:'Physical Data Element of Origin (Y/N)',req:false,val:'none',aliases:['physicaldataelementoforiginyn','physicaldataelementoforigin','physicalorigin','elementoforigin','isoriginyn','isorigin']},
-    {key:'contactName',label:'Contact Name for Row',req:false,val:'none',aliases:['contactnameforrow','contactname','contact','datasteward','steward','confirmedby']},
+    {key:'contactName',label:'Contact Name for row',req:false,val:'none',aliases:['contactnameforrow','contactname','contact','datasteward','steward','confirmedby']},
     {key:'lineageDepth',label:'Lineage Depth',req:false,val:'none',aliases:['lineagedepth','depth','hopid','hop','hopnumber']},
     {key:'templateFile',label:'Lineage Template File',req:false,val:'none',aliases:['lineagetemplatefile','templatefile','sourcetemplatefile','templatename']}
   ];
@@ -1163,7 +1163,10 @@ select.finput{cursor:pointer}
       if(!f){unexpected.push({index:i,header:s});return;}
       if(seen[f.key]!=null){duplicates.push({key:f.key,label:f.label,index:i});return;}
       seen[f.key]=i;map[f.key]=i;
-      if(s!==f.label)caseMismatches.push({index:i,header:s,expected:f.label});
+      // Only flag headers that are the canonical label in different case or
+      // spacing. A header that matched through an accepted alias is a different
+      // wording, not a mistake, and warning on it buries the real gaps.
+      if(s!==f.label&&normKey(s)===normKey(f.label))caseMismatches.push({index:i,header:s,expected:f.label});
     });
     var missing=tmpl.fields.filter(function(f){return f.req&&map[f.key]==null;}).map(function(f){return f.label;});
     return{map:map,duplicates:duplicates,blanks:blanks,unexpected:unexpected,caseMismatches:caseMismatches,missing:missing,mapped:Object.keys(map).length};
@@ -1177,12 +1180,27 @@ select.finput{cursor:pointer}
     var chosen,trial;
     if(opts.template&&TEMPLATES[opts.template]){chosen=opts.template;trial=buildMap(headers,TEMPLATES[chosen]);}
     else{
-      var best=null;
-      Object.keys(TEMPLATES).forEach(function(id){
+      // Scoring. "Fewest missing required" alone is fragile: a sheet can be short
+      // a few columns of its own template yet accidentally satisfy more of the
+      // other one, and then the failure is reported against a template the author
+      // never used. Signature columns — the ones only that template has — settle
+      // it first, so the reported gaps always name the template actually in use.
+      var cands=Object.keys(TEMPLATES).map(function(id){
         var t=buildMap(headers,TEMPLATES[id]);
-        if(!best||t.missing.length<best.t.missing.length||(t.missing.length===best.t.missing.length&&t.mapped>best.t.mapped)){best={id:id,t:t};}
+        var sig=(TEMPLATES[id].signature||[]).filter(function(k){return t.map[k]!=null;}).length;
+        return {id:id,t:t,sig:sig,label:TEMPLATES[id].label};
       });
-      chosen=best.id;trial=best.t;
+      cands.sort(function(a,b){
+        if(b.sig!==a.sig)return b.sig-a.sig;                       // more signature columns wins
+        if(a.t.missing.length!==b.t.missing.length)return a.t.missing.length-b.t.missing.length;
+        return b.t.mapped-a.t.mapped;
+      });
+      chosen=cands[0].id;trial=cands[0].t;
+      var candidates=cands.map(function(c){
+        return {template:c.id,label:c.label,signatureMatched:c.sig,
+          signatureTotal:(TEMPLATES[c.id].signature||[]).length,
+          missing:c.t.missing,mapped:c.t.mapped};
+      });
     }
     var tmpl=TEMPLATES[chosen];
     var orderIssues=[];
@@ -1196,7 +1214,7 @@ select.finput{cursor:pointer}
     if(meta.merges&&meta.merges.length)structural.push({kind:'mergedCells',count:meta.merges.length});
     if(meta.hiddenCols&&meta.hiddenCols.length)structural.push({kind:'hiddenColumns',count:meta.hiddenCols.length});
     var ok=trial.missing.length===0&&trial.duplicates.length===0;
-    return{ok:ok,template:chosen,templateLabel:tmpl.label,map:trial.map,missing:trial.missing,unexpected:trial.unexpected,duplicates:trial.duplicates,blanks:trial.blanks,caseMismatches:trial.caseMismatches,orderIssues:orderIssues,structural:structural,sheetName:meta.sheetName||opts.sheetName||''};
+    return{ok:ok,template:chosen,templateLabel:tmpl.label,candidates:(typeof candidates!=='undefined'?candidates:null),map:trial.map,missing:trial.missing,unexpected:trial.unexpected,duplicates:trial.duplicates,blanks:trial.blanks,caseMismatches:trial.caseMismatches,orderIssues:orderIssues,structural:structural,sheetName:meta.sheetName||opts.sheetName||''};
   }
 
   function isBlank(v){return v==null||String(v).trim()==='';}
@@ -1266,6 +1284,8 @@ select.finput{cursor:pointer}
   var TEMPLATES={
     basic:{id:'basic',label:'Source→Target Mapping',fields:FIELDS,alias:mkAlias(FIELDS),
       identifiers:['sourceSchema','sourceTable','sourceColumn','targetSchema','targetTable','targetColumn'],
+      // Columns Template B does not have — their presence means this is a Template A sheet.
+      signature:['sourceSchema','targetSchema','sourceColumn','targetColumn','cde','lineageDepth','sourceAssetId','targetAssetId','physicalOrigin','contactName','filterCriteria','templateFile'],
       check:function(rec,gaps,er){
         if(rec.dataType&&!DATA_TYPES[normKey(rec.dataType).replace(/\(.*/,'')])gaps.push(gap(er,'WARNING','Data Type',rec.dataType,'known SQL type','invalid-data-type','Unrecognized data type "'+rec.dataType+'".','Use a standard SQL type (e.g. varchar, decimal, timestamp).'));
         if(rec.mappingType&&!MAPPING_TYPES[normKey(rec.mappingType)])gaps.push(gap(er,'WARNING','Mapping Type',rec.mappingType,'supported mapping type','unsupported-mapping-type','Unsupported mapping type "'+rec.mappingType+'".','Use DIRECT, DERIVED, LOOKUP, AGGREGATION, JOIN, EXPRESSION, or CONSTANT.'));
@@ -1290,8 +1310,12 @@ select.finput{cursor:pointer}
       },
       normalize:function(rec,er,opts){
         var tx=classifyTransformation(rec.transformation,rec.mappingType);
-        var sNs=nsFor(rec.sourceSystem,rec.sourceSchema),sName=nameFor(rec.sourceSchema,rec.sourceTable);
-        var tNs=nsFor(rec.targetSystem,rec.targetSchema),tName=nameFor(rec.targetSchema,rec.targetTable);
+        // System is optional. When it is absent, fall back to the asset name so
+        // namespaces stay meaningful (snowflakeedw://analytics) instead of every
+        // dataset collapsing under a single "unknown" scheme.
+        var sSys=rec.sourceSystem||rec.sourceDomain||'',tSys=rec.targetSystem||rec.targetDomain||'';
+        var sNs=nsFor(sSys,rec.sourceSchema),sName=nameFor(rec.sourceSchema,rec.sourceTable);
+        var tNs=nsFor(tSys,rec.targetSchema),tName=nameFor(rec.targetSchema,rec.targetTable);
         // A CDE identifies the element this row produces; derive it from the
         // target when the author left it blank rather than demanding it twice.
         var cde=String(rec.cde||'').trim()||((rec.targetTable&&rec.targetColumn)?(rec.targetTable+'.'+rec.targetColumn):'');
@@ -1308,6 +1332,8 @@ select.finput{cursor:pointer}
       }},
     process:{id:'process',label:'Process Lineage',fields:PROCESS_FIELDS,alias:mkAlias(PROCESS_FIELDS),
       identifiers:['sourceDataset','sourceField','targetDataset','targetField'],
+      // Columns Template A does not have — the process/technology/host triple.
+      signature:['processName','sourceTech','targetTech','sourceHost','targetHost','lineageType','runId','tableTransformationType','columnTransformationType'],
       check:function(rec,gaps,er){
         var lt=normKey(rec.lineageType);
         if(rec.lineageType&&lt!=='design'&&lt!=='runtime'&&lt!=='run')gaps.push(gap(er,'WARNING','LineageType',rec.lineageType,'Design or RunTime','invalid-lineage-type','Unrecognized LineageType "'+rec.lineageType+'".','Use Design or RunTime.'));
@@ -2421,7 +2447,8 @@ function App(){
       var sh=sel[i];setMapProg('Validating '+(i+1)+'/'+sel.length+': '+sh.name);await tick();
       var tv=ME.validateTemplate(sh.headers,{meta:sh.meta});
       if(!tv.ok){
-        templateFails.push({sheet:sh.name,missing:tv.missing,duplicates:tv.duplicates.map(function(d){return d.label;})});
+        templateFails.push({sheet:sh.name,missing:tv.missing,duplicates:tv.duplicates.map(function(d){return d.label;}),
+          chosen:tv.templateLabel,candidates:tv.candidates||[]});
         mlog('Template FAIL on "'+sh.name+'": missing ['+tv.missing.join(', ')+']','error');
         perSheet.push({sheet:sh.name,template:tv,rowResult:null});
         continue;
@@ -3897,14 +3924,14 @@ function App(){
             ['Full reference','docs/import-mapping-specification.md — every column, alias, rule, and the exact OpenLineage mapping.']]),
           sec('5a · Template A — Source→Target (27 columns, * = required value)',[
             ['Lineage ID','Per-row sequence number. Must be unique across the sheet — a repeat, or a blank, warns, because it is what traces an answer back to the row it came from.'],
-            ['CDE Associated with Row','The critical data element this row produces, as <table>.<field>. Leave blank and it is derived from the target table and field.'],
+            ['CDE associated with row','The critical data element this row produces, as <table>.<field>. Leave blank and it is derived from the target table and field.'],
             ['Source/Target Asset ID','Asset-register id. Prefix APP- (application), MOD- (model), EUC- (end-user computing); anything else warns. → asset facet.'],
             ['Source/Target Asset Name','The asset behind that id. This is the same column that drives Group by > Application. → application + asset facets.'],
             ['Source/Target Database','Database or catalog holding the table. Optional — leave blank where the platform has no database layer.'],
             ['Source/Target Schema / Folder','Schema, or folder structure, holding the table or file. → namespace + dataset name (warn if empty).'],
             ['Source/Target Table / File *','→ dataset name  schema.table. Target Table also names the job (map.<table>).'],
             ['Source/Target Field *','→ columnLineage input and output fields.'],
-            ['For Source/Target: Unique Data Object ID','Data object inventory id for each side. → asset facet (dataObjectId).'],
+            ['For Source/Target: Unique Data Object Id','Data object inventory id for each side. → asset facet (dataObjectId).'],
             ['Source/Target System *','Platform (Oracle, Snowflake…) → namespace scheme  <system>://<schema>.'],
             ['Data Type','→ output schema field type (warn if empty).'],
             ['Nullable','Y/N · true/false · 1/0.'],
@@ -3912,7 +3939,7 @@ function App(){
             ['Transformation','Field-level logic, plus the platform and code location where applicable. Empty = DIRECT/IDENTITY copy. Classified to OL {type,subtype}; drives the SQL facet.'],
             ['Dataset / Field Level Filter Criteria','Filter applied to the source so only records of interest are processed. → mappingMetadata facet.'],
             ['Physical Data Element of Origin (Y/N)','Y where the value is first created or digitised, with no lineage upstream of it. Non-boolean values warn.'],
-            ['Contact Name for Row','Who confirmed this flow, and who is contacted to re-validate it.'],
+            ['Contact Name for row','Who confirmed this flow, and who is contacted to re-validate it.'],
             ['Lineage Depth','Hop number from the data flow diagram. Must be a whole number.'],
             ['Lineage Template File','Which template workbook the row came from — provenance once rows are consolidated.'],
             ['Backward compatible','Every governance column is optional. Workbooks written against the earlier 14-column layout still validate unchanged, and the old header names are still accepted as aliases.']]),
@@ -3968,6 +3995,37 @@ function App(){
     return Object.keys(m).sort().map(function(v){return {v:v,n:m[v]};});
   }
 
+  // What each template is checked against, shown before upload so the rules are
+  // knowable up front rather than discovered from a failure. Generated from the
+  // field definitions, so it cannot drift from what the validator enforces.
+  function renderTemplateChecks(){
+    var ME2=window.MappingEngine;
+    function block(label,fields,signature,extras){
+      var req=fields.filter(function(f){return f.req;}).map(function(f){return f.label;});
+      return h('div',{style:{flex:'1 1 260px',minWidth:0,border:'1px solid var(--border)',borderRadius:8,padding:'9px 11px'}},
+        h('div',{style:{fontSize:11,fontWeight:600,color:'var(--t0)',marginBottom:5}},label),
+        h('div',{className:'muted',style:{lineHeight:1.6}},
+          h('b',{style:{color:'var(--t2)'}},'Required headers ('+req.length+'): '),req.join(', ')),
+        h('div',{className:'muted',style:{lineHeight:1.6,marginTop:4}},
+          h('b',{style:{color:'var(--t2)'}},'Recognised by: '),signature),
+        h('div',{className:'muted',style:{lineHeight:1.6,marginTop:4}},
+          h('b',{style:{color:'var(--t2)'}},'Row checks: '),extras),
+        h('div',{className:'muted',style:{lineHeight:1.6,marginTop:4}},
+          h('b',{style:{color:'var(--t2)'}},'Total columns: '),fields.length+' (the rest are optional)'));
+    }
+    return h('div',{style:{marginTop:10}},
+      h('div',{className:'sec-label',style:{marginTop:0}},'Template requirements'),
+      h('div',{className:'muted',style:{marginBottom:7}},'Each worksheet is matched to one template automatically. A header row missing any required column below stops that worksheet — no events are generated from it.'),
+      h('div',{style:{display:'flex',gap:10,flexWrap:'wrap'}},
+        block('A · Source→Target Mapping',ME2.FIELDS,
+          'Schema, Table and Field on both sides, plus governance columns (CDE, Asset ID, Lineage Depth) that Template B does not have.',
+          'Lineage ID unique; Asset IDs prefixed APP/MOD/EUC; Physical Origin Y/N; Lineage Depth numeric; CDE as <table>.<field>; known data type and mapping type.'),
+        block('B · Process Lineage',ME2.PROCESS_FIELDS,
+          'ProcessName plus the technology/host columns that Template A does not have.',
+          'LineageType Design or RunTime; RunId present for RunTime rows; ports numeric.')),
+      h('div',{className:'muted',style:{marginTop:7}},'Headers match case-, space- and punctuation-insensitively, and common aliases are accepted. Keep one template per worksheet — mixing columns from both confuses detection.'));
+  }
+
   function renderMapModal(){
     var sum=mapVal&&mapVal.summary;
     var canValidate=mapSheets.length&&Object.keys(mapSel).length&&!mapBusy;
@@ -4001,7 +4059,8 @@ function App(){
               h('div',{className:'muted'},'.xlsx, .xls, or .xlsm — one or many worksheets. Rows are source→target column mappings.')),
             h('div',{style:{display:'flex',alignItems:'center',gap:8,marginTop:10,padding:'9px 11px',border:'1px dashed var(--border)',borderRadius:8}},
               h('span',{style:{fontSize:11,color:'var(--t2)',flex:1}},'Starting from scratch? The template documents every column, with examples and dropdowns.'),
-              h('button',{className:'btn',style:{flexShrink:0},onClick:downloadTemplate},'⬇ Download template'))),
+              h('button',{className:'btn',style:{flexShrink:0},onClick:downloadTemplate},'⬇ Download template')),
+            renderTemplateChecks()),
           // Step 2: worksheet select + validate
           mapSheets.length?h(React.Fragment,null,
             h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
@@ -4034,9 +4093,20 @@ function App(){
           // Template failures
           mapVal&&mapVal.templateFails.length?h('div',{style:{background:'rgba(255,95,95,0.1)',border:'1px solid var(--red)',borderRadius:8,padding:'10px 12px',margin:'12px 0',fontSize:11}},
             h('div',{style:{color:'var(--red)',fontWeight:600,marginBottom:6}},'⚠ Template validation failed'),
-            mapVal.templateFails.map(function(t,i){return h('div',{key:i,style:{marginBottom:4}},
-              h('b',null,t.sheet),': ',t.missing.length?('missing ['+t.missing.join(', ')+']'):'',t.duplicates.length?(' duplicate ['+t.duplicates.join(', ')+']'):'');}),
-            h('div',{className:'muted',style:{marginTop:6}},'No OpenLineage events are generated for worksheets that fail the template.')):null,
+            mapVal.templateFails.map(function(t,i){return h('div',{key:i,style:{marginBottom:8}},
+              h('div',null,h('b',null,t.sheet),' — read as ',h('b',null,t.chosen),'. ',
+                t.missing.length?('Missing ['+t.missing.join(', ')+']'):'',
+                t.duplicates.length?(' Duplicate ['+t.duplicates.join(', ')+']'):''),
+              // Why this template: show what each candidate matched, so a sheet is
+              // never reported against columns belonging to the other template
+              // without the reader being able to see how that happened.
+              (t.candidates&&t.candidates.length)?h('div',{style:{marginTop:4,paddingLeft:10,borderLeft:'2px solid var(--border)'}},
+                t.candidates.map(function(c,ci){
+                  return h('div',{key:ci,className:'muted',style:{lineHeight:1.6}},
+                    (ci===0?'▸ ':'  '),c.label,' — ',c.signatureMatched,'/',c.signatureTotal,' signature columns, ',
+                    c.missing.length?(c.missing.length+' required missing'):'all required present');
+                })):null);}),
+            h('div',{className:'muted',style:{marginTop:6}},'No OpenLineage events are generated for worksheets that fail the template. Match the required columns for the template you are using — see “Template requirements” above.')):null,
           // Validation summary + gap table
           sum?h(React.Fragment,null,
             mapVal.perSheet&&mapVal.perSheet.length?h('div',{style:{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10,fontSize:10}},
